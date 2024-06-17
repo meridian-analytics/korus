@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KetosAM Documentation &mdash; ketosam 0.0.6 documentation</title>
+  <title>Korus Documentation &mdash; korus 0.0.6 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
       <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=fd3f3429" />
@@ -27,7 +27,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Briefly about KetosAM" href="introduction.html" /> 
+    <link rel="next" title="Briefly about korus" href="introduction.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -37,7 +37,7 @@
         <div class="wy-side-nav-search"  style="background: white" >
 
     
-    <a href="#" class="icon icon-home"> ketosam
+    <a href="#" class="icon icon-home"> korus
     
 
     
@@ -67,7 +67,7 @@
 
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul>
-<li class="toctree-l1"><a class="reference internal" href="introduction.html">Briefly about KetosAM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Briefly about korus</a></li>
 <li class="toctree-l1"><a class="reference internal" href="introduction.html#usage">Usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="introduction.html#getting-started">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="introduction.html#code-examples">Code Examples</a></li>
@@ -89,7 +89,7 @@
 
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: white" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="#">ketosam</a>
+          <a href="#">korus</a>
       </nav>
 
       <div class="wy-nav-content">
@@ -97,7 +97,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">KetosAM Documentation</li>
+      <li class="breadcrumb-item active">korus Documentation</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -107,15 +107,15 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="ketosam-documentation">
-<h1>KetosAM Documentation<a class="headerlink" href="#ketosam-documentation" title="Link to this heading"></a></h1>
-<p>Welcome to KetosAM, a Python package for managing acoustic annotations.</p>
-<section id="briefly-about-ketosam">
-<h2>Briefly about KetosAM<a class="headerlink" href="#briefly-about-ketosam" title="Link to this heading"></a></h2>
-<p>KetosAM was designed with machine-learning applications in mind. Specifically,
+  <section id="korus-documentation">
+<h1>korus Documentation<a class="headerlink" href="#korus-documentation" title="Link to this heading"></a></h1>
+<p>Welcome to korus, a Python package for managing acoustic annotations.</p>
+<section id="briefly-about-korus">
+<h2>Briefly about korus<a class="headerlink" href="#briefly-about-korus" title="Link to this heading"></a></h2>
+<p>korus was designed with machine-learning applications in mind. Specifically,
 to help build training and test sets for advancing sound detection and
 classification models in underwater acoustics.</p>
-<p>KetosAM stores acoustic annotations and metadata in an SQLite database.
+<p>korus stores acoustic annotations and metadata in an SQLite database.
 The data are organized in several cross-referenced tables, the main
 tables being</p>
 <blockquote>
@@ -130,7 +130,7 @@ tables being</p>
 <li><p>tag: non-standardized tags used for annotating sound events</p></li>
 </ul>
 </div></blockquote>
-<p>The KetosAM Python API includes functions to facilitate common operations
+<p>The korus Python API includes functions to facilitate common operations
 on the database such as adding data and performing certain searches.
 However, it is also possible to interact directly with the database
 using standard SQLite syntax.</p>
@@ -139,24 +139,24 @@ taxonomies programmatically.</p>
 </section>
 <section id="usage">
 <h2>Usage<a class="headerlink" href="#usage" title="Link to this heading"></a></h2>
-<p>There are two ways to use KetosAM:</p>
+<p>There are two ways to use korus:</p>
 <blockquote>
 <div><ol class="arabic simple">
-<li><p>Write your own Python scripts using the KetosAM Python API</p></li>
-<li><p>Use the command-line tool <cite>ktam-submit</cite> included in KetosAM</p></li>
+<li><p>Write your own Python scripts using the korus Python API</p></li>
+<li><p>Use the command-line tool <cite>ktam-submit</cite> included in korus</p></li>
 </ol>
 </div></blockquote>
 </section>
 <section id="getting-started">
 <h2>Getting Started<a class="headerlink" href="#getting-started" title="Link to this heading"></a></h2>
-<p>To familiarize yourself with the KetosAM Python API we encourage you to
+<p>To familiarize yourself with the korus Python API we encourage you to
 explore the Jupyter notebooks <a class="reference internal" href="tutorials/index.html#tutorials-page"><span class="std std-ref">Tutorials</span></a>.</p>
 </section>
 <section id="code-examples">
 <h2>Code Examples<a class="headerlink" href="#code-examples" title="Link to this heading"></a></h2>
 <p>Import modules and connect to the database,</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">sqlite3</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">ketosam.db</span> <span class="k">as</span> <span class="nn">kdb</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">korus.db</span> <span class="k">as</span> <span class="nn">kdb</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">conn</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;db.sqlite&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -206,15 +206,15 @@ explore the Jupyter notebooks <a class="reference internal" href="tutorials/inde
 </section>
 <section id="cautionary-note">
 <h2>Cautionary Note<a class="headerlink" href="#cautionary-note" title="Link to this heading"></a></h2>
-<p>KetosAM is still in its infancy and under heavy development. We aim to have a first, stable
+<p>korus is still in its infancy and under heavy development. We aim to have a first, stable
 release out by the end of 2023, but until then users should be prepared for substantial and
 non-backward compatible changes to the code base. If you have any feedback for us, we would
 love to hear it. Please create an issue on the
-<a class="reference external" href="https://git-dev.cs.dal.ca/meridian/ketosam">KetosAM GitLab repository</a>.</p>
+<a class="reference external" href="https://git-dev.cs.dal.ca/meridian/korus">korus GitLab repository</a>.</p>
 </section>
 <section id="annotation-taxonomies">
 <h2>Annotation Taxonomies<a class="headerlink" href="#annotation-taxonomies" title="Link to this heading"></a></h2>
-<p>KetosAM gives users the freedom to create their own annotation taxonomies,
+<p>korus gives users the freedom to create their own annotation taxonomies,
 with two structural constraints:</p>
 <blockquote>
 <div><ul class="simple">
@@ -226,7 +226,7 @@ mammal, etc.)</p></li>
 When annotating acoustic data, it is customary to use not one, but two ‘tags’ to label
 sounds: one tag to specify what made the sound, i.e, its <em>source</em> (e.g. a killer whale)
 and another tag to specify what the sound sounds like, i.e., the <em>type</em> of sound
-(e.g. a tonal call). KetosAM does not enforce a ‘universal’ taxonomy of sound
+(e.g. a tonal call). korus does not enforce a ‘universal’ taxonomy of sound
 types shared by all sound sources. Instead, every sound sources is allowed to have its
 own taxonomy of sound types.</p></li>
 </ul>
@@ -237,13 +237,13 @@ across annotation efforts (e.g. killer whales are consistently tagged as ‘KW�
 than a mixture of ‘killer whale’, ‘orca’, ‘KW’, etc.). Second, their hierarchical structure
 provides a recipe for combining sets of annotations that employ different levels of
 specificity (e.g. ‘killer whale’ and ‘toothed whale’).</p>
-<p>KetosAM allows for taxonomies to evolve over time. That is, users can make changes to the
+<p>korus allows for taxonomies to evolve over time. That is, users can make changes to the
 taxonomy (e.g. add a new sound source, or merge two sound types into a single category) and
 save the modified taxonomy to the database alongside the existing ones.</p>
 </section>
 <section id="relation-to-ketos">
 <h2>Relation to Ketos<a class="headerlink" href="#relation-to-ketos" title="Link to this heading"></a></h2>
-<p>The name KetosAM was chosen to highlight the connection to
+<p>The name korus was chosen to highlight the connection to
 <a class="reference external" href="https://docs.meridian.cs.dal.ca/ketos/introduction.html">Ketos</a>,
 a Python package for developing and training deep learning models
 to solve detection and classification tasks in underwater acoustics.</p>
@@ -251,21 +251,21 @@ to solve detection and classification tasks in underwater acoustics.</p>
 annotations and metadata, we have found these utilities to be
 insufficient for managing larger projects that combine datasets
 from multiple sources and employ richer annotation taxonomies - hence
-the need for KetosAM.</p>
-<p>While KetosAM does integrate nicely with Ketos - for example, KetosAM
+the need for korus.</p>
+<p>While korus does integrate nicely with Ketos - for example, korus
 has functions for ingesting and exporting annotation tables in the
 standard Ketos format - it can be used entirely independently of Ketos.</p>
 </section>
 <section id="license">
 <h2>License<a class="headerlink" href="#license" title="Link to this heading"></a></h2>
-<p>KetosAM is licensed under the <a class="reference external" href="https://www.gnu.org/licenses/">GNU GPLv3 license</a>
+<p>korus is licensed under the <a class="reference external" href="https://www.gnu.org/licenses/">GNU GPLv3 license</a>
 and hence freely available for anyone to use and modify.</p>
 </section>
 <section id="acknowledgements">
 <h2>Acknowledgements<a class="headerlink" href="#acknowledgements" title="Link to this heading"></a></h2>
-<p>KetosAM was developed to meet the data management needs of the
+<p>korus was developed to meet the data management needs of the
 <a class="reference external" href="https://orca.research.sfu.ca/">HALLO (Humans and Algorithms Listening and Looking for Orcas)</a>
-project, and the design of KetosAM has been informed by numerous conversations
+project, and the design of korus has been informed by numerous conversations
 with members of the HALLO team.</p>
 <p>The HALLO project has been generously supported by the Canadian Department of Fisheries
 and Oceans through Grants and Contribution Agreements and the Canada Nature Fund for Aquatic
@@ -294,7 +294,7 @@ Port’s ECHO Program.</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="introduction.html" class="btn btn-neutral float-right" title="Briefly about KetosAM" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="introduction.html" class="btn btn-neutral float-right" title="Briefly about korus" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
     </div>
