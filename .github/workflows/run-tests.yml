@@ -1,5 +1,5 @@
-name: korus-ci
-run-name: ${{ github.actor }} korus-ci
+name: run tests
+run-name: ${{ github.actor }} run tests
 on: [push]
 jobs:
   run-tests:
@@ -7,4 +7,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: echo $HOME
+
+
 
