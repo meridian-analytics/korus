@@ -20,7 +20,7 @@ jobs:
 
       - name: Install korus #required for testing jupyter notebook tutorials
         run: |
-          python setup sdist
+          python setup.py sdist
           pip install dist/korus-*.tar.gz
 
       - name: Install pytest
