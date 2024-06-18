@@ -1,0 +1,11 @@
+Table Name;Description
+annotation;The primary table containing all the annotations 
+job;Metadata pertinent to the various annotation jobs performed by human analysts or machines 
+model;Models and algorithms employed to process acoustic data 
+file;Audio files 
+deployment;Hydrophone deployments 
+taxonomy;Taxonomies used for annotating the data 
+label;Sound-source and sound-type combinations allowed for labelling sounds 
+file_job_relation;Mapping of many-to-many relationship between audio files and annotation jobs 
+
+

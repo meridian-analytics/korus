@@ -1,0 +1,20 @@
+Name;Type;Default Value;Description
+job_id;int;;Annotation job index
+deployment_id;int;;Hydrophone deployment index
+file_id;int;;Audio file index
+sound_source;str;;Sound-source assignment (confident)
+sound_type;str;;Sound-type assignment (confident)
+tentative_sound_source;str;None;Tentative sound-source assignment
+tentative_sound_type;str;None;Tentative sound-type assignment
+ambiguous_sound_source;str or list(str);None;A range of possible sound-source assignments, if specified as a str use commas to separate the individual assignments
+ambiguous_sound_type;str or list(str);None;A range of possible sound-type assignments, if specified as a str use commas to separate the individual assignments
+tag;str or list(str);None;Keywords that can be used in database queries, if specified as a str use commas to separate individual tags
+start_utc;datetime or str;Deduced from the audio file timestamp (if available) and the within-file offset (@start_ms);UTC start time, if specified as a str use a ISO-8601 compatible format
+duration_ms;int;Computed as the audio file duration minus the within-file offset (@start_ms);Duration in milliseconds
+start_ms;int;0;Within-file offset in milliseconds
+freq_min_hz;int;0;Minimum frequency in Hz
+freq_max_hz;int;Nyquist frequency deduced from the audio file sampling rate;Maximum frequency in Hz
+channel;int;0;Channel no.
+granularity;str;"window";Possible values are: call, window, batch, file, encounter
+machine_prediction;dict;None;Reserved for predictions made by algorithms and machine-learning models
+comments;str;None;Any other relavant observation

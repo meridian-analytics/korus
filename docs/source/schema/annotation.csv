@@ -1,0 +1,18 @@
+Name;Type;Description;Example/Allowed Values
+id;INTEGER;Index;
+job_id;INTEGER;Annotation job index;
+deployment_id;INTEGER;Deployment index;
+file_id;INTEGER;Audio file index;
+label_id;INTEGER;Label index of confident source/type assignment;
+tentative_label_id;INTEGER;Label index of tentative source/type assignment;
+num_files;INTEGER;Number of audio files spanned by the annotation;typically 1
+file_id_list;JSON;List of audio file indices (only relevant when num_files > 1);[3, 17] 
+start_utc;TEXT;UTC start time in ISO8601 format (YYYY-MM-DD HH:MM:SS.SSS);
+duration_ms;INTEGER;Duration of the acoustic signal in milliseconds;
+start_ms;INTEGER;Start time of acoustic signal in milliseconds relative to the beginning of the audio file;
+freq_min_hz;INTEGER;Lower frequency bound of acoustic signal in Hz;110 
+freq_max_hz;INTEGER;Upper frequency bound of acoustic signal in Hz;320 
+channel;INTEGER;Stereo channel number;0,1,...
+granularity;TEXT;Granularity of the annotation;call,window,batch,file,encounter 
+machine_prediction;JSON;Model classification scores;{"class":["KW", "HW"], "score":[0.8, 0.2]} 
+comments;TEXT;Additional observations;

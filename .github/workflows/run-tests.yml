@@ -6,7 +6,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: echo $HOME
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"      
+      
+      - name: Install requirements
+        run: pip install -r requirements.txt
+
+      - name: Install korus #required for testing jupyter notebook tutorials
+        run: pip install dist/korus-*.tar.gz
+
+      - name: Install pytest
+        run: pip install pytest pytest-cov
+
+    # run tests and obtain coverage
+      - name: Run test and obtain coverage
+        run: |
+          coverage run -m pytest
+          coverage report -i
+          coverage xml -i
 
 

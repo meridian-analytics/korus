@@ -1,0 +1,4 @@
+job_id,deployment_id,file_id,sound_source,sound_type,tentative_sound_source,tentative_sound_type,start_utc,duration_ms,start_ms,freq_min_hz,freq_max_hz,channel,granularity,machine_prediction,comments,tag
+1,1,1,KW,PC,SRKW,S01,2022-06-24 16:40:30.000,1300,30000,600,4400,0,unit,,no additional observations,
+1,1,1,,,,,2022-06-24 16:40:01.000,800,1000,0,16000,0,window,,this is a negative sample,["NEGATIVE"]
+1,1,1,,,,,2022-06-24 16:40:01.800,19400,1800,0,16000,0,window,,,["__AUTO_NEGATIVE__"]

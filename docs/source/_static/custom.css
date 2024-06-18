@@ -1,0 +1,27 @@
+/* div#notebook{
+	overflow: scroll !important;
+} */
+
+/* Code snippets */
+div.highlight{
+	background-color: #3892a87a;
+}
+
+
+/* logo */
+
+img#korus-logo{
+	border-radius: 0%;
+	background-color: white;
+	height: 60%;
+	width: 60%;
+}
+
+.korus-sidebar-text {
+    color: black;
+}
+
+div.wy-side-nav-search .version {
+    color: black;
+    font-weight: bold;
+}
