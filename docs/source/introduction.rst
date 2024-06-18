@@ -1,4 +1,4 @@
-Welcome to Korus, a Python package for managing acoustic annotations.
+Welcome to Korus, a Python package for managing acoustic metadata and annotations.
 
 
 Briefly about Korus
@@ -112,11 +112,11 @@ Finally, close the connection to the database,
 Cautionary Note
 ===============
 
-Korus is still in its infancy and under heavy development. We aim to have a first, stable 
-release out by the end of 2023, but until then users should be prepared for substantial and 
+Korus is still in its infancy and under active development. We aim to have a first, stable 
+release out by the end of 2024, but until then users should be prepared for substantial and 
 non-backward compatible changes to the code base. If you have any feedback for us, we would 
 love to hear it. Please create an issue on the 
-`Korus GitLab repository <https://git-dev.cs.dal.ca/meridian/korus>`_.
+`Korus GitHub repository <https://github.com/oliskir/korus>`_.
 
 
 Annotation Taxonomies
@@ -150,19 +150,24 @@ taxonomy (e.g. add a new sound source, or merge two sound types into a single ca
 save the modified taxonomy to the database alongside the existing ones.
 
 
+Korus vs. Tethys
+================
+
+Coming soon ...
+
+
 Relation to Ketos
 =================
 
-The name Korus was chosen to highlight the connection to 
-`Ketos <https://docs.meridian.cs.dal.ca/ketos/introduction.html>`_, 
-a Python package for developing and training deep learning models 
+`Ketos <https://docs.meridian.cs.dal.ca/ketos/introduction.html>`_ 
+is a Python package for developing and training deep learning models 
 to solve detection and classification tasks in underwater acoustics.
 
 While Ketos includes basic utilities for managing acoustic 
 annotations and metadata, we have found these utilities to be 
 insufficient for managing larger projects that combine datasets 
 from multiple sources and employ richer annotation taxonomies - hence 
-the need for Korus. 
+the need for Korus.
 
 While Korus does integrate nicely with Ketos - for example, Korus 
 has functions for ingesting and exporting annotation tables in the 
