@@ -3,8 +3,8 @@ Change log
 
 **Version 0.0.6** (June 04, 2024)
 
- * Path autocompletion in `ktam-submit`
- * Improved timestamp parsing in `ktam-submit`
+ * Path autocompletion in `korus-submit`
+ * Improved timestamp parsing in `korus-submit`
  * `granularity_id` replaces `granularity` column in `annotation` table
  * New `granularity` table
 
@@ -22,7 +22,7 @@ Change log
 **Version 0.0.3** (January 31, 2024)
 
  * Faster search for audio files when organized into date-stamped folders
- * Various improvements to `ktam-submit` CLI tool
+ * Various improvements to `korus-submit` CLI tool
  * Added new tables `tag` and `storage`
 
 **Version 0.0.2** (November 27, 2023)
@@ -33,7 +33,7 @@ Change log
  * Implemented @avoid and @negative args in `db.filter_annotation`
  * Improved interface of `db.get_annotations` function
  * Extended `db.add_annotations` to be able to handle ambiguous label assignments
- * Created command-line tool `ktam-submit` for adding new data to a database
+ * Created command-line tool `korus-submit` for adding new data to a database
  * Added function `filter_files` to search for audio files in the database
  * Refactored `db` module
  * Added `earliest_start_utc`, `latest_start_utc`, `rel_path` args to `db.util.collect_audiofile_metadata`
