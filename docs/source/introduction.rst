@@ -36,7 +36,7 @@ Usage
 There are two ways to use Korus:
 
  1. Write your own Python scripts using the Korus Python API
- 2. Use the command-line tool `ktam-submit` included in Korus
+ 2. Use the command-line tool `korus-submit` included in Korus
 
 
 Getting Started
@@ -153,7 +153,9 @@ save the modified taxonomy to the database alongside the existing ones.
 Korus vs. Tethys
 ================
 
-Coming soon ...
+`Tethys <https://tethys.sdsu.edu/>`_ is the ultimate solution for acoustic data management. 
+Led by Marie Roch at San Diego State University, the Tethys metadata project provides
+If you are not familiar with Tethys, consider checking it out before you 
 
 
 Relation to Ketos
