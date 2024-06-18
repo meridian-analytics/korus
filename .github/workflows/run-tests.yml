@@ -19,7 +19,9 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Install korus #required for testing jupyter notebook tutorials
-        run: pip install dist/korus-*.tar.gz
+        run: |
+          python setup sdist
+          pip install dist/korus-*.tar.gz
 
       - name: Install pytest
         run: pip install pytest pytest-cov
