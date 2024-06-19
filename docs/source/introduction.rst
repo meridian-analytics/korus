@@ -153,9 +153,25 @@ save the modified taxonomy to the database alongside the existing ones.
 Korus vs. Tethys
 ================
 
-`Tethys <https://tethys.sdsu.edu/>`_ is the ultimate solution for acoustic data management. 
-Led by Marie Roch at San Diego State University, the Tethys metadata project provides
-If you are not familiar with Tethys, consider checking it out before you 
+Like Korus, `Tethys <https://tethys.sdsu.edu/>`_ is a database for managing acoustic 
+metadata, but its scope is considerable broader. Tethys was designed to support any 
+type of acoustic data analysis and has a graphical user interface that makes it 
+accessible to a wider range of user. In contrast, Korus focuses on machine-learning 
+applications and requires familiarity with programming and command-line interfaces.
+
+Led by Marie Roch at San Diego State University, Tethys is a mature, well-supported 
+project that has been around for over a decade and has an established user community. 
+If you are looking for a tool to help you manage your acoustic metadata, Tethys should 
+arguably be your first pick. Tethys' limitations are merely technical, one of them 
+being that it currently only runs on Windows. 
+
+Korus does not aim to replace or compete with Tethys. It merely offers a light-weight 
+alternative to Tethys for those who prefer Unix over Windows, who feel the most efficient 
+when programming in Python and SQL, and who enjoy typing commands in a terminal.
+
+Korus aims to be compatible with Tethys and will eventually include functions for exporting 
+data to formats that can readily be ingested by Tethys.
+
 
 
 Relation to Ketos
