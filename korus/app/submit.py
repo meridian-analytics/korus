@@ -200,7 +200,7 @@ def main():
             name="start_utc",
             message=f"UTC start time of the first audio file ({dt_fmt_human})",
             transform_fcn=to_datetime,
-            json_fcn=lambda x: x.strftime(dt_fmt),
+            json_fcn=lambda x: x.strftime(dt_formats[0]),
         ).request(logger)
 
         end_utc = ui.UserInput(
@@ -208,7 +208,7 @@ def main():
             name="end_utc",
             message=f"UTC end time of the last audio file ({dt_fmt_human})",
             transform_fcn=to_datetime,
-            json_fcn=lambda x: x.strftime(dt_fmt),
+            json_fcn=lambda x: x.strftime(dt_formats[0]),
         ).request(logger)
 
 

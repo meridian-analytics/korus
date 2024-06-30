@@ -153,7 +153,23 @@ def add_job(conn, logger):
 
     is_exhaustive = ui.UserInput("is_exhaustive", "Were all primary sounds annotated? [y/N]", transform_fcn=fcn, group="job").request(logger)
 
-    comments = ui.UserInput("comments", "Any additional observations", group="job").request(logger)
+    def fcn(x):
+        """Helper function for transforming user input for `comments`"""
+        # user provides the path to a plain text file with the comments
+        if os.path.exists(x):
+            with open(x, "r") as f:
+                return f.read()
+
+        # user types in the comments in the console
+        else:
+            return x
+
+    comments = ui.UserInput(
+        "comments", 
+        "Any additional observations (type comments in console, or provide path to a plain text file)", 
+        group="job",
+        transform_fcn=fcn,
+    ).request(logger)
 
     # collect in dict
     data = {
