@@ -172,7 +172,7 @@ def collect_audiofile_metadata(
                 os.remove(full_path)           
 
         if is_tar:
-            tar = tarfile.close()
+            tar.close()
             shutil.rmtree(tmp_path, ignore_errors=True)
 
         df["num_samples"] = num_samples
