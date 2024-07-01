@@ -3,6 +3,8 @@ import logging
 import soundfile as sf
 import pandas as pd
 import numpy as np
+import tarfile
+import warnings
 from datetime import datetime, timedelta
 from tqdm import tqdm
 
@@ -178,16 +180,15 @@ def get_num_samples_and_rate(path):
 
 
 def find_files(path, substr=None, subdirs=False):
-    """Search a directory, and optionally subdirectories, for files with a
-    specified sequence of characters in their path.
+    """Search a directory or tar archive for files with a specified sequence of characters in their path.
 
     Args:
         path: str
-            Directory path
+            Path to directory or tar archive file
         substr: str or list(str)
             Search for files that have this string/these strings in their path.
         subdirs: bool
-            If True, also search all subdirectories
+            If True, also search all subdirectories. Always True for tar archives.
 
     Returns:
         files: list (str)
@@ -195,26 +196,36 @@ def find_files(path, substr=None, subdirs=False):
 
     Examples:
     """
+    is_tar = os.path.isfile(path) and tarfile.is_tarfile(path)
+
     if isinstance(substr, str):
         substr = [substr]
 
     # find all files
     all_files = []
-    if subdirs:
-        for dirpath, _, files in os.walk(path):
-            all_files += [
-                os.path.relpath(os.path.join(dirpath, f), path) for f in files
-            ]
+    if is_tar:
+        with tarfile.open(path) as tar:
+            for member in tar.getmembers():
+                if member.isreg(): #skip if not a file
+                    all_files.append(member.name)
+
     else:
-        all_files = os.listdir(path)
+        if subdirs:
+            for dirpath, _, files in os.walk(path):
+                all_files += [
+                    os.path.relpath(os.path.join(dirpath, f), path) for f in files
+                ]
+        else:
+            all_files = os.listdir(path)
 
-    # remove directories, and filter for substring(s)
+    # filter
     files = []
-
     for f in all_files:
-        if os.path.isdir(os.path.join(path, f)):
+        # skip directories
+        if not is_tar and os.path.isdir(os.path.join(path, f)):
             continue
 
+        # filter for substring(s)
         if substr is None:
             files.append(f)
 
@@ -263,3 +274,5 @@ def parse_timestamp(x, timestamp_parser, progress_bar=False):
             continue
 
     return indices, timestamps
+
+
