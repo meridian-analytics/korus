@@ -1,4 +1,5 @@
 import os
+import shutil
 import logging
 import soundfile as sf
 import pandas as pd
@@ -35,6 +36,7 @@ def collect_audiofile_metadata(
     progress_bar=False,
     date_subfolder=False,
     inspect_files=True,
+    tmp_path="./korus-tmp",
 ):
     
     """ Collect metadata records for all audio files in a specified directory.
@@ -46,7 +48,7 @@ def collect_audiofile_metadata(
     
     Args:
         path: str
-            Path to the directory where the audio files are stored.
+            Path to the directory or tar archive where the audio files are stored.
         ext: str
             Audio file extension. Default is WAV.
         timestamp_parser: callable
@@ -64,10 +66,15 @@ def collect_audiofile_metadata(
             and both the earliest and latest start time have been specified, this argument 
             can be used to restrict the search space to only the relevant subfolders. 
             Default is False.
+            OBS: Has no effect if the audio files are stored within a tar archive.
         inspect_files: bool
             Inspect files to obtain no. samples and sampling rate. If False, the returned 
             metadata table does not have the columns `num_samples`, `sample_rate`, and `end_utc`. 
             Default is True.
+        tmp_path: str
+            If the audio files are stored in tar archive, and @inspect_files is True, audio files 
+            will be extracted to this folder temporarily to allow the file size and sampling rate 
+            to be determined.
 
     Returns:
         df: pandas DataFrame
@@ -75,8 +82,10 @@ def collect_audiofile_metadata(
 
     Examples:
     """
+    is_tar = os.path.isfile(path) and tarfile.is_tarfile(path)
+
     if rel_path is None:
-        if date_subfolder and earliest_start_utc and latest_start_utc:
+        if not is_tar and date_subfolder and earliest_start_utc and latest_start_utc:
             sub_folders = []
             date = earliest_start_utc.date()
             while date <= latest_start_utc.date():
@@ -125,12 +134,33 @@ def collect_audiofile_metadata(
         if progress_bar:
             print("Determining sampling rates and file sizes ...")
 
+        # open tar archive, and create temporary folder for extracting audio files
+        if is_tar:
+            tar = tarfile.open(path)
+            shutil.rmtree(tmp_path, ignore_errors=True)
+            os.makedirs(tmp_path)
+
+        # loop over files and get no. samples and sampling rate for each one
         num_samples, sample_rate = [], []
         for _,row in tqdm(df.iterrows(), total=df.shape[0], disable=not progress_bar):
-            full_path = os.path.join(path, row.rel_path)
+            if is_tar:
+                member = tar.getmember(row.rel_path)
+                tar.extract(member, path=tmp_path)
+                full_path = os.path.join(tmp_path, row.rel_path)
+
+            else:
+                full_path = os.path.join(path, row.rel_path)
+    
             n, sr = get_num_samples_and_rate(full_path)
             num_samples.append(n)
             sample_rate.append(sr)
+
+            if is_tar:
+                os.remove(full_path)           
+
+        if is_tar:
+            tar = tarfile.close()
+            shutil.rmtree(tmp_path, ignore_errors=True)
 
         df["num_samples"] = num_samples
         df["sample_rate"] = sample_rate
