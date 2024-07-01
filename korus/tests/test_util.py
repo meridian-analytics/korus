@@ -27,9 +27,18 @@ def test_find_files_dir():
 def test_find_files_tar():
     """Check that we can find files in a zipped tar archive"""
     path = os.path.join(path_to_assets, "zipped-files.tar.gz")
-    f = ku.find_files(path)
+    f = ku.find_files(path, subdirs=True)
     f.sort()
     assert f == ["a.txt", "b.wav", "more-files/c.flac", "more-files/d.wav", "more-files/e.txt"]
     f = ku.find_files(path, substr="wav")
     f.sort()
+    assert f == ["b.wav"]
+    f = ku.find_files(path, substr="wav", subdirs=True)
+    f.sort()
     assert f == ["b.wav", "more-files/d.wav"]
+    f = ku.find_files(path, substr="wav", tar_path="/more-files")
+    f.sort()
+    assert f == ["d.wav"]
+    f = ku.find_files(path, substr="wav", tar_path="non-existing-path")
+    f.sort()
+    assert f == []

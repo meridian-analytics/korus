@@ -209,7 +209,7 @@ def get_num_samples_and_rate(path):
         raise IOError(f"{path} could not be read.")
 
 
-def find_files(path, substr=None, subdirs=False):
+def find_files(path, substr=None, subdirs=False, tar_path=""):
     """Search a directory or tar archive for files with a specified sequence of characters in their path.
 
     Args:
@@ -218,7 +218,9 @@ def find_files(path, substr=None, subdirs=False):
         substr: str or list(str)
             Search for files that have this string/these strings in their path.
         subdirs: bool
-            If True, also search all subdirectories. Always True for tar archives.
+            If True, also search all subdirectories.
+        tar_path: str
+            Path within tar archive. Only relavant if @path points to a tar archive.
 
     Returns:
         files: list (str)
@@ -226,6 +228,15 @@ def find_files(path, substr=None, subdirs=False):
 
     Examples:
     """
+    # strip leading slash from @tar_path
+    if len(tar_path) > 0 and tar_path[0] == "/":
+        tar_path = tar_path[1:]
+
+    # add trailing slash to @tar_path
+    if len(tar_path) > 0 and tar_path[-1] != "/":
+        tar_path += "/"
+
+    # determine if audio files are stored in a directory or a tar archive
     is_tar = os.path.isfile(path) and tarfile.is_tarfile(path)
 
     if isinstance(substr, str):
@@ -237,7 +248,20 @@ def find_files(path, substr=None, subdirs=False):
         with tarfile.open(path) as tar:
             for member in tar.getmembers():
                 if member.isreg(): #skip if not a file
-                    all_files.append(member.name)
+                    mem_path = member.name
+
+                    #skip files not in the specified directory within the tar archive
+                    if mem_path[:len(tar_path)] != tar_path:
+                        continue
+
+                    #drop top path within tar archive
+                    mem_path = mem_path[len(tar_path):]
+                        
+                    #skip files in sub directories
+                    if not subdirs and "/" in mem_path: 
+                        continue
+
+                    all_files.append(mem_path)
 
     else:
         if subdirs:
