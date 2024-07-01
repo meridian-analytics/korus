@@ -441,7 +441,7 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
         path=audio_path, 
         ext=audio_format, 
         timestamp_parser=timestamp_parser,
-        rel_path=rel_path.values,
+        subset=rel_path.values,
         progress_bar=True,
     )
 

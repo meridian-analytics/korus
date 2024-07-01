@@ -32,7 +32,8 @@ def collect_audiofile_metadata(
     timestamp_parser=None,
     earliest_start_utc=None,
     latest_start_utc=None,
-    rel_path=None,
+    subset=None,
+    tar_path="",
     progress_bar=False,
     date_subfolder=False,
     inspect_files=True,
@@ -57,8 +58,11 @@ def collect_audiofile_metadata(
             Only consider files starting at or after this UTC time.
         latest_start_utc: datetime.datetime
             Only consider files starting at or before this UTC time.
-        rel_path: str, list(str)
-            Restrict attention to a subset of the files.
+        subset: str, list(str)
+            File paths relative to the top directory given by the @path argument. Use 
+            this argument to restrict attention to a subset of the files.
+        tar_path: str
+            Path within tar archive. Only relavant if @path points to a tar archive.
         progress_bar: bool
             Display progress bar. Default is False.
         date_subfolder: bool
@@ -66,7 +70,6 @@ def collect_audiofile_metadata(
             and both the earliest and latest start time have been specified, this argument 
             can be used to restrict the search space to only the relevant subfolders. 
             Default is False.
-            OBS: Has no effect if the audio files are stored within a tar archive.
         inspect_files: bool
             Inspect files to obtain no. samples and sampling rate. If False, the returned 
             metadata table does not have the columns `num_samples`, `sample_rate`, and `end_utc`. 
@@ -84,8 +87,10 @@ def collect_audiofile_metadata(
     """
     is_tar = os.path.isfile(path) and tarfile.is_tarfile(path)
 
+    rel_path = subset
+
     if rel_path is None:
-        if not is_tar and date_subfolder and earliest_start_utc and latest_start_utc:
+        if date_subfolder and earliest_start_utc and latest_start_utc:
             sub_folders = []
             date = earliest_start_utc.date()
             while date <= latest_start_utc.date():
@@ -97,8 +102,16 @@ def collect_audiofile_metadata(
 
         rel_path = []
         for sub_folder in sub_folders:
-            dir_path = os.path.join(path, sub_folder)
-            file_paths = find_files(dir_path, substr=[ext.lower(), ext.upper()], subdirs=True)
+            if is_tar:
+                kwargs = {
+                    "path": path,
+                    "tar_path": os.path.join(tar_path, sub_folder)
+                }
+
+            else:
+                kwargs = {"path": path}
+
+            file_paths = find_files(**kwargs, substr=[ext.lower(), ext.upper()], subdirs=True)       
             rel_path += [os.path.join(sub_folder, file_path) for file_path in file_paths]
 
     if isinstance(rel_path, str):
@@ -250,12 +263,13 @@ def find_files(path, substr=None, subdirs=False, tar_path=""):
                 if member.isreg(): #skip if not a file
                     mem_path = member.name
 
-                    #skip files not in the specified directory within the tar archive
-                    if mem_path[:len(tar_path)] != tar_path:
-                        continue
+                    if is_tar:
+                        #skip files not in the specified directory within the tar archive
+                        if mem_path[:len(tar_path)] != tar_path:
+                            continue
 
-                    #drop top path within tar archive
-                    mem_path = mem_path[len(tar_path):]
+                        #drop top path within tar archive
+                        mem_path = mem_path[len(tar_path):]
                         
                     #skip files in sub directories
                     if not subdirs and "/" in mem_path: 
