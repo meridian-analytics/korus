@@ -85,7 +85,6 @@ def filter_annotation(
     """ Query annotation table by filtering on sound source and sound type.
 
         TODO: implement strict
-        TODO: implement ambiguous
 
         Args:
             conn: sqlite3.Connection
@@ -124,8 +123,6 @@ def filter_annotation(
             indices: list(int)
                 Annotation indices  
     """
-    if ambiguous:
-        raise NotImplementedError("@ambiguous not yet implemented")
     if strict:
         raise NotImplementedError("@strict not yet implemented")
 
@@ -136,12 +133,12 @@ def filter_annotation(
     if source_type is not None:
         # @source_type
         if not invert:
-            wc = _select_label_condition(conn, source_type, tentative, strict, taxonomy_id)
+            wc = _select_label_condition(conn, source_type, strict, tentative, ambiguous, taxonomy_id)
             where_conditions.append(wc)
 
         # @source_type with @invert=True
         else:
-            wc = _invert_select_label_condition(conn, source_type, tentative, strict, taxonomy_id)
+            wc = _invert_select_label_condition(conn, source_type, strict, tentative, ambiguous, taxonomy_id)
             where_conditions.append(wc)
 
     # @tag
@@ -180,6 +177,8 @@ def filter_annotation(
         LEFT JOIN
             json_each('a'.'tag_id') AS tag_id  
         LEFT JOIN
+            json_each('a'.'ambiguous_label_id') AS ambiguous_label_id
+        LEFT JOIN
             job as j
         ON
             a.job_id = j.id
@@ -208,6 +207,10 @@ def filter_negative(
                 Accepts both a single tuple and a list of tuples.
                 By default all descendant nodes in the taxonomy tree are also considered. Use 
                 the @strict argument to change this behaviour.
+            strict: bool
+                Whether to interpret labels 'strictly', meaning that descendant nodes 
+                in the taxonomy tree are not considered. For example, when filtering on 'KW' 
+                annotations labelled as 'SRKW' will *not* be selected if @strict is set to True. 
             taxonomy_id: int
                 Acoustic taxonomy that the (source,type) label arguments refer to. If not specified, 
                 the latest taxonomy will be used.
@@ -216,6 +219,9 @@ def filter_negative(
             indices: list(int)
                 Annotation indices  
     """
+    if strict:
+        raise NotImplementedError("@strict not yet implemented")
+
     c = conn.cursor()
 
     (auto_neg_id,) = c.execute(f"SELECT id FROM tag WHERE name = '{ktb.AUTO_NEG}'").fetchall()[0]
@@ -242,7 +248,7 @@ def filter_negative(
     return indices
 
 
-def _select_label_condition(conn, source_type, tentative, strict, taxonomy_id):
+def _select_label_condition(conn, source_type, strict, tentative, ambiguous, taxonomy_id):
     """ Helper function for @filter_annotation.
 
         Forms the WHERE condition required to query the annotation table 
@@ -254,12 +260,14 @@ def _select_label_condition(conn, source_type, tentative, strict, taxonomy_id):
             source_type: tuple, list(tuple)                
                 Select annotations with this (source,type) label.
                 By default descendant nodes in the taxonomy tree are also considered.
-            tentative: bool
-                Whether to also filter on tentative label assignments. 
             strict: bool
                 Whether to interpret labels 'strictly', meaning that descendant nodes 
                 in the taxonomy tree are not considered. For example, when filtering on 'KW' 
                 annotations labelled as 'SRKW' will *not* be selected if @strict is set to True. 
+            tentative: bool
+                Whether to also filter on tentative label assignments. 
+            ambiguous: bool
+                Whether to also filter on ambiguous label assignments.
             taxonomy_id: int
                 Acoustic taxonomy that the (source,type) label arguments refer to. 
             
@@ -295,15 +303,19 @@ def _select_label_condition(conn, source_type, tentative, strict, taxonomy_id):
     # form WHERE condition for SQLite query
     wc = "("
     wc += "SELECT_LABEL_ID(a.label_id, j.taxonomy_id) = 1"
+
     if tentative:
         wc += " OR SELECT_LABEL_ID(a.tentative_label_id, j.taxonomy_id) = 1"
+
+    if ambiguous:
+        wc += " OR SELECT_LABEL_ID(ambiguous_label_id.value, j.taxonomy_id) = 1"
 
     wc += ")"
 
     return wc
 
 
-def _invert_select_label_condition(conn, source_type, tentative, strict, taxonomy_id):
+def _invert_select_label_condition(conn, source_type, strict, tentative, ambiguous, taxonomy_id):
     """ Helper function for @filter_annotation.
 
         Forms the WHERE condition required to query the annotation table 
@@ -315,11 +327,13 @@ def _invert_select_label_condition(conn, source_type, tentative, strict, taxonom
             source_type: tuple, list(tuple)
                 Select annotations that do *not* have this (source,type) label. 
                 By default both ancestral and descendant nodes in the taxonomy tree are also considered.
-            tentative: bool
-                Whether to also filter on tentative label assignments. 
             strict: bool
                 Whether to interpret labels 'strictly', meaning that ancestral and descendant nodes 
                 in the taxonomy tree are not considered.
+            tentative: bool
+                Whether to also filter on tentative label assignments. 
+            ambiguous: bool
+                Whether to also filter on ambiguous label assignments.
             taxonomy_id: int
                 Acoustic taxonomy that the (source,type) label arguments refer to. 
             
@@ -348,15 +362,21 @@ def _invert_select_label_condition(conn, source_type, tentative, strict, taxonom
 
     # callable for avoiding label identifiers across taxonomies
     def _invert_select_label_id_fcn(label_id, tax_id):
-        return (label_id not in ids_crosswalk[tax_id])
+        return (label_id is not None and label_id not in ids_crosswalk[tax_id])
 
     conn.create_function("INVERT_SELECT_LABEL_ID", 2, _invert_select_label_id_fcn)
 
     # form WHERE condition for SQLite query
     wc = "("
     wc += "INVERT_SELECT_LABEL_ID(a.label_id, j.taxonomy_id) = 1"
+
     if tentative:
         wc += " OR INVERT_SELECT_LABEL_ID(a.tentative_label_id, j.taxonomy_id) = 1"
+
+    if ambiguous:
+        raise NotImplementedError("@ambiguous not yet implemented for inverted filter")
+        #wc += " OR INVERT_SELECT_LABEL_ID(ambiguous_label_id.value, j.taxonomy_id) = 1"
+        #TODO: condition on ambiguous label ids must be chained together using logical AND ...
 
     wc += ")"
 

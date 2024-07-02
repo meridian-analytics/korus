@@ -1,13 +1,11 @@
 import os
 import pytest
-from io import StringIO
+import json
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 import korus.db as kdb
-from korus.util import list_to_str
-import json
 import korus.db_util.table as ktb
+from korus.util import list_to_str
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -361,6 +359,21 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
     assert rows[3] == (24, '[36, 37, 43]')
     assert rows[4] == (24, '[24, 25]')
 
+    #filter on label_id and tentative_label_id only
+    idx = kdb.filter_annotation(conn, source_type=("SRKW","S02"), tentative=True, taxonomy_id=2)
+    assert len(idx) == 1
+
+    #filter again, now also including ambiguous label assignments
+    idx = kdb.filter_annotation(conn, source_type=("SRKW","S02"), tentative=True, ambiguous=True, taxonomy_id=2)
+    assert len(idx) == 2
+
+    #invert the filter
+    idx = kdb.filter_annotation(conn, source_type=("SRKW","PC"), invert=True, tentative=True, taxonomy_id=2)
+    assert idx[-1] == annot_ids[2]
+    with pytest.raises(NotImplementedError):
+        idx = kdb.filter_annotation(conn, source_type=("SRKW","PC"), invert=True, tentative=True, ambiguous=True, taxonomy_id=2)
+        #assert idx[-1] == annot_ids[2]
+ 
     #insert a humpback annotation
     annot_tbl = pd.DataFrame({
         "file_id": [2],
