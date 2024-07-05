@@ -109,7 +109,7 @@ def collect_audiofile_metadata(
                 }
 
             else:
-                kwargs = {"path": path}
+                kwargs = {"path": os.path.join(sub_folder, path)}
 
             file_paths = find_files(**kwargs, substr=[ext.lower(), ext.upper()], subdirs=True)       
             rel_path += [os.path.join(sub_folder, file_path) for file_path in file_paths]
