@@ -1,6 +1,13 @@
 Change log
 ==========
 
+**Version 0.0.7** (July 05, 2024)
+
+ * Added support for filtering on ambiguous labels
+ * Added functionality for extracting audio file metadata from within tar archives
+ * Added functionality for searching for files within tar archives
+ * For annotation jobs, comments can be parsed from plain text files instead of having to be typed in the console
+
 **Version 0.0.6** (June 04, 2024)
 
  * Path autocompletion in `korus-submit`
