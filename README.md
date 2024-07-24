@@ -67,6 +67,12 @@ pip install 'SQLAlchemy<1.4'
 pip install eralchemy
 ```
 
+Publish a new release to PyPy with,
+```
+python setup.py sdist bdist_wheel
+twine upload dist/korus-X.Y.Z.tar.gz
+```
+
 
 ## Miscellaneous
 
