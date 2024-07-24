@@ -6,7 +6,7 @@ Welcome to `Korus`, a Python package for managing acoustic annotations.
 ## Documentation
 
 Full documentation including code examples and Jupyter Notebook tutorials
-can be found at [oliskir.github.io/korus](https://oliskir.github/io/korus).
+can be found at [oliskir.github.io/korus](https://oliskir.github.io/korus).
 
 
 ## Installation 
@@ -65,6 +65,12 @@ You can install `eralchemy` with
 sudo apt-get install python3-dev graphviz libgraphviz-dev pkg-config
 pip install 'SQLAlchemy<1.4'
 pip install eralchemy
+```
+
+Publish a new release to PyPy with,
+```
+python setup.py sdist bdist_wheel
+twine upload dist/korus-X.Y.Z.tar.gz
 ```
 
 
