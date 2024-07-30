@@ -190,12 +190,13 @@ def db_with_annotations(basic_db, deploy_data, file_data):
         "primary_sound": json.dumps(primary_sound),
         "background_sound": json.dumps(background_sound),
         "is_exhaustive": 1,
-        "model_config": None,
+        "configuration": None,
         "start_utc": "2022-10",
         "end_utc": "2023-03",
         "by_human": 1,
         "by_machine": 0,
-        "comments": "Vessel noise annotated opportunistically"
+        "comments": "Vessel noise annotated opportunistically",
+        "issues": json.dumps(["start and end times may not always be accurate", "some KW sounds may have been incorrectly labelled as HW"]),
     }
     c = kdb.insert_row(conn, table_name="job", values=v)
 

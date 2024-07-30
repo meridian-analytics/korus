@@ -1,6 +1,10 @@
 Change log
 ==========
 
+**Version 0.0.8** (Month Day, Year)
+
+ * Added `issues` column to `job` table and renamed `model_config` to `configuration`
+
 **Version 0.0.7** (July 05, 2024)
 
  * Added support for filtering on ambiguous labels
