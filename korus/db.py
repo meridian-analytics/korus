@@ -871,6 +871,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             not np.isnan(row.freq_max_hz):
 
             v["freq_max_hz"] = int(np.round(row.freq_max_hz))
+
         else:
             v["freq_max_hz"] = int(file_data["sample_rate"] // 2)
 
@@ -880,6 +881,15 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
                 raise ValueError(f"Unrecognized annotation granularity: {row.granularity}")
 
             v["granularity_id"] = rows[0][0]
+
+        # adjust frequency range if needed
+        if v["freq_max_hz"] <= v["freq_min_hz"]:
+            fmin = v["freq_min_hz"]
+            fmax = v["freq_max_hz"]
+            new_fmax = fmin + 1
+            v["freq_max_hz"] = new_fmax
+            warn_msg = f"Frequency range adjusted to allow insertion into database: [{fmin:.0f},{fmax:.0f}] -> [{fmin:.0f},{new_fmax:.0f}] (Hz)"
+            logging.warning(warn_msg)
 
         # insert row into database
         c = insert_row(conn, table_name="annotation", values=v)
@@ -907,7 +917,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
         except:
             err_msg = f"Failed to add annotation {idx} to the database. To view the full Error report, re-run in debug mode."
             logging.error(err_msg)
-            logging.debug(traceback.format_exc())
+            logging.error(traceback.format_exc())
 
     return annot_ids
 
