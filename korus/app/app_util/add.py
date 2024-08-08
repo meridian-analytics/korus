@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import json
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -163,7 +164,22 @@ def add_job(conn, logger):
     background_sound = None
 
     # prompt user for issues
-    # TODO: ...
+    ui_add_another_issue = ui.UserInput(
+        "add_another_issue", 
+        "Do the annotations have any known issues? [y/N]", 
+        transform_fcn=lambda x: x.lower() == "y", 
+    )
+
+    issues = []
+    while True:
+        if ui_add_another_issue.request():
+            description = ui.UserInput("add_issue", "Briefly describe the issue").request(logger)
+            issues.append(description)
+
+            ui_add_another_issue.message = "Do the annotations have any other known issues? [y/N]"
+        else:
+            break
+
 
     def fcn(x):
         """Helper function for transforming user input for `comments`"""
@@ -190,6 +206,7 @@ def add_job(conn, logger):
         "is_exhaustive": is_exhaustive,
         "start_utc": start_utc,
         "end_utc": end_utc,
+        "issues": json.dumps(issues),
         "comments": comments
     }
     if primary_sound is not None and primary_sound != "":
