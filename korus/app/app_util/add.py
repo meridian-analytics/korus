@@ -632,7 +632,7 @@ def add_tags(conn, tags):
         cprint(f"\n ## Successfully added the tag `{tag_name}` to the database", "yellow")
 
 
-def from_raven(input_path, tax, sep="\t", extra_required_cols=None, granularity="unit"):
+def from_raven(input_path, tax, sep="\t", granularity="unit"):
     """Loads entries from a RavenPro selections table
 
     Args:
