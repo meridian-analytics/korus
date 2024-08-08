@@ -88,6 +88,8 @@ def add_deployment(conn, logger):
 def add_job(conn, logger):
     """ Interactive session for adding a new annotation job to the database.
 
+        TODO: remove background_sound
+
         Args:
             conn: sqlite3.Connection
                 Database connection
@@ -125,24 +127,6 @@ def add_job(conn, logger):
     start_utc = ui.UserInput("start_utc", "UTC start date (e.g. 2020-06-01)", group="job").request(logger) 
     end_utc = ui.UserInput("end_utc", "UTC end date (e.g. 2020-06-01)", group="job").request(logger)
 
-    primary_sound = ui.UserInputSound(
-        name="primary_sound", 
-        message='Primary sounds that were systematically annotated, e.g. [(\'HW\',\'Upsweep\'), (\'HW\',\'Moan\')]',
-        conn=conn,
-        taxonomy_id=taxonomy_id,
-        group="job",
-        default=default_prim,
-    ).request(logger)
-
-    background_sound = ui.UserInputSound(
-        name="background_sound", 
-        message='Background sounds that were only opportunistically annotated, e.g., (\'Anthro\',\'%\')',
-        conn=conn,
-        taxonomy_id=taxonomy_id,
-        group="job",
-        default=default_backgr,
-    ).request(logger)
-
     def fcn(x):
         if isinstance(x, str):
             return x.lower() == "y"
@@ -152,6 +136,34 @@ def add_job(conn, logger):
             raise TypeError           
 
     is_exhaustive = ui.UserInput("is_exhaustive", "Were all primary sounds annotated? [y/N]", transform_fcn=fcn, group="job").request(logger)
+
+    if is_exhaustive:
+        primary_sound = ui.UserInputSound(
+            name="primary_sound", 
+            message='Primary sounds that were systematically annotated, e.g. [(\'HW\',\'Upsweep\'), (\'HW\',\'Moan\')]',
+            conn=conn,
+            taxonomy_id=taxonomy_id,
+            group="job",
+            default=default_prim,
+        ).request(logger)
+    
+    else:
+        primary_sound = None
+
+    """
+    background_sound = ui.UserInputSound(
+        name="background_sound", 
+        message='Background sounds that were only opportunistically annotated, e.g., (\'Anthro\',\'%\')',
+        conn=conn,
+        taxonomy_id=taxonomy_id,
+        group="job",
+        default=default_backgr,
+    ).request(logger)
+    """
+    background_sound = None
+
+    # prompt user for issues
+    # TODO: ...
 
     def fcn(x):
         """Helper function for transforming user input for `comments`"""
@@ -175,12 +187,13 @@ def add_job(conn, logger):
     data = {
         "taxonomy_id": taxonomy_id,
         "annotator": annotator,
-        "primary_sound": primary_sound,
         "is_exhaustive": is_exhaustive,
         "start_utc": start_utc,
         "end_utc": end_utc,
         "comments": comments
     }
+    if primary_sound is not None and primary_sound != "":
+        data["primary_sound"] = primary_sound
     if background_sound is not None and background_sound != "":
         data["background_sound"] = background_sound
 
