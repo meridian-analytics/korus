@@ -3,6 +3,7 @@ Change log
 
 **Version 0.0.8** (Month Day, Year)
 
+ * Minor improvements to `korus-submit`
  * Added `issues` column to `job` table and renamed `model_config` to `configuration`
 
 **Version 0.0.7** (July 05, 2024)
