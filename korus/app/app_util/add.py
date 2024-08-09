@@ -547,7 +547,9 @@ def add_annotations(conn, deployment_id, job_id, logger):
 
             # if the selection table contains any tags, check if they need to be added to the database
             if "tag" in df.columns.values:
-                tags = pd.unique(df.tag).tolist()
+                tags = pd.unique(df.tag)
+                tags = tags[~tags.isna()]
+                tags = tags.tolist()
                 new_tags = []
                 for tag in tags:
                     tag_id = c.execute(f"SELECT id FROM tag WHERE name = '{tag}'").fetchone()
