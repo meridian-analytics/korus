@@ -104,7 +104,7 @@ def add_job(conn, logger):
     cprint(f"\n ## Collecting metadata about the annotation job", "yellow")
 
     default_prim = [
-        ("Whale","TC"),
+        ("Cetacean","TC"),
         ("KW","PC"),
         ("KW","W"),
     ]
