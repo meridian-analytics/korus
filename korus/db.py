@@ -883,8 +883,8 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             v["granularity_id"] = rows[0][0]
 
         # adjust frequency range if needed
-        if v["freq_max_hz"] <= v["freq_min_hz"]:
-            fmin = v["freq_min_hz"]
+        if v["freq_max_hz"] <= v.get("freq_min_hz", 0):
+            fmin = v.get("freq_min_hz", 0)
             fmax = v["freq_max_hz"]
             new_fmax = fmin + 1
             v["freq_max_hz"] = new_fmax
