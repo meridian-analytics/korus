@@ -285,6 +285,56 @@ def add_data_storage_location(conn, logger):
     return cursor.lastrowid
 
 
+def create_timestamp_parser(group=None, logger=None):
+    """ Interative session for creating a timestamp parser """
+    ui_ts_fmt = ui.UserInput(
+        "timestamp_format", 
+        "Timestamp format, e.g., %Y%m%dT%H%M%S.%f", 
+        group=group,
+    )
+    ui_ts_fmt.add_option(
+        key=["s","smru"],
+        message="SMRU timestamp format",
+        fcn=lambda x: "%Y%m%d_%H%M%S_%f"
+    )    
+    ts_fmt = ui_ts_fmt.request(logger) 
+
+    ts_offset = ui.UserInput(
+        "timestamp_offset", 
+        "Time zone offset (hours) relative to UTC", 
+        group=group,
+        transform_fcn=float,
+    ).request(logger)
+
+    ui_ts_siz = ui.UserInput(
+        "timestamp_size", 
+        "Timestamp length (no. characters)", 
+        group=group,
+        transform_fcn=int,
+    )
+    ui_ts_siz.add_option(
+        key=["s","smru"],
+        message="SMRU timestamp format",
+        fcn=lambda x: 19
+    )
+    ts_siz = ui_ts_siz.request(logger)
+
+    ts_rpos = ui.UserInput(
+        "timestamp_reverse_position", 
+        "Timestamp reverse position (no. characters from the end, not including the file extension)", 
+        group=group,
+        transform_fcn=int,
+    ).request(logger)
+
+    def timestamp_parser(x):
+        p = x.rfind(".") - ts_rpos
+        x = x[p - ts_siz : p]
+        dt = datetime.strptime(x, ts_fmt)
+        dt -= timedelta(seconds=int(ts_offset*3600))
+        return dt
+    
+    return timestamp_parser
+
 
 def add_files(conn, deployment_id, start_utc, end_utc, logger):
     """ Interactive session for adding a new audio files to the database.
@@ -349,51 +399,8 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
         group="audio",
     ).request(logger)
 
-    ui_ts_fmt = ui.UserInput(
-        "timestamp_format", 
-        "Timestamp format, e.g., %Y%m%dT%H%M%S.%f", 
-        group="audio",
-    )
-    ui_ts_fmt.add_option(
-        key=["s","smru"],
-        message="SMRU timestamp format",
-        fcn=lambda x: "%Y%m%d_%H%M%S_%f"
-    )    
-    ts_fmt = ui_ts_fmt.request(logger) 
-
-    ts_offset = ui.UserInput(
-        "timestamp_offset", 
-        "Time zone offset (hours) relative to UTC", 
-        group="audio",
-        transform_fcn=float,
-    ).request(logger)
-
-    ui_ts_siz = ui.UserInput(
-        "timestamp_size", 
-        "Timestamp length (no. characters)", 
-        group="audio",
-        transform_fcn=int,
-    )
-    ui_ts_siz.add_option(
-        key=["s","smru"],
-        message="SMRU timestamp format",
-        fcn=lambda x: 19
-    )
-    ts_siz = ui_ts_siz.request(logger)
-
-    ts_rpos = ui.UserInput(
-        "timestamp_reverse_position", 
-        "Timestamp reverse position (no. characters from the end, not including the file extension)", 
-        group="audio",
-        transform_fcn=int,
-    ).request(logger)
-
-    def timestamp_parser(x):
-        p = x.rfind(".") - ts_rpos
-        x = x[p - ts_siz : p]
-        dt = datetime.strptime(x, ts_fmt)
-        dt -= timedelta(seconds=int(ts_offset*3600))
-        return dt
+    # timestamp parser
+    timestamp_parser = create_timestamp_parser("audio", logger)
 
     date_subfolder = ui.UserInput(
         "date_subfolder", 
@@ -498,7 +505,7 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
 
     cprint(f"\n ## Successfully added {len(df)} audio files to the database", "yellow")
 
-    return cursor.lastrowid
+    return cursor.lastrowid, timestamp_parser
 
 
 def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
@@ -515,7 +522,8 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
                 Input logger
             timestamp_parser: callable
                 Given a filename (str) returns the UTC timestamp embedded 
-                in the filename as a datetime object. Optional.
+                in the filename as a datetime object.
+                Only required if some of the annotations reference audio files not present in the database.
 
         Returns:
             None
@@ -538,7 +546,7 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
     while True:
         try:
             # load selection table
-            df = from_raven(path, tax timestamp_parser=timestamp_parser)
+            df = from_raven(path, tax, timestamp_parser=timestamp_parser)
 
             # add missing fields
             df["job_id"] = job_id

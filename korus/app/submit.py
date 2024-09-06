@@ -71,6 +71,8 @@ def main():
 
     logger.write("db_path", args.database)
 
+    timestamp_parser = None
+
     # step 0: open connection to database
 
     conn = sqlite3.connect(args.database)
@@ -233,7 +235,7 @@ def main():
                 )
 
             if ui_add_more_files.request():
-                add.add_files(conn, deployment_id, start_utc, end_utc, logger)
+                _, timestamp_parser = add.add_files(conn, deployment_id, start_utc, end_utc, logger)
             else:
                 break
 
@@ -312,6 +314,8 @@ def main():
     if submit_selection_table:
         # TODO: prompt user if annotation table contains / may contain entries referring to 
         #       audio files not found in the database. If yes, ask them to provide a timestamp parser ...
+        #if yes and timestamp_parser is None:
+            #timestamp_parser = add.create_timestamp_parser(logger=logger)
 
         try:
             add.add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None)
