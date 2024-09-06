@@ -501,7 +501,7 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
     return cursor.lastrowid
 
 
-def add_annotations(conn, deployment_id, job_id, logger):
+def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
     """ Interactive session for adding new annotations to the database.
 
         Args:
@@ -513,6 +513,9 @@ def add_annotations(conn, deployment_id, job_id, logger):
                 Annotation job index
             logger: korus.app.app_util.ui.InputLogger
                 Input logger
+            timestamp_parser: callable
+                Given a filename (str) returns the UTC timestamp embedded 
+                in the filename as a datetime object. Optional.
 
         Returns:
             None
@@ -535,7 +538,7 @@ def add_annotations(conn, deployment_id, job_id, logger):
     while True:
         try:
             # load selection table
-            df = from_raven(path, tax)
+            df = from_raven(path, tax timestamp_parser=timestamp_parser)
 
             # add missing fields
             df["job_id"] = job_id
@@ -634,26 +637,29 @@ def add_tags(conn, tags):
         cprint(f"\n ## Successfully added the tag `{tag_name}` to the database", "yellow")
 
 
-def from_raven(input_path, tax, sep="\t", granularity="unit"):
-    """Loads entries from a RavenPro selections table
+def from_raven(input_path, tax, sep="\t", granularity="unit", timestamp_parser=None):
+    """ Loads entries from a RavenPro selections table
 
-    Args:
-        input_path: str
-            Path to the RavenPro selection table.
-        tax: korus.tax.AcousticTaxonomy
-            Annotation taxonomy
-        sep: str
-            Character used to separate columns in the selection table. Default is \t (tab)
-        granularity: str
-            Default granularity of annotations. 
+        Args:
+            input_path: str
+                Path to the RavenPro selection table.
+            tax: korus.tax.AcousticTaxonomy
+                Annotation taxonomy
+            sep: str
+                Character used to separate columns in the selection table. Default is \t (tab)
+            granularity: str
+                Default granularity of annotations. 
+            timestamp_parser: callable
+                Given a filename (str) returns the UTC timestamp embedded 
+                in the filename as a datetime object. Optional.
 
-    Returns:
-        df_out: pandas.DataFrame
-            Table of detections
+        Returns:
+            df_out: pandas.DataFrame
+                Table of detections
 
-    Raises:
-        FileNotFoundError: if the input file does not exist.
-        ValueError: if the input table contains fields with invalid data types
+        Raises:
+            FileNotFoundError: if the input file does not exist.
+            ValueError: if the input table contains fields with invalid data types
     """
     # load selections
     df_in = pd.read_csv(input_path, sep=sep)
@@ -779,6 +785,14 @@ def from_raven(input_path, tax, sep="\t", granularity="unit"):
 
     idx = (df_out.ambiguous_sound_type == "")
     df_out.loc[~idx, "tentative_sound_type"] = ""
+
+    # parse timestamps from filenames
+    if timestamp_parser is not None:
+        def get_start_utc(row):
+            """ Helper function for obtaining UTC start times """
+            return timestamp_parser(row.path) + timedelta(microseconds=row.duration_ms * 1E3)
+
+        df_out["start_utc"] = df_out.apply(lambda r: get_start_utc(r), axis=1)
 
     # dictionary to specify column types
     dtype_dict = {

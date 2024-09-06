@@ -400,6 +400,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
     idx = kdb.filter_negative(conn, source_type=("HW","%"), taxonomy_id=3)
     assert len(idx) == 0
 
+
 def test_import_taxonomy(basic_db):
     """ Test import_taxonomy function"""
     (conn, src_path) = basic_db

@@ -3,6 +3,7 @@ Change log
 
 **Version 0.0.8** (Month Day, Year)
 
+ * Added support for inserting annotations with invalid/missing file IDs into the database
  * Minor improvements to `korus-submit`
  * Added `issues` column to `job` table and renamed `model_config` to `configuration`
 

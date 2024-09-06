@@ -310,8 +310,11 @@ def main():
     ).request()
 
     if submit_selection_table:
+        # TODO: prompt user if annotation table contains / may contain entries referring to 
+        #       audio files not found in the database. If yes, ask them to provide a timestamp parser ...
+
         try:
-            add.add_annotations(conn, deployment_id, job_id, logger)
+            add.add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None)
 
         except KeyboardInterrupt:
             terminate(conn)

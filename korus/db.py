@@ -639,12 +639,16 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             :delim: ;
 
         Columns without a default value are mandatory; columns with a 
-        default value are optional. Either `file_id` or `deployment_id` 
-        must be specified.
+        default value are optional. 
+        
+        `deployment_id` and `start_utc` are normally not required, as they are 
+        inferred from the `file_id`, but must be specified in cases where the 
+        `file_id` column is missing, or some rows have invalid/missing file IDs.
+
+        Annotations without file IDs are inserted into the database with the ID value 0 (zero).
 
         TODO: chech that tentative (source,type) assignments are more specific cases of confident assignments
         TODO: check that there are no conflicts with existing annotations in the database
-        TODO: generalize to handle annotation tables without file_id column
                     
         Args:
             conn: sqlite3.Connection
@@ -666,7 +670,14 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             ValueError: If the input table contains annotations with invalid (source,type) assignments.
                         Note: this consistency check is only performed for confident and tentative 
                             assignments, not for ambiguous assignments.
+            AssertionError: If the annotation table does not have the required columns.
     """
+    assert "file_id" in annot_tbl.columns or \
+        ("deployment_id" in annot_tbl.columns 
+            and "start_utc" in annot_tbl.columns \
+            and "duration_ms" in annot_tbl.columns), \
+        "Annotation table must have column `file_id` or `deployment_id` and `start_utc` and `duration_ms`"
+
     c = conn.cursor()
 
     # get information about job
@@ -709,10 +720,40 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
     # build file table for this annotation job
     file_tbl = build_file_table(conn, job_id)
 
-    # add filename and deployment_id columns to annotation table
     file_tbl.set_index("file_id", inplace=True)
-    annot_tbl["filename"] = annot_tbl.file_id.apply(lambda x: file_tbl.loc[x].filename) 
-    annot_tbl["deployment_id"] = annot_tbl.file_id.apply(lambda x: file_tbl.loc[x].deployment_id)
+
+    # obtain file IDs
+    def get_filename(row):
+        """ Helper function for obtaining filenames.
+        
+            Attempts to look up the filename in the file table using the file ID, if available.
+            If the file is missing/invalid, returns an empty string
+        """
+        try:
+            return file_tbl.loc[row.file_id].filename
+        except:
+            return ""
+
+    annot_tbl["filename"] = annot_tbl.apply(lambda r: get_filename(r), axis=1) 
+
+    # obtain deployment IDs
+    def get_deployment_id(row):
+        """ Helper function for obtaining deployment IDs.
+        
+            Attempts to look up the deployment ID in the file table using the file ID, if available.
+            If the file is missing/invalid, returns the value of the deployment_id column.
+            If the annotation table does not have a deployment_id column, raises an Error 
+        """
+        try:
+            return file_tbl.loc[row.file_id].deployment_id
+        except:
+            try:
+                return row.deployment_id
+            except:
+                err_msg = f"Deployment ID required for annotation:\n{row}"
+                raise ValueError(err_msg)            
+
+    annot_tbl["deployment_id"] = annot_tbl.apply(lambda r: get_deployment_id(r), axis=1)
 
     # use filename as index
     file_tbl.reset_index(inplace=True)
@@ -728,10 +769,16 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
     # helper function for inserting a single annotation into the database
     def insert_annotation(c, file_tbl, row):
         # get file data
-        file_data = file_tbl.loc[row.filename]
-        file_id = int(file_data["file_id"])        
-        file_start_utc = file_data["start_utc"]
-        file_id_list = [int(file_id)]
+        try:
+            file_data = file_tbl.loc[row.filename]
+            file_id = int(file_data["file_id"])        
+            file_start_utc = file_data["start_utc"]
+            file_id_list = [int(file_id)]
+        
+        except:
+            file_id = 0
+            file_start_utc = None
+            file_id_list = [0]
 
         # deployment index
         if "deployment_id" in row:
@@ -739,10 +786,15 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             deployment_id = int(file_data["deployment_id"])
 
         # annotation UTC start time
-        if "start_utc" not in row:
-            start_utc = file_start_utc + timedelta(microseconds=row.start_ms*1e3)
+        if file_start_utc is None:
+            try:
+                start_utc = row.start_utc
+            except:
+                err_msg = f"UTC start time required for annotation:\n{row}"
+                raise ValueError(err_msg)
+
         else:
-            start_utc = row.start_utc
+            start_utc = file_start_utc + timedelta(microseconds=row.start_ms*1e3)
 
         # annotation duration
         duration_ms = row.duration_ms
