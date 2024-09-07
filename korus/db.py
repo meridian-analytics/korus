@@ -776,14 +776,20 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             file_id_list = [int(file_id)]
         
         except:
+            file_data = None
             file_id = 0
             file_start_utc = None
             file_id_list = [0]
 
         # deployment index
-        if "deployment_id" in row:
+        if "deployment_id" in row and file_data is not None:
             assert row.deployment_id == file_data["deployment_id"], "deployment IDs do not match"
+
+        if file_data is not None:
             deployment_id = int(file_data["deployment_id"])
+
+        else:
+            deployment_id = row.deployment_id
 
         # annotation UTC start time
         if file_start_utc is None:
@@ -807,16 +813,17 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
         end_utc = start_utc + timedelta(microseconds=duration_ms*1e3)
 
         # if the annotation spans multiple files, capture all file ids
-        file_end_utc = file_data["end_utc"]
-        filename = row.filename
-        while end_utc > file_end_utc:
-            loc = file_tbl.index.get_loc(filename) + 1
-            if loc >= len(file_tbl):
-                break
-            file_data = file_tbl.iloc[loc]
-            file_id_list.append(int(file_data["file_id"]))
+        if file_data is not None:
             file_end_utc = file_data["end_utc"]
-            filename = file_tbl.index[loc]
+            filename = row.filename
+            while end_utc > file_end_utc:
+                loc = file_tbl.index.get_loc(filename) + 1
+                if loc >= len(file_tbl):
+                    break
+                file_data = file_tbl.iloc[loc]
+                file_id_list.append(int(file_data["file_id"]))
+                file_end_utc = file_data["end_utc"]
+                filename = file_tbl.index[loc]
 
         # (confident) label id
         label_id = get_label_id(
@@ -925,7 +932,10 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             v["freq_max_hz"] = int(np.round(row.freq_max_hz))
 
         else:
-            v["freq_max_hz"] = int(file_data["sample_rate"] // 2)
+            if file_data is None:
+                v["freq_max_hz"] = np.nan
+            else:
+                v["freq_max_hz"] = int(file_data["sample_rate"] // 2)
 
         if "granularity" in row:
             rows = c.execute(f"SELECT id FROM granularity WHERE name = '{row.granularity}'").fetchall()
@@ -935,7 +945,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             v["granularity_id"] = rows[0][0]
 
         # adjust frequency range if needed
-        if v["freq_max_hz"] <= v.get("freq_min_hz", 0):
+        if np.isnan(v["freq_max_hz"]) or v["freq_max_hz"] <= v.get("freq_min_hz", 0):
             fmin = v.get("freq_min_hz", 0)
             fmax = v["freq_max_hz"]
             new_fmax = fmin + 1
@@ -961,10 +971,12 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             annot_ids.append(c.lastrowid)
 
         except sqlite3.IntegrityError:
-            err_msg = f"Failed to add annotation {idx} to the database because it does not meet the table constraints: "
-            err_msg += "duration_ms > 0 AND freq_min_hz < freq_max_hz"
+            err_msg = f"Failed to add annotation {idx} to the database because it does not meet the table constraints: duration_ms > 0 AND freq_min_hz < freq_max_hz"
             logging.error(err_msg)
             logging.debug(traceback.format_exc())
+
+        except KeyboardInterrupt:
+            raise
 
         except:
             err_msg = f"Failed to add annotation {idx} to the database. To view the full Error report, re-run in debug mode."

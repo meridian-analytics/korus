@@ -8,6 +8,7 @@ from termcolor import colored, cprint
 import traceback
 from korus.util import collect_audiofile_metadata
 import korus.db as kdb
+from korus.util import list_to_str
 import korus.app.app_util.view as vw
 import korus.app.app_util.ui as ui
 
@@ -286,7 +287,19 @@ def add_data_storage_location(conn, logger):
 
 
 def create_timestamp_parser(group=None, logger=None):
-    """ Interative session for creating a timestamp parser """
+    """ Interative session for creating a timestamp parser 
+    
+        Args:
+            group: str
+                Group that the parameter belongs to. Optional. 
+                Parameter names must be unique within groups.
+            logger: korus.app.app_util.ui.InputLogger
+                Input logger
+
+        Returns:
+            timestamp_parser: callable
+                Takes a string as input and returns a datetime object
+    """
     ui_ts_fmt = ui.UserInput(
         "timestamp_format", 
         "Timestamp format, e.g., %Y%m%dT%H%M%S.%f", 
@@ -319,16 +332,16 @@ def create_timestamp_parser(group=None, logger=None):
     )
     ts_siz = ui_ts_siz.request(logger)
 
-    ts_rpos = ui.UserInput(
-        "timestamp_reverse_position", 
-        "Timestamp reverse position (no. characters from the end, not including the file extension)", 
+    ts_pos = ui.UserInput(
+        "timestamp_position", 
+        "Timestamp position (no. characters from left if positive / from right if negative)", 
         group=group,
         transform_fcn=int,
     ).request(logger)
 
-    def timestamp_parser(x):
-        p = x.rfind(".") - ts_rpos
-        x = x[p - ts_siz : p]
+    def timestamp_parser(x):        
+        p = ts_pos if ts_pos >= 0 else len(x) - ts_pos - ts_siz
+        x = x[p : p + ts_siz]
         dt = datetime.strptime(x, ts_fmt)
         dt -= timedelta(seconds=int(ts_offset*3600))
         return dt
@@ -543,15 +556,17 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
     tax_id = c.execute(f"SELECT taxonomy_id FROM job WHERE id = '{job_id}'").fetchall()[0][0]
     tax = kdb.get_taxonomy(conn, tax_id)
 
+    annot_ids = []
     while True:
         try:
             # load selection table
             df = from_raven(path, tax, timestamp_parser=timestamp_parser)
 
             # add missing fields
+            # (set file ID to zero (0) if file is missing)
             df["job_id"] = job_id
             df["deployment_id"] = deployment_id
-            df["file_id"] = df.path.apply(lambda x: file_id_map[os.path.basename(x)])
+            df["file_id"] = df.path.apply(lambda x: file_id_map.get(os.path.basename(x), 0))
 
             # drop columns
             df = df.drop(columns=["path"])
@@ -600,6 +615,17 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
     conn.commit()
 
     cprint(f"\n ## Successfully added {len(annot_ids)} annotations to the database in {(end - start).total_seconds():.2f} seconds", "yellow")
+
+    # check if any of the annotations just added pertain to audio files not present in the database
+    c = conn.cursor()
+    query = f"SELECT file_id FROM annotation WHERE id in {list_to_str(annot_ids)}"
+    rows = c.execute(query).fetchall()
+    num_missing = 0
+    for row in rows:
+        num_missing += (row[0] == 0)
+
+    if num_missing > 0:
+        cprint(f"\n ## WARNING: {num_missing} of the annotations pertain to audio files not present in the database", "red")
 
 
 def add_tags(conn, tags):
