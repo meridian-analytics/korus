@@ -984,14 +984,14 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error=None):
             v["freq_min_hz"] = new_fmin
             v["freq_max_hz"] = new_fmax
             v["valid"] = 0
+
             comments = v.get("comments", "")
             if len(comments) > 0:
                 comments += "; "
                 
             warn_msg = "Invalid frequency range replaced with default range to allow insertion into database:" \
                 + f"[{fmin:.0f},{fmax:.0f}] -> [{new_fmin:.0f},{new_fmax:.0f}] (Hz)"
-            comments += warn_msg
-            v["comments"] = comments
+            v["comments"] = comments + warn_msg
 
             warn_msg += "; annotation flagged as containing invalid data."
             logging.warning(warn_msg)
