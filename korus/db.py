@@ -663,6 +663,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error=None):
 
         Annotations without file IDs are inserted into the database with the ID value 0 (zero).
 
+        TODO: implement `error` argument
         TODO: chech that tentative (source,type) assignments are more specific cases of confident assignments
         TODO: check that there are no conflicts with existing annotations in the database
                     
