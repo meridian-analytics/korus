@@ -975,7 +975,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error=None):
 
             v["granularity_id"] = rows[0][0]
 
-        # adjust frequency range if needed
+        # replace invalid frequency ranges with default values and flag annotation as containing invalid data
         if np.isnan(v["freq_max_hz"]) or v["freq_max_hz"] <= v.get("freq_min_hz", 0):
             fmin = v["freq_min_hz"]
             fmax = v["freq_max_hz"]
@@ -984,10 +984,16 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error=None):
             v["freq_min_hz"] = new_fmin
             v["freq_max_hz"] = new_fmax
             v["valid"] = 0
-            #v["comments"] 
-            warn_msg = f"Frequency range adjusted to allow insertion into database:"\
-                +  f"[{fmin:.0f},{fmax:.0f}] -> [{new_fmin:.0f},{new_fmax:.0f}] (Hz);"\
-                + " annotation flagged as containing invalid data."
+            comments = v.get("comments", "")
+            if len(comments) > 0:
+                comments += "; "
+                
+            warn_msg = "Invalid frequency range replaced with default range to allow insertion into database:" \
+                + f"[{fmin:.0f},{fmax:.0f}] -> [{new_fmin:.0f},{new_fmax:.0f}] (Hz)"
+            comments += warn_msg
+            v["comments"] = comments
+
+            warn_msg += "; annotation flagged as containing invalid data."
             logging.warning(warn_msg)
 
         # insert row into database
