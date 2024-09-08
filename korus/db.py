@@ -80,11 +80,15 @@ def filter_annotation(
         strict=False,
         tentative=False,
         ambiguous=False,
+        file=False,
+        valid=False,
         taxonomy_id=None,
     ):
     """ Query annotation table by filtering on sound source and sound type.
 
         TODO: implement strict
+        TODO: implement file
+        TODO: implement valid
 
         Args:
             conn: sqlite3.Connection
@@ -115,6 +119,12 @@ def filter_annotation(
                 Whether to filter on tentative label assignments, when available. Default is False.
             ambiguous: bool
                 Whether to also filter on ambiguous label assignments. Default is False.
+            file: bool
+                If True, exclude annotations pertaining to audio files not present in the database. 
+                Default is False. NOT YET IMPLEMENTED.
+            valid: bool
+                If True, exclude annotations with invalid data or flagged as requiring review.  
+                Default is False. NOT YET IMPLEMENTED.
             taxonomy_id: int
                 Acoustic taxonomy that the (source,type) label arguments refer to. If not specified, 
                 the latest taxonomy will be used.
@@ -124,7 +134,13 @@ def filter_annotation(
                 Annotation indices  
     """
     if strict:
-        raise NotImplementedError("@strict not yet implemented")
+        raise NotImplementedError("`strict` not yet implemented")
+
+    if file:
+        raise NotImplementedError("`file` not yet implemented")
+
+    if valid:
+        raise NotImplementedError("`valid` not yet implemented")
 
     c = conn.cursor()
 
@@ -220,7 +236,7 @@ def filter_negative(
                 Annotation indices  
     """
     if strict:
-        raise NotImplementedError("@strict not yet implemented")
+        raise NotImplementedError("`strict` not yet implemented")
 
     c = conn.cursor()
 
@@ -626,7 +642,7 @@ def assign_files_to_job(conn, job_id, file_id, channel=0, extendable=True):
 
     return counter
 
-def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
+def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error=None):
     """ Add a set of annotations to the database.
 
         The annotations must be provided in the form of Pandas DataFrame 
@@ -661,6 +677,16 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
                 Annotation job unique identifier
             progress_bar: bool
                 Display progress bar. Default is False.
+            error: str
+                Error handling. NOT YET IMPLEMENTED.                
+                Options are:
+
+                    * a/abort: If any of the annotations have invalid data, abort the entire submission
+                    * i/ignore: Ignore any annotations with invalid data, but proceed with 
+                                    submitting all other annotations to the database
+                    * r/replace: Automatically replace invalid data fields with default values (where possible) 
+                                    and flag the affected annotations as containing invalid data
+                    * m/manual: Manually review and fix every annotation with invalid data
 
         Returns:
             annot_ids: list(int)
@@ -672,6 +698,9 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
                             assignments, not for ambiguous assignments.
             AssertionError: If the annotation table does not have the required columns.
     """
+    if error is not None:
+        raise NotImplementedError("`error` is not implemented yet.")
+
     assert "file_id" in annot_tbl.columns or \
         ("deployment_id" in annot_tbl.columns 
             and "start_utc" in annot_tbl.columns \
@@ -901,6 +930,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             "duration_ms": duration_ms,
             "start_ms": row.start_ms,
             "channel": row.channel,
+            "valid": row.valid if "valid" in row else 1,
         }
 
         # add optional fields
@@ -946,11 +976,17 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
 
         # adjust frequency range if needed
         if np.isnan(v["freq_max_hz"]) or v["freq_max_hz"] <= v.get("freq_min_hz", 0):
-            fmin = v.get("freq_min_hz", 0)
+            fmin = v["freq_min_hz"]
             fmax = v["freq_max_hz"]
-            new_fmax = fmin + 1
+            new_fmin = 0
+            new_fmax = 256000 if file_data is None else int(file_data["sample_rate"] // 2)
+            v["freq_min_hz"] = new_fmin
             v["freq_max_hz"] = new_fmax
-            warn_msg = f"Frequency range adjusted to allow insertion into database: [{fmin:.0f},{fmax:.0f}] -> [{fmin:.0f},{new_fmax:.0f}] (Hz)"
+            v["valid"] = 0
+            #v["comments"] 
+            warn_msg = f"Frequency range adjusted to allow insertion into database:"\
+                +  f"[{fmin:.0f},{fmax:.0f}] -> [{new_fmin:.0f},{new_fmax:.0f}] (Hz);"\
+                + " annotation flagged as containing invalid data."
             logging.warning(warn_msg)
 
         # insert row into database

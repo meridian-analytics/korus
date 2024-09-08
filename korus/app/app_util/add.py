@@ -715,6 +715,7 @@ def from_raven(input_path, tax, sep="\t", granularity="unit", timestamp_parser=N
         "Tentative Sound Source": None,
         "Tentative Sound Type": None,
         "Comments": None,
+        "Valid": 1,
     }
 
     has_duration = ("Delta Time (s)" in df_in.columns)
@@ -746,7 +747,8 @@ def from_raven(input_path, tax, sep="\t", granularity="unit", timestamp_parser=N
         "ambiguous_sound_type": [],
         "granularity": [],
         "comments": [],
-        "channel": []
+        "channel": [],
+        "valid": [],
     }
 
     if has_duration:
@@ -770,6 +772,7 @@ def from_raven(input_path, tax, sep="\t", granularity="unit", timestamp_parser=N
     df_out["tentative_sound_type"] = df_in["Tentative Sound Type"]
     df_out["comments"] = df_in["Comments"]
     df_out["channel"] = df_in["Channel"] - 1
+    df_out["valid"] = df_in["Valid"]
 
     if has_duration:
         df_out["duration_ms"] = df_in["Delta Time (s)"] * 1000
@@ -843,6 +846,7 @@ def from_raven(input_path, tax, sep="\t", granularity="unit", timestamp_parser=N
         "comments": "string",
         "channel": np.uint8,
         "tag": "string",
+        "valid": np.uint8,
     }
 
     if has_duration:
