@@ -8,6 +8,7 @@ from termcolor import colored, cprint
 import traceback
 from korus.util import collect_audiofile_metadata
 import korus.db as kdb
+from korus.util import list_to_str
 import korus.app.app_util.view as vw
 import korus.app.app_util.ui as ui
 
@@ -285,6 +286,68 @@ def add_data_storage_location(conn, logger):
     return cursor.lastrowid
 
 
+def create_timestamp_parser(group=None, logger=None):
+    """ Interative session for creating a timestamp parser 
+    
+        Args:
+            group: str
+                Group that the parameter belongs to. Optional. 
+                Parameter names must be unique within groups.
+            logger: korus.app.app_util.ui.InputLogger
+                Input logger
+
+        Returns:
+            timestamp_parser: callable
+                Takes a string as input and returns a datetime object
+    """
+    ui_ts_fmt = ui.UserInput(
+        "timestamp_format", 
+        "Timestamp format, e.g., %Y%m%dT%H%M%S.%f", 
+        group=group,
+    )
+    ui_ts_fmt.add_option(
+        key=["s","smru"],
+        message="SMRU timestamp format",
+        fcn=lambda x: "%Y%m%d_%H%M%S_%f"
+    )    
+    ts_fmt = ui_ts_fmt.request(logger) 
+
+    ts_offset = ui.UserInput(
+        "timestamp_offset", 
+        "Time zone offset (hours) relative to UTC", 
+        group=group,
+        transform_fcn=float,
+    ).request(logger)
+
+    ui_ts_siz = ui.UserInput(
+        "timestamp_size", 
+        "Timestamp length (no. characters)", 
+        group=group,
+        transform_fcn=int,
+    )
+    ui_ts_siz.add_option(
+        key=["s","smru"],
+        message="SMRU timestamp format",
+        fcn=lambda x: 19
+    )
+    ts_siz = ui_ts_siz.request(logger)
+
+    ts_pos = ui.UserInput(
+        "timestamp_position", 
+        "Timestamp position (no. characters from left if positive / from right if negative)", 
+        group=group,
+        transform_fcn=int,
+    ).request(logger)
+
+    def timestamp_parser(x):        
+        p = ts_pos if ts_pos >= 0 else len(x) - ts_pos - ts_siz
+        x = x[p : p + ts_siz]
+        dt = datetime.strptime(x, ts_fmt)
+        dt -= timedelta(seconds=int(ts_offset*3600))
+        return dt
+    
+    return timestamp_parser
+
 
 def add_files(conn, deployment_id, start_utc, end_utc, logger):
     """ Interactive session for adding a new audio files to the database.
@@ -349,51 +412,8 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
         group="audio",
     ).request(logger)
 
-    ui_ts_fmt = ui.UserInput(
-        "timestamp_format", 
-        "Timestamp format, e.g., %Y%m%dT%H%M%S.%f", 
-        group="audio",
-    )
-    ui_ts_fmt.add_option(
-        key=["s","smru"],
-        message="SMRU timestamp format",
-        fcn=lambda x: "%Y%m%d_%H%M%S_%f"
-    )    
-    ts_fmt = ui_ts_fmt.request(logger) 
-
-    ts_offset = ui.UserInput(
-        "timestamp_offset", 
-        "Time zone offset (hours) relative to UTC", 
-        group="audio",
-        transform_fcn=float,
-    ).request(logger)
-
-    ui_ts_siz = ui.UserInput(
-        "timestamp_size", 
-        "Timestamp length (no. characters)", 
-        group="audio",
-        transform_fcn=int,
-    )
-    ui_ts_siz.add_option(
-        key=["s","smru"],
-        message="SMRU timestamp format",
-        fcn=lambda x: 19
-    )
-    ts_siz = ui_ts_siz.request(logger)
-
-    ts_rpos = ui.UserInput(
-        "timestamp_reverse_position", 
-        "Timestamp reverse position (no. characters from the end, not including the file extension)", 
-        group="audio",
-        transform_fcn=int,
-    ).request(logger)
-
-    def timestamp_parser(x):
-        p = x.rfind(".") - ts_rpos
-        x = x[p - ts_siz : p]
-        dt = datetime.strptime(x, ts_fmt)
-        dt -= timedelta(seconds=int(ts_offset*3600))
-        return dt
+    # timestamp parser
+    timestamp_parser = create_timestamp_parser("audio", logger)
 
     date_subfolder = ui.UserInput(
         "date_subfolder", 
@@ -498,10 +518,10 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
 
     cprint(f"\n ## Successfully added {len(df)} audio files to the database", "yellow")
 
-    return cursor.lastrowid
+    return cursor.lastrowid, timestamp_parser
 
 
-def add_annotations(conn, deployment_id, job_id, logger):
+def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
     """ Interactive session for adding new annotations to the database.
 
         Args:
@@ -513,6 +533,10 @@ def add_annotations(conn, deployment_id, job_id, logger):
                 Annotation job index
             logger: korus.app.app_util.ui.InputLogger
                 Input logger
+            timestamp_parser: callable
+                Given a filename (str) returns the UTC timestamp embedded 
+                in the filename as a datetime object.
+                Only required if some of the annotations reference audio files not present in the database.
 
         Returns:
             None
@@ -532,15 +556,17 @@ def add_annotations(conn, deployment_id, job_id, logger):
     tax_id = c.execute(f"SELECT taxonomy_id FROM job WHERE id = '{job_id}'").fetchall()[0][0]
     tax = kdb.get_taxonomy(conn, tax_id)
 
+    annot_ids = []
     while True:
         try:
             # load selection table
-            df = from_raven(path, tax)
+            df = from_raven(path, tax, timestamp_parser=timestamp_parser)
 
             # add missing fields
+            # (set file ID to zero (0) if file is missing)
             df["job_id"] = job_id
             df["deployment_id"] = deployment_id
-            df["file_id"] = df.path.apply(lambda x: file_id_map[os.path.basename(x)])
+            df["file_id"] = df.path.apply(lambda x: file_id_map.get(os.path.basename(x), 0))
 
             # drop columns
             df = df.drop(columns=["path"])
@@ -590,6 +616,17 @@ def add_annotations(conn, deployment_id, job_id, logger):
 
     cprint(f"\n ## Successfully added {len(annot_ids)} annotations to the database in {(end - start).total_seconds():.2f} seconds", "yellow")
 
+    # check if any of the annotations just added pertain to audio files not present in the database
+    c = conn.cursor()
+    query = f"SELECT file_id FROM annotation WHERE id in {list_to_str(annot_ids)}"
+    rows = c.execute(query).fetchall()
+    num_missing = 0
+    for row in rows:
+        num_missing += (row[0] == 0)
+
+    if num_missing > 0:
+        cprint(f"\n ## WARNING: {num_missing} of the annotations pertain to audio files not present in the database", "red")
+
 
 def add_tags(conn, tags):
     """ Interactive session for adding new annotations to the database.
@@ -634,26 +671,29 @@ def add_tags(conn, tags):
         cprint(f"\n ## Successfully added the tag `{tag_name}` to the database", "yellow")
 
 
-def from_raven(input_path, tax, sep="\t", granularity="unit"):
-    """Loads entries from a RavenPro selections table
+def from_raven(input_path, tax, sep="\t", granularity="unit", timestamp_parser=None):
+    """ Loads entries from a RavenPro selections table
 
-    Args:
-        input_path: str
-            Path to the RavenPro selection table.
-        tax: korus.tax.AcousticTaxonomy
-            Annotation taxonomy
-        sep: str
-            Character used to separate columns in the selection table. Default is \t (tab)
-        granularity: str
-            Default granularity of annotations. 
+        Args:
+            input_path: str
+                Path to the RavenPro selection table.
+            tax: korus.tax.AcousticTaxonomy
+                Annotation taxonomy
+            sep: str
+                Character used to separate columns in the selection table. Default is \t (tab)
+            granularity: str
+                Default granularity of annotations. 
+            timestamp_parser: callable
+                Given a filename (str) returns the UTC timestamp embedded 
+                in the filename as a datetime object. Optional.
 
-    Returns:
-        df_out: pandas.DataFrame
-            Table of detections
+        Returns:
+            df_out: pandas.DataFrame
+                Table of detections
 
-    Raises:
-        FileNotFoundError: if the input file does not exist.
-        ValueError: if the input table contains fields with invalid data types
+        Raises:
+            FileNotFoundError: if the input file does not exist.
+            ValueError: if the input table contains fields with invalid data types
     """
     # load selections
     df_in = pd.read_csv(input_path, sep=sep)
@@ -675,6 +715,7 @@ def from_raven(input_path, tax, sep="\t", granularity="unit"):
         "Tentative Sound Source": None,
         "Tentative Sound Type": None,
         "Comments": None,
+        "Valid": 1,
     }
 
     has_duration = ("Delta Time (s)" in df_in.columns)
@@ -706,7 +747,8 @@ def from_raven(input_path, tax, sep="\t", granularity="unit"):
         "ambiguous_sound_type": [],
         "granularity": [],
         "comments": [],
-        "channel": []
+        "channel": [],
+        "valid": [],
     }
 
     if has_duration:
@@ -730,6 +772,7 @@ def from_raven(input_path, tax, sep="\t", granularity="unit"):
     df_out["tentative_sound_type"] = df_in["Tentative Sound Type"]
     df_out["comments"] = df_in["Comments"]
     df_out["channel"] = df_in["Channel"] - 1
+    df_out["valid"] = df_in["Valid"]
 
     if has_duration:
         df_out["duration_ms"] = df_in["Delta Time (s)"] * 1000
@@ -780,6 +823,14 @@ def from_raven(input_path, tax, sep="\t", granularity="unit"):
     idx = (df_out.ambiguous_sound_type == "")
     df_out.loc[~idx, "tentative_sound_type"] = ""
 
+    # parse timestamps from filenames
+    if timestamp_parser is not None:
+        def get_start_utc(row):
+            """ Helper function for obtaining UTC start times """
+            return timestamp_parser(row.path) + timedelta(microseconds=row.duration_ms * 1E3)
+
+        df_out["start_utc"] = df_out.apply(lambda r: get_start_utc(r), axis=1)
+
     # dictionary to specify column types
     dtype_dict = {
         "path": "string",
@@ -795,6 +846,7 @@ def from_raven(input_path, tax, sep="\t", granularity="unit"):
         "comments": "string",
         "channel": np.uint8,
         "tag": "string",
+        "valid": np.uint8,
     }
 
     if has_duration:

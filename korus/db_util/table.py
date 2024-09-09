@@ -31,6 +31,7 @@ def create_annotation_table(conn):
                 freq_max_hz INTEGER,
                 channel INTEGER NOT NULL DEFAULT 0,
                 machine_prediction JSON,
+                valid INTEGER NOT NULL DEFAULT 1,
                 comments TEXT,
                 PRIMARY KEY (id),
                 FOREIGN KEY (label_id) REFERENCES label (id),
