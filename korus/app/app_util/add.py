@@ -3,6 +3,7 @@ import sqlite3
 import json
 import pandas as pd
 import numpy as np
+from glob import glob
 from datetime import datetime, timedelta
 from termcolor import colored, cprint
 import traceback
@@ -543,7 +544,11 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
     """
 
     # query user
-    path = ui.UserInput("path", "Full path to RavenPro selection table", group="annotation").request(logger)
+    path = ui.UserInput(
+        "path", 
+        "Full path to RavenPro selection table. (Use wildcard to select multiple files.)", 
+        group="annotation"
+    ).request(logger)
 
     # get all file IDs
     c = conn.cursor()
@@ -559,7 +564,7 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
     annot_ids = []
     while True:
         try:
-            # load selection table
+            # load selection table(s)
             df = from_raven(path, tax, timestamp_parser=timestamp_parser)
 
             # add missing fields
@@ -671,16 +676,16 @@ def add_tags(conn, tags):
         cprint(f"\n ## Successfully added the tag `{tag_name}` to the database", "yellow")
 
 
-def from_raven(input_path, tax, sep="\t", granularity="unit", timestamp_parser=None):
+def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=None):
     """ Loads entries from a RavenPro selections table
 
         Args:
             input_path: str
-                Path to the RavenPro selection table.
+                Path to the RavenPro selection table(s). Use of wildcards is allowed.
             tax: korus.tax.AcousticTaxonomy
                 Annotation taxonomy
             sep: str
-                Character used to separate columns in the selection table. Default is \t (tab)
+                Character used to separate columns in the selection table. If None, tries to auto-detect the separator character.
             granularity: str
                 Default granularity of annotations. 
             timestamp_parser: callable
@@ -695,8 +700,27 @@ def from_raven(input_path, tax, sep="\t", granularity="unit", timestamp_parser=N
             FileNotFoundError: if the input file does not exist.
             ValueError: if the input table contains fields with invalid data types
     """
-    # load selections
-    df_in = pd.read_csv(input_path, sep=sep)
+    # find files
+    input_paths = glob(input_path)
+
+    cprint(f"\n ## Found {len(input_paths)} selection tables matching the search criteria", "yellow")
+
+    # load files
+    dfs = []
+    for input_path in input_paths:
+        # detect separator
+        if sep is None:
+            with open(input_path, "r") as f:
+                header = f.readline()
+                if "\t" in header: sep = "\t"
+                elif ";" in header: sep = ";"
+                elif "," in header: sep = ","
+
+        # load selections
+        dfs.append(pd.read_csv(input_path, sep=sep))
+
+    # concatenate
+    df_in = pd.concat(dfs, ignore_index=True)
 
     # required columns
     required_cols = [
