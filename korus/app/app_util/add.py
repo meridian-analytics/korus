@@ -694,7 +694,7 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
 
         Returns:
             df_out: pandas.DataFrame
-                Table of detections
+                Table of selections
 
         Raises:
             FileNotFoundError: if the input file does not exist.
@@ -738,12 +738,15 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
         "Sound Type": None,
         "Tentative Sound Source": None,
         "Tentative Sound Type": None,
+        "Ambiguous Sound Source": None,
+        "Ambiguous Sound Type": None,
         "Comments": None,
         "Valid": 1,
     }
 
     has_duration = ("Delta Time (s)" in df_in.columns)
     has_freq_max = ("High Freq (Hz)" in df_in.columns)
+    has_ambiguous = ("Ambiguous Sound Source" in df_in.columns)
 
     # check that required columns are present
     for c in required_cols:
@@ -775,16 +778,7 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
         "valid": [],
     }
 
-    if has_duration:
-        data_out["duration_ms"] = []
-
-    if has_freq_max:
-        data_out["freq_max_hz"] = []
-
     df_out = pd.DataFrame(data_out)
-
-    # number of detections
-    N = len(df_in)
 
     # fill data into output dataframe
     df_out["path"] = df_in["Begin File"]
@@ -794,9 +788,12 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
     df_out["sound_type"] = df_in["Sound Type"]
     df_out["tentative_sound_source"] = df_in["Tentative Sound Source"]
     df_out["tentative_sound_type"] = df_in["Tentative Sound Type"]
+    df_out["ambiguous_sound_source"] = df_in["Ambiguous Sound Source"]
+    df_out["ambiguous_sound_type"] = df_in["Ambiguous Sound Type"]
     df_out["comments"] = df_in["Comments"]
     df_out["channel"] = df_in["Channel"] - 1
     df_out["valid"] = df_in["Valid"]
+    df_out["granularity"] = granularity
 
     if has_duration:
         df_out["duration_ms"] = df_in["Delta Time (s)"] * 1000
@@ -804,20 +801,13 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
     if has_freq_max:
         df_out["freq_max_hz"] = df_in["High Freq (Hz)"]
 
-    # if the Selection Table contains the columns 'Granularity', 'Batch Annotation', or
-    # 'Window Annotation', use them (in that order of preference)
-    df_out["granularity"] = granularity
-
+    # if the Selection Table contains the columns 'Granularity' or 'Batch Annotation', use them (in that order of preference)
     if "Granularity" in df_in.columns.values:
         df_out["granularity"] = df_in["Granularity"].apply(lambda x: x.lower() if isinstance(x, str) else granularity)
 
     elif "Batch Annotation" in df_in.columns.values:
         idx_batch = (df_in["Batch Annotation"] == 1) 
         df_out.loc[idx_batch, "granularity"] = "batch"
-
-    elif "Window Annotation" in df_in.columns.values:
-        idx_batch = (df_in["Window Annotation"] == 1) 
-        df_out.loc[idx_batch, "granularity"] = "window"
 
     # if the Selection Table contains the column 'Tag', use it
     if "Tag" in df_in.columns.values:
@@ -829,23 +819,12 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
     df_out.sound_type = df_out.sound_type.fillna("")
     df_out.tentative_sound_source = df_out.tentative_sound_source.fillna("")
     df_out.tentative_sound_type = df_out.tentative_sound_type.fillna("")
+    df_out.ambiguous_sound_source = df_out.ambiguous_sound_source.fillna("")
+    df_out.ambiguous_sound_type = df_out.ambiguous_sound_type.fillna("")
 
-    # handle ambiguous assignments
-    df_out["ambiguous_sound_source"] = df_out["tentative_sound_source"]    
-    df_out["ambiguous_sound_type"] = df_out["tentative_sound_type"]
-
-    def parse_ambiguous(x):
-        x = x.replace("/", ",")
-        return x if "," in x else "" 
-
-    df_out.ambiguous_sound_source = df_out.ambiguous_sound_source.apply(lambda x: parse_ambiguous(x))
-    df_out.ambiguous_sound_type = df_out.ambiguous_sound_type.apply(lambda x: parse_ambiguous(x))
-
-    idx = (df_out.ambiguous_sound_source == "")
-    df_out.loc[~idx, "tentative_sound_source"] = ""
-
-    idx = (df_out.ambiguous_sound_type == "")
-    df_out.loc[~idx, "tentative_sound_type"] = ""
+    # detect and parse ambiguous assignments in confident/tentative columns
+    if not has_ambiguous:
+        df_out = _parse_ambiguous(df_out, tax)
 
     # parse timestamps from filenames
     if timestamp_parser is not None:
@@ -911,8 +890,12 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
         if r.sound_type != "": 
             return r.sound_type
         else:
-            types = tax.sound_types(r.sound_source)   
-            return types.get_node(types.root).tag
+            try:
+                types = tax.sound_types(r.sound_source)   
+                return types.get_node(types.root).tag
+            except AttributeError:
+                return "Unknown"
+
     df_out.sound_type = df_out.apply(lambda r: fcn(r), axis=1)
 
     # replace empty tentative sound type with None
@@ -930,3 +913,64 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
 
     return df_out
 
+
+def _parse_ambiguous(df, tax):
+    """ Helper function for parsing ambiguous label assignments separated by slash (/).
+     
+        The function checks the confident/tentative label columns for occurrences of slash (/) characters.
+
+        When ambiguous labels are found, they are moved to the corresponding ambiguous column. 
+
+        If they occur in the confident column, they are replaced by the last common ancestor node in the taxonomy. 
+        If they occur in the tentative column, they are replaced by a 'null' value.
+
+        Args:
+            df: pandas DataFrame
+                Selection table
+            tax: korus.tax.AcousticTaxonomy
+                Annotation taxonomy
+
+        Returns:
+            df: pandas DataFrame
+                Selection table with ambiguous assignments resolved.
+    """
+    for idx,row in df.iterrows():        
+        # sound source
+        s = row["sound_source"]
+        if "/" in s:
+            sources = s.split("/")
+            parent = tax.last_common_ancestor(sources)
+            df.loc[idx, "ambiguous_sound_source"] = ",".join(sources)
+            df.loc[idx, "sound_source"] = parent
+
+        # tentative sound source
+        s = row["tentative_sound_source"]
+        if "/" in s:
+            sources = s.split("/")
+            df.loc[idx, "ambiguous_sound_source"] = ",".join(sources)
+            df.loc[idx, "tentative_sound_source"] = ""
+
+        s = row["sound_source"]
+
+        # sound type
+        x = row["sound_type"]
+        if "/" in x:
+            types = x.split("/")
+            tax_types = tax.sound_types(s)
+            for t in types:
+                if tax_types.get_id(t) is None:
+                    err_msg = f"Invalid sound type `{t}` for sound source `{s}` in entry {idx}"
+                    raise ValueError(err_msg)
+                
+            parent = tax_types.last_common_ancestor(types)
+            df.loc[idx, "ambiguous_sound_type"] = ",".join(types)
+            df.loc[idx, "sound_type"] = parent
+
+        # tentative sound type
+        x = row["tentative_sound_type"]
+        if "/" in x:
+            types = x.split("/")
+            df.loc[idx, "ambiguous_sound_type"] = ",".join(types)
+            df.loc[idx, "tentative_sound_type"] = ""
+
+    return df
