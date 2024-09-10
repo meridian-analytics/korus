@@ -3,6 +3,8 @@ Change log
 
 **Version 0.0.8** (Month Day, Year)
 
+ * Improved error handling when adding annotations
+ * Fixed bug in parsing of ambiguous labels
  * Added column `valid` to annotation table
  * Added support for inserting annotations with invalid/missing file IDs into the database
  * Minor improvements to `korus-submit`
