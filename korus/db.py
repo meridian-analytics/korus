@@ -15,6 +15,7 @@ from korus.util import get_num_samples_and_rate, list_to_str
 import korus.tax as kx
 import korus.db_util.table as ktb
 import korus.db_util.label as klb
+from korus.app.app_util.add import edit_row_manually
 
 
 def filter_files(conn, deployment_id=None, start_utc=None, end_utc=None, job_id=None):
@@ -642,7 +643,7 @@ def assign_files_to_job(conn, job_id, file_id, channel=0, extendable=True):
 
     return counter
 
-def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error=None):
+def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"):
     """ Add a set of annotations to the database.
 
         The annotations must be provided in the form of Pandas DataFrame 
@@ -663,7 +664,6 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error=None):
 
         Annotations without file IDs are inserted into the database with the ID value 0 (zero).
 
-        TODO: implement `error` argument
         TODO: chech that tentative (source,type) assignments are more specific cases of confident assignments
         TODO: check that there are no conflicts with existing annotations in the database
                     
@@ -686,7 +686,8 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error=None):
                     * i/ignore: Ignore any annotations with invalid data, but proceed with 
                                     submitting all other annotations to the database
                     * r/replace: Automatically replace invalid data fields with default values (where possible) 
-                                    and flag the affected annotations as containing invalid data
+                                    and flag the affected annotations as containing invalid data; if replacement 
+                                    is not possible, switch to manual mode.
                     * m/manual: Manually review and fix every annotation with invalid data
 
         Returns:
@@ -699,8 +700,21 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error=None):
                             assignments, not for ambiguous assignments.
             AssertionError: If the annotation table does not have the required columns.
     """
-    if error is not None:
-        raise NotImplementedError("`error` is not implemented yet.")
+    ABORT = 0
+    IGNORE = 1
+    REPLACE = 2
+    MANUAL = 3
+
+    if error.lower() in ["a","abort"]:
+        error_handling = ABORT
+    elif error.lower() in ["i","ignore"]:
+        error_handling = IGNORE
+    elif error.lower() in ["r","replace"]:
+        error_handling = REPLACE
+    elif error.lower() in ["m","manual"]:
+        error_handling = MANUAL
+    else:
+        raise ValueError(f"Argument `error` has invalid value: {error}")
 
     assert "file_id" in annot_tbl.columns or \
         ("deployment_id" in annot_tbl.columns 
@@ -909,6 +923,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error=None):
                 try:
                     lid = get_label_id(conn, source_type=(ss, st), taxonomy_id=tax_id)
                     ambi_label_id.append(lid)
+                
                 except ValueError as e:
                     logging.error("Encountered invalid (source,type) combination in parsing of ambiguous assignments")
                     logging.error(str(e)) #log error, and continue
@@ -924,7 +939,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error=None):
             "file_id": file_id,
             "label_id": label_id,
             "tentative_label_id": tent_label_id,
-            "ambiguous_label_id": json.dumps(ambi_label_id),
+            "ambiguous_label_id": json.dumps(ambi_label_id),  
             "num_files": len(file_id_list),
             "file_id_list": json.dumps(file_id_list), 
             "start_utc": start_utc.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
@@ -976,7 +991,9 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error=None):
             v["granularity_id"] = rows[0][0]
 
         # replace invalid frequency ranges with default values and flag annotation as containing invalid data
-        if np.isnan(v["freq_max_hz"]) or v["freq_max_hz"] <= v.get("freq_min_hz", 0):
+        if error_handling == REPLACE and \
+            (np.isnan(v["freq_max_hz"]) or v["freq_max_hz"] <= v.get("freq_min_hz", 0)):
+
             fmin = v["freq_min_hz"]
             fmax = v["freq_max_hz"]
             new_fmin = 0
@@ -1009,22 +1026,37 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error=None):
 
     # loop over all annotations
     for idx,row in tqdm(annot_tbl.iterrows(), disable=not progress_bar, total=annot_tbl.shape[0]):
-        try:
-            c = insert_annotation(c, file_tbl, row)
-            annot_ids.append(c.lastrowid)
+        while True:
 
-        except sqlite3.IntegrityError:
-            err_msg = f"Failed to add annotation {idx} to the database because it does not meet the table constraints: duration_ms > 0 AND freq_min_hz < freq_max_hz"
-            logging.error(err_msg)
-            logging.debug(traceback.format_exc())
+            try:
+                c = insert_annotation(c, file_tbl, row)
+                annot_ids.append(c.lastrowid)
+                break
 
-        except KeyboardInterrupt:
-            raise
+            except sqlite3.IntegrityError:
+                err_msg = f"Failed to add annotation {idx} to the database because it does not meet the table constraints: duration_ms > 0 AND freq_min_hz < freq_max_hz"
+                logging.error(err_msg)
+                logging.debug(traceback.format_exc())
+                if error_handling == ABORT:
+                    raise
+                elif error_handling == IGNORE:
+                    break
+                elif error_handling in [REPLACE, MANUAL]:
+                    row = edit_row_manually(idx, row)
 
-        except:
-            err_msg = f"Failed to add annotation {idx} to the database. To view the full Error report, re-run in debug mode."
-            logging.error(err_msg)
-            logging.error(traceback.format_exc())
+            except KeyboardInterrupt:
+                raise
+
+            except:
+                err_msg = f"Failed to add annotation {idx} to the database. To view the full Error report, re-run in debug mode."
+                logging.error(err_msg)
+                logging.error(traceback.format_exc())
+                if error_handling == ABORT:
+                    raise
+                elif error_handling == IGNORE:
+                    break
+                elif error_handling in [REPLACE, MANUAL]:
+                    row = edit_row_manually(idx, row)
 
     return annot_ids
 

@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import json
+import yaml
 import pandas as pd
 import numpy as np
 from glob import glob
@@ -610,6 +611,9 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
 
             break
 
+        except KeyboardInterrupt:
+            terminate(conn)
+
         except Exception:
             cprint("\n ## "+ traceback.format_exc(), "red")
             cprint(" ## Error processing selection table", "red")
@@ -822,9 +826,10 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
     df_out.ambiguous_sound_source = df_out.ambiguous_sound_source.fillna("")
     df_out.ambiguous_sound_type = df_out.ambiguous_sound_type.fillna("")
 
-    # detect and parse ambiguous assignments in confident/tentative columns
+    # validate data
+    # also detect and parse ambiguous assignments in confident/tentative columns
     if not has_ambiguous:
-        df_out = _parse_ambiguous(df_out, tax)
+        df_out = _validate_annotations(df_out, tax)
 
     # parse timestamps from filenames
     if timestamp_parser is not None:
@@ -914,8 +919,10 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
     return df_out
 
 
-def _parse_ambiguous(df, tax):
-    """ Helper function for parsing ambiguous label assignments separated by slash (/).
+def _validate_annotations(df, tax):
+    """ Helper function for validating annotation data.
+    
+        Also parses ambiguous label assignments separated by slash (/).
      
         The function checks the confident/tentative label columns for occurrences of slash (/) characters.
 
@@ -934,43 +941,206 @@ def _parse_ambiguous(df, tax):
             df: pandas DataFrame
                 Selection table with ambiguous assignments resolved.
     """
-    for idx,row in df.iterrows():        
-        # sound source
-        s = row["sound_source"]
-        if "/" in s:
-            sources = s.split("/")
-            parent = tax.last_common_ancestor(sources)
-            df.loc[idx, "ambiguous_sound_source"] = ",".join(sources)
-            df.loc[idx, "sound_source"] = parent
+    # maps for invalid labels
+    src_map = dict()
+    typ_map = dict()
 
-        # tentative sound source
-        s = row["tentative_sound_source"]
-        if "/" in s:
-            sources = s.split("/")
-            df.loc[idx, "ambiguous_sound_source"] = ",".join(sources)
-            df.loc[idx, "tentative_sound_source"] = ""
+    def _parse_ambiguous(labels, tax, label_map, idx, row, sep="/"):
+        """ Helper function for parsing and validating ambiguous label assignments """
+        labels_val = []
+        for label in labels.split(sep):
+            label, label_map = _validate_label(label, tax, label_map, idx, row)
+            labels_val.append(label)
 
-        s = row["sound_source"]
+        return labels_val, label_map
 
-        # sound type
-        x = row["sound_type"]
-        if "/" in x:
-            types = x.split("/")
-            tax_types = tax.sound_types(s)
-            for t in types:
-                if tax_types.get_id(t) is None:
-                    err_msg = f"Invalid sound type `{t}` for sound source `{s}` in entry {idx}"
-                    raise ValueError(err_msg)
+    # loop over all entries
+    for idx,row in df.iterrows():     
+
+        # repeat until all validations pass
+        while True:
+
+            try:
+                # 1) parse ambiguous assignments separated by slash (/)
+
+                if row.ambiguous_sound_source == "":
+                    # sound source
+                    s = row["sound_source"]
+                    if "/" in s:
+                        sources, src_map = _parse_ambiguous(s, tax, src_map, idx, row, sep="/")
+                        parent = tax.last_common_ancestor(sources)
+                        row["ambiguous_sound_source"] = ",".join(sources)
+                        row["sound_source"] = parent
+
+                    # tentative sound source
+                    s = row["tentative_sound_source"]
+                    if "/" in s:
+                        sources, src_map = _parse_ambiguous(s, tax, src_map, idx, row, sep="/")
+                        row["ambiguous_sound_source"] = ",".join(sources)
+                        row["tentative_sound_source"] = ""
+
+                if row.ambiguous_sound_type == "":
+                    s = row["sound_source"]
+                    typ_tax = tax.sound_types(s)
+
+                    # sound type
+                    t = row["sound_type"]
+                    if "/" in t:            
+                        types, typ_map = _parse_ambiguous(t, typ_tax, typ_map, idx, row, sep="/")                
+                        parent = typ_tax.last_common_ancestor(types)
+                        row["ambiguous_sound_type"] = ",".join(types)
+                        row["sound_type"] = parent
+
+                    # tentative sound type
+                    t = row["tentative_sound_type"]
+                    if "/" in t:
+                        types, typ_map = _parse_ambiguous(t, typ_tax, typ_map, idx, row, sep="/")                
+                        row["ambiguous_sound_type"] = ",".join(types)
+                        row["tentative_sound_type"] = ""
+
+
+                # 2) validate labels
+
+                ss = row["sound_source"]
+                row["sound_source"], src_map = _validate_label(ss, tax, src_map, idx, row)
+
+                tss = row["tentative_sound_source"]
+                row["tentative_sound_source"], src_map = _validate_label(tss, tax, src_map, idx, row)
+
+                ass = row["ambiguous_sound_source"]
+                sources, src_map = _parse_ambiguous(ass, tax, src_map, idx, row, sep=",")
+                row["ambiguous_sound_source"] = ",".join(sources)
+
+                st = row["sound_type"]
+                typ_tax = tax.sound_types(s)
+                row["sound_type"], typ_map = _validate_label(st, typ_tax, typ_map, idx, row)
+
+                tst = df.loc[idx, "tentative_sound_type"]
+                if tss is not None and tss != "":
+                    typ_tax = tax.sound_types(tss)
                 
-            parent = tax_types.last_common_ancestor(types)
-            df.loc[idx, "ambiguous_sound_type"] = ",".join(types)
-            df.loc[idx, "sound_type"] = parent
+                row["tentative_sound_type"], typ_map = _validate_label(tst, typ_tax, typ_map, idx, row)
 
-        # tentative sound type
-        x = row["tentative_sound_type"]
-        if "/" in x:
-            types = x.split("/")
-            df.loc[idx, "ambiguous_sound_type"] = ",".join(types)
-            df.loc[idx, "tentative_sound_type"] = ""
+                ast = row["ambiguous_sound_type"]
+                types, typ_map = _parse_ambiguous(ast, typ_tax, typ_map, idx, row, sep=",")
+                row["ambiguous_sound_source"] = ",".join(sources)
+
+                # 3) all validations have passed so exit the loop
+
+                df.loc[idx] = row                       
+                break        
+
+
+            except ValueError:
+                # edit row manually
+                row = edit_row_manually(idx, row)
 
     return df
+
+
+def edit_row_manually(idx, row):
+    """ Edit an annotation manually.
+
+        The annotation data is saved to a temporary YAML file. The user is prompted via the console 
+        to edit and save the file, then hit ENTER to proceed.
+
+        Args:
+            idx: int
+                Index
+            row: pandas Series
+                Values
+
+        Returns:
+            row: pandas Series
+                The edited values
+    """
+    path = f"korus-entry-{idx}.yaml"
+
+    with open(path, "w") as f:
+        yaml.dump(row.to_dict(), f)      
+
+    msg = f" >> Entry {idx} saved to {path}. Edit file manually and save. Then hit ENTER to proceed with submission."
+    input(msg)
+
+    with open(path, "r") as f:
+        row_dict = yaml.safe_load(f)
+
+    row = pd.Series(row_dict)
+
+    os.remove(path)
+
+    return row
+
+
+def _validate_label(x, tax, label_map, idx, row):
+    """ Helper function for validating labels.
+
+        If the label is found to be invalid, the user is prompted via the terminal for an alternative label.
+
+        Args:
+            x: str
+                Label to be validated
+            tax: Korus.tax.AcousticTaxonomy
+                Taxonomy of allowed labels, against which x will be validated
+            label_map: dict
+                Mapping for invalid labels
+            idx: int
+                Row index. Only used for interactive prompt.
+            row: pandas Series
+                Row values. Only used for interactive prompt.
+
+        Returns:
+            y: str
+                The validated label.
+            label_map: dict
+                The updated label map.
+
+        Raises:
+            ValueError: if the user requests to switch to manual editing mode
+    """
+    if x is None or x == "":
+        return x, label_map
+
+    y = x
+    while tax.get_id(y) is None:
+        if y in label_map:
+            y = label_map[y]
+
+        else:
+            try:
+                cprint(f" >> Unrecognized label in entry {idx}: {y}", "red")
+                msg = " >> Options:"
+                msg += "\n >>  - [name]:      alternative, valid label"
+                msg += "\n >>  - v/view:      view entry"
+                msg += "\n >>  - t/taxonomy:  view taxonomy"
+                msg += "\n >>  - m/manual:    switch to manual editing mode"
+                msg += "\n >>  - Ctrl-C:      abort\n"
+
+                res = input(msg)
+
+                if res in ["v","view"]:
+                    print(row.to_string())
+
+                if res in ["t","taxonomy"]:
+                    tax.show()
+
+                if res in ["m","manual"]:
+                    raise ValueError
+
+                else:
+                    y = res
+
+            except KeyboardInterrupt:
+                raise
+
+    if y != x:
+        cprint(f" >> Replacing label in entry {idx}: {x} -> {y}", "green")
+        
+        msg = " >> Apply same replacement rule to all other entries? [y/N]"
+        res = input(msg)
+        if res.lower() in ["y", "yes"]:
+            label_map[x] = y
+
+    return y, label_map
+
+
