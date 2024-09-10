@@ -1069,7 +1069,7 @@ def edit_row_manually(idx, row):
 
     with open(path, "w") as f:
         row_dict = row.to_dict()
-        for k,v in row_dict():
+        for k,v in row_dict.items():
             if isinstance(v, datetime):
                 row_dict[k] = v.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
