@@ -942,7 +942,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
             "ambiguous_label_id": json.dumps(ambi_label_id),  
             "num_files": len(file_id_list),
             "file_id_list": json.dumps(file_id_list), 
-            "start_utc": start_utc.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+            "start_utc": start_utc.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] if isinstance(start_utc, datetime) else start_utc,
             "duration_ms": duration_ms,
             "start_ms": row.start_ms,
             "channel": row.channel,

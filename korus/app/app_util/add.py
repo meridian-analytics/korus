@@ -1035,6 +1035,15 @@ def _validate_annotations(df, tax):
                 # edit row manually
                 row = edit_row_manually(idx, row)
 
+    # replace NaN values
+    df.comments = df.comments.fillna("")
+    df.sound_source = df.sound_source.fillna("")
+    df.sound_type = df.sound_type.fillna("")
+    df.tentative_sound_source = df.tentative_sound_source.fillna("")
+    df.tentative_sound_type = df.tentative_sound_type.fillna("")
+    df.ambiguous_sound_source = df.ambiguous_sound_source.fillna("")
+    df.ambiguous_sound_type = df.ambiguous_sound_type.fillna("")
+
     return df
 
 
@@ -1043,6 +1052,8 @@ def edit_row_manually(idx, row):
 
         The annotation data is saved to a temporary YAML file. The user is prompted via the console 
         to edit and save the file, then hit ENTER to proceed.
+        
+        Datetime objects are converted to strings using the format `%Y-%m-%d %H:%M:%S.%f`
 
         Args:
             idx: int
@@ -1057,10 +1068,20 @@ def edit_row_manually(idx, row):
     path = f"korus-entry-{idx}.yaml"
 
     with open(path, "w") as f:
-        yaml.dump(row.to_dict(), f)      
+        row_dict = row.to_dict()
+        for k,v in row_dict():
+            if isinstance(v, datetime):
+                row_dict[k] = v.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-    msg = f" >> Entry {idx} saved to {path}. Edit file manually and save. Then hit ENTER to proceed with submission."
-    input(msg)
+        yaml.dump(row_dict, f)      
+
+    try:
+        msg = f" >> Entry {idx} saved to {path}. Edit file manually and save. Then hit ENTER to proceed with submission."
+        input(msg)
+    
+    except KeyboardInterrupt:
+        os.remove(path)
+        raise
 
     with open(path, "r") as f:
         row_dict = yaml.safe_load(f)
@@ -1136,10 +1157,11 @@ def _validate_label(x, tax, label_map, idx, row):
     if y != x:
         cprint(f" >> Replacing label in entry {idx}: {x} -> {y}", "green")
         
-        msg = " >> Apply same replacement rule to all other entries? [y/N]"
-        res = input(msg)
-        if res.lower() in ["y", "yes"]:
-            label_map[x] = y
+        if x not in label_map:
+            msg = " >> Apply same replacement rule to all other entries? [y/N]"
+            res = input(msg)
+            if res.lower() in ["y", "yes"]:
+                label_map[x] = y
 
     return y, label_map
 
