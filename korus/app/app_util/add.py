@@ -603,7 +603,7 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
                     add_tags(conn, tags)
                     
             # insert into db
-            cprint(f"\n ## Adding annotations to the database ...", "yellow")
+            cprint(f"\n ## Adding {len(df)} annotations to the database ...", "yellow")
 
             start = datetime.now()
             annot_ids = kdb.add_annotations(conn, annot_tbl=df, job_id=job_id, progress_bar=True)
