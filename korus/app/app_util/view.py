@@ -102,7 +102,6 @@ def view_jobs(conn):
             query = f"SELECT sound_source_tag,sound_type_tag FROM label WHERE id IN {list_to_str(ids)}"
             c = conn.cursor()
             rows = c.execute(query).fetchall()
-            print(query, value, rows)
             return rows
 
         return value
