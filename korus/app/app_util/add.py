@@ -559,6 +559,7 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
     while True:
         try:
             # prompt user for granularity
+            query = "SELECT name FROM granularity"
             rows = c.execute(query).fetchall()
             allowed_values = list(np.unique([row[0] for row in rows]))
             granularity = ui.UserInput(
