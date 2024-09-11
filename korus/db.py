@@ -1125,7 +1125,6 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
         TODO: add @group_by_deployment arg
         TODO: consider replacing @top arg with @full_path arg
         TODO: Handle cases where len(indices) = 0 more gracefully
-        TODO: Include ambiguous labels in return table
         TODO: Remove columns with exclusively 'None' values from the returned DataFrame
 
         Args:
@@ -1175,7 +1174,9 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
             f.relative_path,
             s.path,
             a.num_files,
-            a.file_id_list
+            a.file_id_list,
+            a.valid,
+            a.ambiguous_label_id
         FROM
             annotation AS a
         LEFT JOIN
@@ -1207,7 +1208,7 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
     data = [[] for _ in range(n_cols)]
     for row in rows:
         for i,v in enumerate(row):
-            if (i == 7 or i == 21) and v is not None:  #tag, file_id_list
+            if (i == 7 or i == 21 or i == 23) and v is not None:  #tag, file_id_list, ambiguous_label_id
                 v = json.loads(v)
 
             data[i].append(v)
@@ -1237,6 +1238,8 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
             "top_path": pd.Series(data[19], dtype="str"),
             "num_files": pd.Series(data[20], dtype="int"),
             "file_id_list": pd.Series(data[21], dtype="object"),
+            "valid": pd.Series(data[22], dtype="int"),
+            "ambiguous_label_id": pd.Series(data[23], dtype="object"),
         }
     )
 
@@ -1247,6 +1250,28 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
     annot_tbl["tag"] = None
     annot_tbl.loc[~idx, "tag"] = annot_tbl.loc[~idx].tag_id.apply(lambda x: [tag_map[tag_id] for tag_id in x])
 
+    # convert ambiguous label IDs to source/type labels, joined by semi-colon (;) and slash (/)
+    idx = annot_tbl.ambiguous_label_id.isna()   
+    annot_tbl["ambiguous_label"] = None
+    def lookup_label(label_ids):
+        """ Helper function for looking up source/type labels """
+        labels = []
+        for label_id in label_ids:
+            if label_id is None:
+                continue
+
+            query = f"SELECT sound_source_tag,sound_type_tag FROM label WHERE id = {label_id}"
+            rows = c.execute(query).fetchall()
+            src, typ = rows[0]
+            labels.append(f"{src};{typ}")
+
+        if len(labels) == 0:
+            return None
+        else:
+            return "/".join(labels)
+
+    annot_tbl.loc[~idx, "ambiguous_label"] = annot_tbl.loc[~idx].ambiguous_label_id.apply(lambda x: lookup_label(x))
+
     if ketos:
         annot_tbl = _convert_to_ketos(
             annot_tbl, tentative=tentative, top=top, v3=ketos_v3, conn=conn
@@ -1255,7 +1280,7 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
 
     else:
         drop_cols = [
-            "filename","relative_path","top_path","num_files","file_id_list","tag_id"
+            "filename","relative_path","top_path","num_files","file_id_list","tag_id","ambiguous_label_id"
         ]
         annot_tbl.drop(columns=drop_cols, inplace=True)
         return annot_tbl

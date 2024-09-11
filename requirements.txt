@@ -102,6 +102,7 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.5
 stack-data==0.6.2
+tabulate==0.9.0
 termcolor==2.3.0
 terminado==0.17.1
 tinycss2==1.2.1

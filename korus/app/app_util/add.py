@@ -8,6 +8,7 @@ from glob import glob
 from datetime import datetime, timedelta
 from termcolor import colored, cprint
 import traceback
+from tabulate import tabulate
 from korus.util import collect_audiofile_metadata
 import korus.db as kdb
 from korus.util import list_to_str
@@ -565,6 +566,8 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
     annot_ids = []
     while True:
         try:
+            # TODO: PROMPT FOR GRANULARITY
+
             # load selection table(s)
             df = from_raven(path, tax, timestamp_parser=timestamp_parser)
 
@@ -608,6 +611,9 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
             start = datetime.now()
             annot_ids = kdb.add_annotations(conn, annot_tbl=df, job_id=job_id, progress_bar=True)
             end = datetime.now()
+
+            # print summary
+            print_annotation_summary(conn, annot_ids)
 
             break
 
@@ -917,6 +923,48 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
     df_out = df_out.round(decimals)
 
     return df_out
+
+
+def print_annotation_summary(conn, indices):
+    """ Print annotation summary
+    
+        Args:
+            conn: sqlite3.Connection
+                Database connection
+            indices: list(int)
+                Indices in the annotation table    
+    """
+    df = kdb.get_annotations(conn, indices)
+
+    # validity
+    counts = df.value_counts("valid", dropna=False).sort_index()
+    counts = pd.DataFrame({"Count": counts})
+    print(tabulate(counts, headers=["Valid", "Count"], tablefmt='psql'))
+
+    # granularity
+    counts = df.value_counts("granularity", dropna=False).sort_index()
+    counts = pd.DataFrame({"Count": counts})
+    print(tabulate(counts, headers=["Granularity", "Count"], tablefmt='psql'))
+
+    # tags
+    counts = df.value_counts("tag", dropna=True)
+    counts = pd.DataFrame({"Count": counts})
+    print(tabulate(counts, headers=["Tag", "Count"], tablefmt='psql'))
+
+    # confident labels
+    counts = df.value_counts(["sound_source", "sound_type"], dropna=True)
+    counts = pd.DataFrame({"Count": counts})
+    print(tabulate(counts, headers=['Label', "Count"], tablefmt='psql'))
+
+    # tentative labels
+    counts = df.value_counts(["tentative_sound_source", "tentative_sound_type"], dropna=True)
+    counts = pd.DataFrame({"Count": counts})
+    print(tabulate(counts, headers=["Tentative label", "Count"], tablefmt='psql'))
+
+    # ambiguous labels
+    counts = df.value_counts("ambiguous_label", dropna=True)
+    counts = pd.DataFrame({"Count": counts})
+    print(tabulate(counts, headers=["Ambiguous label", "Count"], tablefmt='psql'))
 
 
 def _validate_annotations(df, tax):

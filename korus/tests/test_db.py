@@ -325,6 +325,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
         "tentative_sound_type": "object",
         "machine_prediction": "object",
     })
+    expected.ambiguous_label = expected.ambiguous_label.fillna("")
     def _decode_tag(x):
         if isinstance(x, float) and np.isnan(x):
             return None

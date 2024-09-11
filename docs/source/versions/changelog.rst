@@ -3,6 +3,8 @@ Change log
 
 **Version 0.0.8** (Month Day, Year)
 
+ * `db.get_annotations` returns ambiguous labels
+ * New function for printing annotation summary
  * Improved error handling when adding annotations
  * Fixed bug in parsing of ambiguous labels
  * Added column `valid` to annotation table
