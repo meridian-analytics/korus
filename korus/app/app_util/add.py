@@ -1179,8 +1179,8 @@ def _validate_label(x, tax, label_map, idx, row):
                 res = input(msg)
 
                 if res in ["v","view"]:
-                    #TODO: use tabulate here
-                    print(row.to_string())
+                    tbl = [[k,v] for k,v in row.to_dict().items()]
+                    print(tabulate(tbl, headers=["Field","Value"], tablefmt="psql"))                    
 
                 if res in ["t","taxonomy"]:
                     tax.show()
