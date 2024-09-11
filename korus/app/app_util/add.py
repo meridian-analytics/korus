@@ -1062,7 +1062,7 @@ def _validate_annotations(df, tax):
 
                 ast = row["ambiguous_sound_type"]
                 types, typ_map = _parse_ambiguous(ast, typ_tax, typ_map, idx, row, sep=",")
-                row["ambiguous_sound_source"] = ",".join(sources)
+                row["ambiguous_sound_type"] = ",".join(types)
 
                 # 3) all validations have passed so exit the loop
 
@@ -1179,6 +1179,7 @@ def _validate_label(x, tax, label_map, idx, row):
                 res = input(msg)
 
                 if res in ["v","view"]:
+                    #TODO: use tabulate here
                     print(row.to_string())
 
                 if res in ["t","taxonomy"]:

@@ -925,7 +925,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
                     ambi_label_id.append(lid)
                 
                 except ValueError as e:
-                    logging.error("Encountered invalid (source,type) combination in parsing of ambiguous assignments")
+                    logging.error("Encountered invalid (source,type) combination in parsing ambiguous assignments")
                     logging.error(str(e)) #log error, and continue
                     continue
 
