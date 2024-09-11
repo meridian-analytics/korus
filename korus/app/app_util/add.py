@@ -854,7 +854,7 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
         df_out["tag"] = df_in["Tag"]
 
     # replace NaN values
-    df_out.tag = df_out.tag.fillna("")
+    #df_out.tag = df_out.tag.fillna("")
     df_out.comments = df_out.comments.fillna("")
     df_out.sound_source = df_out.sound_source.fillna("")
     df_out.sound_type = df_out.sound_type.fillna("")
@@ -1036,7 +1036,8 @@ def validate_annotations(df, tax, interactive=True, progress_bar=False):
             else:
                 label = validate_label(label, tax)
 
-            labels_val.append(label)
+            if label is not None and label != "":
+                labels_val.append(label)
 
         return labels_val, label_map
 
