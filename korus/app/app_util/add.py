@@ -337,7 +337,7 @@ def create_timestamp_parser(group=None, logger=None):
     ).request(logger)
 
     def timestamp_parser(x):        
-        p = ts_pos if ts_pos >= 0 else len(x) - ts_pos - ts_siz
+        p = ts_pos if ts_pos >= 0 else len(x) + ts_pos - ts_siz
         x = x[p : p + ts_siz]
         dt = datetime.strptime(x, ts_fmt)
         dt -= timedelta(seconds=int(ts_offset*3600))
