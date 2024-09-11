@@ -18,7 +18,16 @@ import korus.app.app_util.ui as ui
 
 def terminate(conn):
     """ Helper function for gracefully terminating the program"""
-    print("\n Closing database connection and exiting ...")
+    save_changes = ui.UserInputYesNo(
+        "save_changes", 
+        "Save changes made to the local Korus database? [y/N]", 
+    ).request()
+
+    if save_changes:
+        conn.commit()
+        cprint(f"\n ## Saved changes to the database", "yellow")
+
+    cprint("\n ## Closing database connection and exiting ...", "yellow")
     conn.close()
     exit(1)
 
@@ -83,7 +92,7 @@ def add_deployment(conn, logger):
     cursor = kdb.insert_row(conn, table_name="deployment", values=data)
 
     # commit changes
-    conn.commit()
+    #conn.commit()
 
     cprint(f"\n ## Successfully added deployment `{name}` to the database", "yellow")
 
@@ -212,7 +221,7 @@ def add_job(conn, logger):
     cursor = kdb.insert_job(conn, values=data)
 
     # commit changes
-    conn.commit()
+    #conn.commit()
 
     cprint(f"\n ## Successfully added annotation job to the database", "yellow")
 
@@ -267,7 +276,7 @@ def add_data_storage_location(conn, logger):
     cursor = kdb.insert_row(conn, table_name="storage", values=v)
 
     # commit changes
-    conn.commit()
+    #conn.commit()
 
     cprint(f"\n ## Successfully added data storage location to the database", "yellow")
 
@@ -500,7 +509,7 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
             cursor = kdb.insert_row(conn, table_name="file", values=data)
 
     # commit changes
-    conn.commit()
+    #conn.commit()
 
     cprint(f"\n ## Successfully added {len(df)} audio files to the database", "yellow")
 
@@ -609,7 +618,7 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
 
 
     # commit changes
-    conn.commit()
+    #conn.commit()
 
     cprint(f"\n ## Successfully added {len(annot_ids)} annotations to the database in {(end - start).total_seconds():.2f} seconds", "yellow")
 
@@ -663,7 +672,7 @@ def add_tags(conn, tags):
         kdb.insert_row(conn, table_name="tag", values=v)
 
         # commit changes
-        conn.commit()
+        #conn.commit()
 
         cprint(f"\n ## Successfully added the tag `{tag_name}` to the database", "yellow")
 

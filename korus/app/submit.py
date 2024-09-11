@@ -28,13 +28,6 @@ if not os.path.exists(cache_dir_path):
     os.makedirs(cache_dir_path)
 
 
-def terminate(conn):
-    """ Helper function for gracefully terminating the program"""
-    print("\n Closing database connection and exiting ...")
-    conn.close()
-    exit(1)
-
-
 def main():
 
     logger = ui.InputLogger()
@@ -110,7 +103,7 @@ def main():
         deployment_id = x.request(logger)
 
     except KeyboardInterrupt:
-        terminate(conn)
+        add.terminate(conn)
 
 
     # step 2: identify/describe the annotation job
@@ -146,7 +139,7 @@ def main():
         new_job = (x.selected_opt and x.selected_opt.message == "New job")
 
     except KeyboardInterrupt:
-        terminate(conn)
+        add.terminate(conn)
 
 
     link_more_files = True
@@ -159,10 +152,9 @@ def main():
     if len(file_ids) > 0:
         cprint(f" ## There are already {len(file_ids)} audio files linked to this annotation job", "yellow")
 
-        ui_link_more_files = ui.UserInput(
+        ui_link_more_files = ui.UserInputYesNo(
             "link_more_files", 
             "Link more audio files to the annotation job? [y/N]", 
-            transform_fcn=lambda x: x.lower() == "y", 
         )
 
         ui_link_more_files.add_option(
@@ -216,10 +208,9 @@ def main():
 
         # step 4: add audio files to the database (optional)
 
-        ui_add_more_files = ui.UserInput(
+        ui_add_more_files = ui.UserInputYesNo(
             "add_more_files", 
             "Add more audio files to the database? [y/N]", 
-            transform_fcn=lambda x: x.lower() == "y", 
         )
 
         while True:
@@ -305,17 +296,15 @@ def main():
 
     # step 6: parse the RavenPro selection table
 
-    submit_selection_table = ui.UserInput(
+    submit_selection_table = ui.UserInputYesNo(
         "submit_selection_table", 
         "Did the annotation job produce any annotations to be added to the database? [y/N]", 
-        transform_fcn=lambda x: x.lower() == "y", 
     ).request()
 
     if submit_selection_table:
-        missing_files = ui.UserInput(
+        missing_files = ui.UserInputYesNo(
             "missing_files", 
             "Do any of the annotations pertain to audio files not present in the database? [y/N] (Answer `y` if unsure)", 
-            transform_fcn=lambda x: x.lower() == "y", 
         ).request()
 
         if missing_files and timestamp_parser is None:
@@ -325,7 +314,7 @@ def main():
             add.add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=timestamp_parser)
 
         except KeyboardInterrupt:
-            terminate(conn)
+            add.terminate(conn)
 
 
     # step 7: close connection to database
@@ -344,10 +333,9 @@ def main():
         git = False
 
     if git:
-        git = ui.UserInput(
+        git = ui.UserInputYesNo(
             "git", 
             "Commit and push changes to GitLab (recommended)? [y/N]", 
-            transform_fcn=lambda x: x.lower() == "y", 
         ).request()
 
     if not git:
