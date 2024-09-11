@@ -113,11 +113,6 @@ def add_job(conn, logger):
         ("KW","W"),
     ]
 
-    default_backgr = [
-        ("KW","BP"),
-        ("KW","EC"),
-    ]
-
     # query user for input
 
     ui_taxonomy_id = ui.UserInput("taxonomy_id", "Taxonomy ID (1,2,3,...)", group="job")
@@ -131,16 +126,7 @@ def add_job(conn, logger):
     annotator = ui.UserInput("annotator", "Annotator (initials only)", group="job").request(logger)
     start_utc = ui.UserInput("start_utc", "UTC start date (e.g. 2020-06-01)", group="job").request(logger) 
     end_utc = ui.UserInput("end_utc", "UTC end date (e.g. 2020-06-01)", group="job").request(logger)
-
-    def fcn(x):
-        if isinstance(x, str):
-            return x.lower() == "y"
-        elif isinstance(x, bool):
-            return x
-        else:
-            raise TypeError           
-
-    is_exhaustive = ui.UserInput("is_exhaustive", "Were all primary sounds annotated? [y/N]", transform_fcn=fcn, group="job").request(logger)
+    is_exhaustive = ui.UserInputYesNo("is_exhaustive", "Were all primary sounds annotated? [y/N]", group="job").request(logger)
 
     if is_exhaustive:
         primary_sound = ui.UserInputSound(
@@ -168,10 +154,9 @@ def add_job(conn, logger):
     background_sound = None
 
     # prompt user for issues
-    ui_add_another_issue = ui.UserInput(
+    ui_add_another_issue = ui.UserInputYesNo(
         "add_another_issue", 
         "Do the annotations have any known issues? [y/N]", 
-        transform_fcn=lambda x: x.lower() == "y", 
     )
 
     issues = []
@@ -418,11 +403,9 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
     # timestamp parser
     timestamp_parser = create_timestamp_parser("audio", logger)
 
-    date_subfolder = ui.UserInput(
+    date_subfolder = ui.UserInputYesNo(
         "date_subfolder", 
         "Are audio files organized in date-stamped subfolders named `yyymmdd`? [y/N]", 
-        transform_fcn=lambda x: x.lower() == "y", 
-        json_fcn=lambda x: "y" if x else "N",
     ).request(logger)
 
     # automatically search for audio files and collect metadata
@@ -594,10 +577,9 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
                 if len(new_tags) > 0:
                     cprint(f"\n ## The selection table contains the following new tags: {new_tags}", "red")
 
-                    proceed = ui.UserInput(
+                    proceed = ui.UserInputYesNo(
                         "add_tags", 
                         "Add the new tags to the database? [y/N]  (required to proceed with submission)", 
-                        transform_fcn=lambda x: x.lower() == "y", 
                     ).request()
 
                     if not proceed:
@@ -1206,9 +1188,11 @@ def _validate_label(x, tax, label_map, idx, row):
         cprint(f" >> Replacing label in entry {idx}: {x} -> {y}", "green")
         
         if x not in label_map:
-            msg = " >> Apply same replacement rule to all other entries? [y/N]"
-            res = input(msg)
-            if res.lower() in ["y", "yes"]:
+            replace = ui.UserInputYesNo(
+                "label_replacement_rule", 
+                "Apply same replacement rule to all other entries? [y/N]", 
+            ).request()
+            if replace:
                 label_map[x] = y
 
     return y, label_map

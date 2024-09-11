@@ -132,7 +132,8 @@ class UserInput:
             json_fcn: callable
                 Function applied to input when storing in JSON logging file.
     """
-    def __init__(self, 
+    def __init__(
+        self, 
         name, 
         message,
         transform_fcn=lambda x: x,
@@ -225,6 +226,41 @@ class UserInput:
 
         self.value = value
         return self.value
+
+
+class UserInputYesNo(UserInput):
+    """ Interactive session specifically for inputting yes/no answers.
+
+        Args:
+            name: str
+                Parameter name
+            message: str
+                Request message presented to the user
+            group: str
+                Group that the parameter belongs to. Optional. 
+                Parameter names must be unique within groups.
+    """    
+    def __init__(
+        self, 
+        name, 
+        message,
+        group=None,
+    ):
+        def transform_fcn(x):
+            if x.lower() in ["y", "yes"]:
+                return True
+            elif x.lower() in ["n", "no"]:
+                return False
+            else:
+                raise ValueError
+
+        super().__init__(
+            name=name, 
+            message=message,
+            transform_fcn=transform_fcn,
+            group=group,
+            json_fcn=lambda x: "y" if x else "N",
+        )
 
 
 class UserInputSound(UserInput):

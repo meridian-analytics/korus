@@ -332,7 +332,7 @@ def main():
 
     conn.close()
 
-    cprint(f" ## Successfully updated local KetoAM database: {args.database}", "yellow")
+    cprint(f" ## Successfully updated local Korus database: {args.database}", "yellow")
 
 
     # step 8: push to GitLab
@@ -374,7 +374,7 @@ def main():
         subprocess.run(f"git push -o merge_request.create -o merge_request.target=main --set-upstream origin {tag}", shell=True)
 
         cprint(f" ## Changes successfully committed and pushed to new branch: {tag}", "green")
-        cprint(f" ## ACTION REQUIRED: Please review and accept merge request to finalize submission", "yellow")
+        cprint(f" ## ACTION REQUIRED: Review changes and merge into `main` to finalize submission", "yellow")
 
     except:
         cprint(f" ## ERROR: Failed to commit and push changes to GitLab", "red")
