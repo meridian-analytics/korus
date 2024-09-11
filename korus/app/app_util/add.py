@@ -979,6 +979,7 @@ def print_annotation_summary(conn, indices):
     print(tabulate(counts, headers=["Granularity", "Count"], tablefmt='psql'))
 
     # tags
+    df["tag_str"] = df.tag.apply(",".join)
     counts = df.value_counts("tag", dropna=True)
     counts = pd.DataFrame({"Count": counts})
     print(tabulate(counts, headers=["Tag", "Count"], tablefmt='psql'))
