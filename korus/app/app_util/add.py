@@ -4,6 +4,7 @@ import json
 import yaml
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 from glob import glob
 from datetime import datetime, timedelta
 from termcolor import colored, cprint
@@ -586,7 +587,8 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
                 tax, 
                 timestamp_parser=timestamp_parser, 
                 granularity=granularity, 
-                interactive=True
+                interactive=True,
+                progress_bar=True,
             )
 
             # add missing fields
@@ -703,7 +705,7 @@ def add_tags(conn, tags):
         cprint(f"\n ## Successfully added the tag `{tag_name}` to the database", "yellow")
 
 
-def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, interactive=True):
+def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, interactive=True, progress_bar=False):
     """ Loads entries from a RavenPro selections table
 
         Args:
@@ -721,6 +723,8 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
             interactive: bool
                 If True (default), the user will be prompted via the console to fix any invalid data.
                 If False, entries with invalid data will be flagged by setting `valid=0`.
+            progress_bar: bool
+                Display progress bar. Default is False.
 
         Returns:
             df_out: pandas.DataFrame
@@ -772,6 +776,7 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
         "Ambiguous Sound Type": None,
         "Comments": None,
         "Valid": 1,
+        "Tag": None,
     }
 
     has_duration = ("Delta Time (s)" in df_in.columns)
@@ -805,6 +810,7 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
         "comments": [],
         "channel": [],
         "valid": [],
+        "tag": [],
     }
 
     df_out = pd.DataFrame(data_out)
@@ -823,6 +829,7 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
     df_out["channel"] = df_in["Channel"] - 1
     df_out["valid"] = df_in["Valid"]
     df_out["granularity"] = granularity
+    df_out["tag"] = df_in["Tag"]
 
     if has_duration:
         df_out["duration_ms"] = df_in["Delta Time (s)"] * 1000
@@ -847,6 +854,7 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
         df_out["tag"] = df_in["Tag"]
 
     # replace NaN values
+    df_out.tag = df_out.tag.fillna("")
     df_out.comments = df_out.comments.fillna("")
     df_out.sound_source = df_out.sound_source.fillna("")
     df_out.sound_type = df_out.sound_type.fillna("")
@@ -857,7 +865,9 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
 
     # validate data
     # also detect and parse ambiguous assignments in confident/tentative columns
-    df_out = validate_annotations(df_out, tax, interactive=interactive)
+    cprint(f"\n ## Validating labels ...", "yellow")
+
+    df_out = validate_annotations(df_out, tax, interactive=interactive, progress_bar=progress_bar)
 
     # parse timestamps from filenames
     if timestamp_parser is not None:
@@ -989,7 +999,7 @@ def print_annotation_summary(conn, indices):
     print(tabulate(counts, headers=["Ambiguous label", "Count"], tablefmt='psql'))
 
 
-def validate_annotations(df, tax, interactive=True):
+def validate_annotations(df, tax, interactive=True, progress_bar=False):
     """ Helper function for validating annotation data.
     
         Also parses ambiguous label assignments separated by slash (/).
@@ -1006,6 +1016,8 @@ def validate_annotations(df, tax, interactive=True):
             interactive: bool
                 If True (default), the user will be prompted via the console to fix any invalid data.
                 If False, entries with invalid data will be flagged by setting `valid=0`.
+            progress_bar: bool
+                Display progress bar. Default is False.
 
         Returns:
             df: pandas DataFrame
@@ -1015,12 +1027,12 @@ def validate_annotations(df, tax, interactive=True):
     src_map = dict()
     typ_map = dict()
 
-    def _parse_ambiguous(labels, tax, label_map, idx, row, sep="/"):
+    def _parse_ambiguous(labels, tax, label_map, idx, row, sep="/", note=""):
         """ Helper function for parsing and validating ambiguous label assignments """
         labels_val = []
         for label in labels.split(sep):
             if interactive:
-                label, label_map = validate_label_interactive(label, tax, label_map, idx, row)
+                label, label_map = validate_label_interactive(label, tax, label_map, idx, row, note)
             else:
                 label = validate_label(label, tax)
 
@@ -1029,7 +1041,7 @@ def validate_annotations(df, tax, interactive=True):
         return labels_val, label_map
 
     # loop over all entries
-    for idx,row in df.iterrows():     
+    for idx,row in tqdm(df.iterrows(), disable=not progress_bar, total=df.shape[0]):   
 
         # repeat until all validations pass
         while True:
@@ -1074,40 +1086,67 @@ def validate_annotations(df, tax, interactive=True):
 
 
                 # 2) validate labels
+
+                # 2a) sound source
                 ss = row["sound_source"]
                 if interactive:
                     row["sound_source"], src_map = validate_label_interactive(ss, tax, src_map, idx, row)
                 else:
                     row["sound_source"] = validate_label(ss, tax)
 
+                # 2b) tentative sound source
                 tss = row["tentative_sound_source"]
                 if interactive:
                     row["tentative_sound_source"], src_map = validate_label_interactive(tss, tax, src_map, idx, row)
                 else:
                     row["tentative_sound_source"] = validate_label(tss, tax)
 
+                # 2c) ambiguous sound source
                 ass = row["ambiguous_sound_source"]
-                sources, src_map = _parse_ambiguous(ass, tax, src_map, idx, row, sep=",")
-                row["ambiguous_sound_source"] = ",".join(sources)
+                ambiguous_sources, src_map = _parse_ambiguous(ass, tax, src_map, idx, row, sep=",")
+                row["ambiguous_sound_source"] = ",".join(ambiguous_sources)
 
+                # 2d) sound type
                 st = row["sound_type"]
-                typ_tax = tax.sound_types(ss)
-                if interactive:
-                    row["sound_type"], typ_map = validate_label_interactive(st, typ_tax, typ_map, idx, row)
-                else:
-                    row["sound_type"] = validate_label(st, typ_tax)
 
+                # pick which sound-type tree to validate against
+                typ_tree = tax.sound_types(ss)
+                note = f" (for sound source `{ss}`)"
+
+                if interactive:
+                    row["sound_type"], typ_map = validate_label_interactive(st, typ_tree, typ_map, idx, row, note)
+                else:
+                    row["sound_type"] = validate_label(st, typ_tree)
+
+                # 2e) tentative sound type
                 tst = df.loc[idx, "tentative_sound_type"]
+
+                # pick which sound-type tree to validate against
                 if tss is not None and tss != "":
-                    typ_tax = tax.sound_types(tss)
+                    typ_tree = tax.sound_types(tss)
+                    note = f" (for sound source `{tss}`)"
+                else:
+                    typ_tree = tax.sound_types(ss)
+                    note = f" (for sound source `{ss}`)"
 
                 if interactive:                    
-                    row["tentative_sound_type"], typ_map = validate_label_interactive(tst, typ_tax, typ_map, idx, row)
+                    row["tentative_sound_type"], typ_map = validate_label_interactive(tst, typ_tree, typ_map, idx, row, note)
                 else:
-                    row["tentative_sound_type"] = validate_label(tst, typ_tax)
+                    row["tentative_sound_type"] = validate_label(tst, typ_tree)
 
+                # 2f) ambiguous sound type
                 ast = row["ambiguous_sound_type"]
-                types, typ_map = _parse_ambiguous(ast, typ_tax, typ_map, idx, row, sep=",")
+
+                # pick which sound-type tree to validate against
+                if len(ambiguous_sources) > 0:
+                    parent = tax.last_common_ancestor(ambiguous_sources)
+                    typ_tree = tax.sound_types(parent)
+                    note = f" (for sound source `{parent}`)"
+                else:
+                    typ_tree = tax.sound_types(ss)
+                    note = f" (for sound source `{ss}`)"
+
+                types, typ_map = _parse_ambiguous(ast, typ_tree, typ_map, idx, row, sep=",", note=note)
                 row["ambiguous_sound_type"] = ",".join(types)
 
 
@@ -1214,7 +1253,7 @@ def validate_label(x, tax):
     return x
 
 
-def validate_label_interactive(x, tax, label_map, idx, row):
+def validate_label_interactive(x, tax, label_map, idx, row, note=""):
     """ Interactive session for validating a label against a taxonomy of allowed values.
 
         If the label is found to be invalid, the user is prompted via the terminal for an alternative label.
@@ -1230,6 +1269,8 @@ def validate_label_interactive(x, tax, label_map, idx, row):
                 Row index. Only used for interactive prompt.
             row: pandas Series
                 Row values. Only used for interactive prompt.
+            note: str
+                Optional note, appended to the console message.
 
         Returns:
             y: str
@@ -1250,7 +1291,7 @@ def validate_label_interactive(x, tax, label_map, idx, row):
 
         else:
             try:
-                cprint(f" >> Invalid label in entry {idx}: {y}", "red")
+                cprint(f" >> Invalid label in entry {idx}: {y} {note}", "red")
                 msg = " >> Options:"
                 msg += "\n >>  - [name]:      alternative, valid label"
                 msg += "\n >>  - v/view:      view entry"
@@ -1264,10 +1305,10 @@ def validate_label_interactive(x, tax, label_map, idx, row):
                     tbl = [[k,v] for k,v in row.to_dict().items()]
                     print(tabulate(tbl, headers=["Field","Value"], tablefmt="psql"))                    
 
-                if res in ["t","taxonomy"]:
+                elif res in ["t","taxonomy"]:
                     tax.show()
 
-                if res in ["m","manual"]:
+                elif res in ["m","manual"]:
                     raise ValueError
 
                 else:
