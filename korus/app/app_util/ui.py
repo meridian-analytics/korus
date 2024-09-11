@@ -131,6 +131,8 @@ class UserInput:
                 Parameter names must be unique within groups.
             json_fcn: callable
                 Function applied to input when storing in JSON logging file.
+            allowed_values: 
+                Allowed input value(s).
     """
     def __init__(
         self, 
@@ -139,6 +141,7 @@ class UserInput:
         transform_fcn=lambda x: x,
         group=None,
         json_fcn=lambda x: x,
+        allowed_values=None,
     ):
         self.group = group
         self.name = name
@@ -147,6 +150,11 @@ class UserInput:
         self.json_fcn = json_fcn
         self.value = None
         self.options = dict()
+
+        if allowed_values is not None and not isinstance(allowed_values, list):
+            allowed_values = [allowed_values]
+
+        self.allowed_values = allowed_values
 
     def add_option(self, key, message, fcn):
         """ Add a special, configurable option to the user prompt.
@@ -213,6 +221,11 @@ class UserInput:
 
                 if not self.selected_opt:
                     value = None if inp is None else self.transform_fcn(inp)
+
+
+                if self.allowed_values is not None and value not in self.allowed_values:
+                    err_msg = f"Invalid input. Allowed values are: {self.allowed_values}"
+                    raise ValueError(err_msg)
 
                 break
 

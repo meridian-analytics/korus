@@ -558,10 +558,24 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
     annot_ids = []
     while True:
         try:
-            # TODO: PROMPT FOR GRANULARITY
+            # prompt user for granularity
+            rows = c.execute(query).fetchall()
+            allowed_values = list(np.unique([row[0] for row in rows]))
+            granularity = ui.UserInput(
+                name="granularity",
+                message=f"Annotation granularity.",
+                group="annotation",
+                allowed_values=allowed_values,
+            ).request(logger)
 
             # load selection table(s)
-            df = from_raven(path, tax, timestamp_parser=timestamp_parser)
+            df = from_raven(
+                path, 
+                tax, 
+                timestamp_parser=timestamp_parser, 
+                granularity=granularity, 
+                interactive=True
+            )
 
             # add missing fields
             # (set file ID to zero (0) if file is missing)
@@ -677,7 +691,7 @@ def add_tags(conn, tags):
         cprint(f"\n ## Successfully added the tag `{tag_name}` to the database", "yellow")
 
 
-def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=None):
+def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, interactive=True):
     """ Loads entries from a RavenPro selections table
 
         Args:
@@ -688,10 +702,13 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
             sep: str
                 Character used to separate columns in the selection table. If None, tries to auto-detect the separator character.
             granularity: str
-                Default granularity of annotations. 
+                Default granularity of annotations. Optional.
             timestamp_parser: callable
                 Given a filename (str) returns the UTC timestamp embedded 
                 in the filename as a datetime object. Optional.
+            interactive: bool
+                If True (default), the user will be prompted via the console to fix any invalid data.
+                If False, entries with invalid data will be flagged by setting `valid=0`.
 
         Returns:
             df_out: pandas.DataFrame
@@ -747,7 +764,6 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
 
     has_duration = ("Delta Time (s)" in df_in.columns)
     has_freq_max = ("High Freq (Hz)" in df_in.columns)
-    has_ambiguous = ("Ambiguous Sound Source" in df_in.columns)
 
     # check that required columns are present
     for c in required_cols:
@@ -802,9 +818,13 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
     if has_freq_max:
         df_out["freq_max_hz"] = df_in["High Freq (Hz)"]
 
-    # if the Selection Table contains the columns 'Granularity' or 'Batch Annotation', use them (in that order of preference)
+    # if the Selection Table contains the columns 'Granularity' and 'Batch Annotation', use them (in that order of preference)
     if "Granularity" in df_in.columns.values:
         df_out["granularity"] = df_in["Granularity"].apply(lambda x: x.lower() if isinstance(x, str) else granularity)
+
+        if "Batch Annotation" in df_in.columns.values:
+            warn_msg = "The selection table contains redundant columns `Granularity` and `Batch Annotation`. Dropping `Batch Annotation`."
+            cprint(f"\n ## WARNING: {warn_msg}", "red")
 
     elif "Batch Annotation" in df_in.columns.values:
         idx_batch = (df_in["Batch Annotation"] == 1) 
@@ -825,8 +845,7 @@ def from_raven(input_path, tax, sep=None, granularity="unit", timestamp_parser=N
 
     # validate data
     # also detect and parse ambiguous assignments in confident/tentative columns
-    if not has_ambiguous:
-        df_out = _validate_annotations(df_out, tax)
+    df_out = validate_annotations(df_out, tax, interactive=interactive)
 
     # parse timestamps from filenames
     if timestamp_parser is not None:
@@ -958,15 +977,12 @@ def print_annotation_summary(conn, indices):
     print(tabulate(counts, headers=["Ambiguous label", "Count"], tablefmt='psql'))
 
 
-def _validate_annotations(df, tax):
+def validate_annotations(df, tax, interactive=True):
     """ Helper function for validating annotation data.
     
         Also parses ambiguous label assignments separated by slash (/).
-     
         The function checks the confident/tentative label columns for occurrences of slash (/) characters.
-
-        When ambiguous labels are found, they are moved to the corresponding ambiguous column. 
-
+        When ambiguous labels are found, they are moved to the ambiguous columns. 
         If they occur in the confident column, they are replaced by the last common ancestor node in the taxonomy. 
         If they occur in the tentative column, they are replaced by a 'null' value.
 
@@ -975,6 +991,9 @@ def _validate_annotations(df, tax):
                 Selection table
             tax: korus.tax.AcousticTaxonomy
                 Annotation taxonomy
+            interactive: bool
+                If True (default), the user will be prompted via the console to fix any invalid data.
+                If False, entries with invalid data will be flagged by setting `valid=0`.
 
         Returns:
             df: pandas DataFrame
@@ -988,7 +1007,11 @@ def _validate_annotations(df, tax):
         """ Helper function for parsing and validating ambiguous label assignments """
         labels_val = []
         for label in labels.split(sep):
-            label, label_map = _validate_label(label, tax, label_map, idx, row)
+            if interactive:
+                label, label_map = validate_label_interactive(label, tax, label_map, idx, row)
+            else:
+                label = validate_label(label, tax)
+
             labels_val.append(label)
 
         return labels_val, label_map
@@ -1000,7 +1023,7 @@ def _validate_annotations(df, tax):
         while True:
 
             try:
-                # 1) parse ambiguous assignments separated by slash (/)
+                # 1) parse ambiguous assignments in confident/tentative columns
 
                 if row.ambiguous_sound_source == "":
                     # sound source
@@ -1039,40 +1062,62 @@ def _validate_annotations(df, tax):
 
 
                 # 2) validate labels
-
                 ss = row["sound_source"]
-                row["sound_source"], src_map = _validate_label(ss, tax, src_map, idx, row)
+                if interactive:
+                    row["sound_source"], src_map = validate_label_interactive(ss, tax, src_map, idx, row)
+                else:
+                    row["sound_source"] = validate_label(ss, tax)
 
                 tss = row["tentative_sound_source"]
-                row["tentative_sound_source"], src_map = _validate_label(tss, tax, src_map, idx, row)
+                if interactive:
+                    row["tentative_sound_source"], src_map = validate_label_interactive(tss, tax, src_map, idx, row)
+                else:
+                    row["tentative_sound_source"] = validate_label(tss, tax)
 
                 ass = row["ambiguous_sound_source"]
                 sources, src_map = _parse_ambiguous(ass, tax, src_map, idx, row, sep=",")
                 row["ambiguous_sound_source"] = ",".join(sources)
 
                 st = row["sound_type"]
-                typ_tax = tax.sound_types(s)
-                row["sound_type"], typ_map = _validate_label(st, typ_tax, typ_map, idx, row)
+                typ_tax = tax.sound_types(ss)
+                if interactive:
+                    row["sound_type"], typ_map = validate_label_interactive(st, typ_tax, typ_map, idx, row)
+                else:
+                    row["sound_type"] = validate_label(st, typ_tax)
 
                 tst = df.loc[idx, "tentative_sound_type"]
                 if tss is not None and tss != "":
                     typ_tax = tax.sound_types(tss)
-                
-                row["tentative_sound_type"], typ_map = _validate_label(tst, typ_tax, typ_map, idx, row)
+
+                if interactive:                    
+                    row["tentative_sound_type"], typ_map = validate_label_interactive(tst, typ_tax, typ_map, idx, row)
+                else:
+                    row["tentative_sound_type"] = validate_label(tst, typ_tax)
 
                 ast = row["ambiguous_sound_type"]
                 types, typ_map = _parse_ambiguous(ast, typ_tax, typ_map, idx, row, sep=",")
                 row["ambiguous_sound_type"] = ",".join(types)
 
-                # 3) all validations have passed so exit the loop
 
+                # 3) all validations have passed so exit the loop
                 df.loc[idx] = row                       
                 break        
 
 
-            except ValueError:
-                # edit row manually
-                row = edit_row_manually(idx, row)
+            except ValueError as e:
+                if interactive:
+                    # edit row manually
+                    row = edit_row_manually(idx, row)
+
+                else:
+                    # flag as containing invalid data
+                    row.valid = 0
+                    df.loc[idx] = row
+
+                    warn_msg = f"{str(e)}. Entry {idx} flagged as containing invalid data."
+                    cprint(f"\n ## WARNING: {warn_msg}", "red")
+
+                    break
 
     # replace NaN values
     df.comments = df.comments.fillna("")
@@ -1132,8 +1177,33 @@ def edit_row_manually(idx, row):
     return row
 
 
-def _validate_label(x, tax, label_map, idx, row):
-    """ Helper function for validating labels.
+def validate_label(x, tax):
+    """ Validate a label against a taxonomy of allowed values.
+
+        Args:
+            x: str
+                Label to be validated. OBS: If None or empty string, no validation is performed.
+            tax: Korus.tax.AcousticTaxonomy
+                Taxonomy of allowed labels, against which x will be validated
+
+        Returns:
+            x: str
+                The validated label.
+
+        Raises:
+            ValueError: if the label is found to be invalid
+    """
+    if x is None or x == "":
+        return x
+    
+    if tax.get_id(x) is None:
+        raise ValueError(f"Invalid label `{x}`")
+    
+    return x
+
+
+def validate_label_interactive(x, tax, label_map, idx, row):
+    """ Interactive session for validating a label against a taxonomy of allowed values.
 
         If the label is found to be invalid, the user is prompted via the terminal for an alternative label.
 
@@ -1168,7 +1238,7 @@ def _validate_label(x, tax, label_map, idx, row):
 
         else:
             try:
-                cprint(f" >> Unrecognized label in entry {idx}: {y}", "red")
+                cprint(f" >> Invalid label in entry {idx}: {y}", "red")
                 msg = " >> Options:"
                 msg += "\n >>  - [name]:      alternative, valid label"
                 msg += "\n >>  - v/view:      view entry"
