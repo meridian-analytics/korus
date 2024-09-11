@@ -1,6 +1,7 @@
 import os
 import json
 import traceback
+import numpy as np
 from termcolor import colored, cprint
 import korus.db as kdb
 
@@ -151,7 +152,7 @@ class UserInput:
         self.value = None
         self.options = dict()
 
-        if allowed_values is not None and not isinstance(allowed_values, list):
+        if allowed_values is not None and np.ndim(allowed_values) == 0:
             allowed_values = [allowed_values]
 
         self.allowed_values = allowed_values
@@ -216,12 +217,11 @@ class UserInput:
                         break
 
                 if self.selected_opt and value is None:
-                    msg = self._form_request_msg()
+                    msg = self._form_request_msg(include_options=True)
                     continue
 
                 if not self.selected_opt:
                     value = None if inp is None else self.transform_fcn(inp)
-
 
                 if self.allowed_values is not None and value not in self.allowed_values:
                     err_msg = f"Invalid input. Allowed values are: {self.allowed_values}"

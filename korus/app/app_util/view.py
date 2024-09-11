@@ -1,11 +1,16 @@
 import pandas as pd
+import numpy as np
+import textwrap
+from tabulate import tabulate
 from korus.util import list_to_str
+import korus.app.app_util.ui as ui
 
 
-max_char = 60
+# maximum number of characters per line
+MAX_CHAR = 60
 
 
-def view_table_contents(conn, table_name, ids=None, columns=None):
+def view_table_contents(conn, table_name, ids=None, columns=None, transform_fcn=lambda name,value: value):
     """ Print table contents in human-friendly format.
 
     Args:
@@ -17,6 +22,8 @@ def view_table_contents(conn, table_name, ids=None, columns=None):
             Row indices to include. If None, all rows will be printed.
         columns: str,list(str)
             Columns to include. If None, all columns will be printed.
+        transform_fcn: callable
+            Function with signature (name, value) -> value for transforming table values
 
     Returns:
         None
@@ -45,22 +52,62 @@ def view_table_contents(conn, table_name, ids=None, columns=None):
         if len(columns) > 0:
             df = df[columns]                    
 
-        line = "-" * max_char
-        for idx,row in df.iterrows():
-            print(line)
-            for key,val in row.items():
-                if val != "None" and val is not None:
-                    if isinstance(val, str) and len(val) > max_char:
-                        val = val[:max_char] + "..."
+        num_items = len(df)
+        item_no = 0
 
-                    print(f"{key}: {val}")
+        ui_select_item = ui.UserInput(
+            "select_table_item", 
+            f"Select item (1 - {num_items}), press ENTER to view next item, or Ctrl-c to return to the previous menu.", 
+            group=f"view_{table_name}",
+            transform_fcn=lambda x: int(x) if len(x) > 0 else 0,
+            allowed_values=[i for i in range(0, num_items + 1)],
+        )
 
+        while True:
+            try:
+                # prompt user to specify item no.
+                new_item_no = ui_select_item.request()
+                if new_item_no == 0:
+                    new_item_no = max(1, (item_no + 1) % (num_items + 1))
+
+                item_no = new_item_no
+
+                #collect item data in nested list (format expected by tabulate)
+                row = df.iloc[item_no - 1]
+                tbl = []
+                for k, v in row.to_dict().items():
+                    # transform table value before printing
+                    v = transform_fcn(k, v)
+
+                    # insert line breaks to respect max line length
+                    if isinstance(v, str):
+                        v = textwrap.fill(v, MAX_CHAR)
+
+                    tbl.append([k, v])
+
+                # pretty print                
+                print(tabulate(tbl, headers=["Field", "Value"], tablefmt='psql'))
+
+            except KeyboardInterrupt:
+                break
 
 def view_data_storage_locations(conn):
     view_table_contents(conn, table_name="storage")
 
 def view_jobs(conn):
-    view_table_contents(conn, table_name="job")
+    def transform_fcn(name, value):
+        """ Transform function for converting label IDs to source/type names """
+        if name == "primary_sound":
+            ids = value.replace("[","").replace("]","").replace(" ","").split(",")
+            query = f"SELECT sound_source_tag,sound_type_tag FROM label WHERE id IN {list_to_str(ids)}"
+            c = conn.cursor()
+            rows = c.execute(query).fetchall()
+            print(query, value, rows)
+            return rows
+
+        return value
+
+    view_table_contents(conn, table_name="job", transform_fcn=transform_fcn)
 
 def view_deployments(conn):
     view_table_contents(conn, table_name="deployment")

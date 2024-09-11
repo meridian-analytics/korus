@@ -16,17 +16,28 @@ import korus.app.app_util.view as vw
 import korus.app.app_util.ui as ui
 
 
-def terminate(conn):
-    """ Helper function for gracefully terminating the program"""
-    save_changes = ui.UserInputYesNo(
-        "save_changes", 
-        "Save changes made to the local Korus database? [y/N]", 
-    ).request()
+def save_changes_to_db(conn):
+    """ Helper function for saving changes to the database"""
+    try:
+        save = ui.UserInputYesNo(
+            "save_changes", 
+            "Save changes (if any) to the local Korus database? [y/N]", 
+        ).request()
 
-    if save_changes:
+    except KeyboardInterrupt:
+        terminate(conn, save=False)
+
+    if save:
         conn.commit()
-        cprint(f"\n ## Saved changes to the database", "yellow")
+        cprint(f" ## Successfully updated local Korus database", "yellow")
 
+
+def terminate(conn, save=True):
+    """ Helper function for gracefully terminating the program"""
+    cprint("\n ## Terminating ...", "yellow")
+    if save:
+        save_changes_to_db(conn)
+    
     cprint("\n ## Closing database connection and exiting ...", "yellow")
     conn.close()
     exit(1)
