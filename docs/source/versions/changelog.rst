@@ -1,6 +1,10 @@
 Change log
 ==========
 
+**Version 0.0.9** (Month Day, Year)
+
+ * 
+
 **Version 0.0.8** (Sep 12, 2024)
 
  * Various improvements to `korus-submit`
