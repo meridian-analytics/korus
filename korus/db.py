@@ -1017,7 +1017,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
                 + f" [{fmin:.0f},{fmax:.0f}] -> [{new_fmin:.0f},{new_fmax:.0f}] (Hz)"
             v["comments"] = comments + warn_msg
 
-            warn_msg += "; annotation flagged for review (valid=0)."
+            warn_msg += f"; entry flagged for review (valid=0)."
             logging.warning(warn_msg)
 
         # insert row into database

@@ -1230,8 +1230,9 @@ def edit_row_manually(idx, row):
         yaml.dump(row_dict, f)      
 
     try:
-        msg = f" >> Entry {idx} saved to {path}. Edit file manually and save. Then hit ENTER to proceed with submission."
-        input(msg)
+        msg = f"\n >> Entry {idx} saved to {path}. Edit file manually and save. Then hit ENTER to proceed with submission."
+        cprint(msg, "yellow")
+        input()
     
     except KeyboardInterrupt:
         os.remove(path)
