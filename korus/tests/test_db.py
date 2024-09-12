@@ -324,8 +324,9 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
         "tentative_sound_source": "object",
         "tentative_sound_type": "object",
         "machine_prediction": "object",
+        "ambiguous_label": "object",
     })
-    expected.ambiguous_label = expected.ambiguous_label.fillna("")
+    #expected.ambiguous_label = expected.ambiguous_label.fillna("")
     def _decode_tag(x):
         if isinstance(x, float) and np.isnan(x):
             return None
@@ -353,7 +354,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
         "ambiguous_sound_source": [None, None, None, "SRKW,NRKW", None],
         "ambiguous_sound_type": [None, None, None, "S01,S02,S16,N01,N22", "PC,W"],
     })
-    annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1)
+    annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1, error="ignore")
     rows = c.execute(f"SELECT label_id, ambiguous_label_id FROM annotation WHERE id IN {list_to_str(annot_ids)}").fetchall()
     assert rows[0] == (36, '[null]')
     assert rows[1] == (37, '[null]')

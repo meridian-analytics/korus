@@ -686,8 +686,8 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
                     * i/ignore: Ignore any annotations with invalid data, but proceed with 
                                     submitting all other annotations to the database
                     * r/replace: Automatically replace invalid data fields with default values (where possible) 
-                                    and flag the affected annotations as containing invalid data; if replacement 
-                                    is not possible, switch to manual mode.
+                                    and flag the affected annotations for review; 
+                                    if replacement is not possible, switch to manual mode.
                     * m/manual: Manually review and fix every annotation with invalid data
 
         Returns:
@@ -915,6 +915,8 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
             elif isinstance(ambi_type, str):
                 ambi_type = ambi_type.split(",")
 
+            # TODO: also combine with confident assignments
+
             # form all possible combinations
             ambi_sound_type = [(ss, st) for st in ambi_type for ss in ambi_source]
 
@@ -924,10 +926,15 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
                     lid = get_label_id(conn, source_type=(ss, st), taxonomy_id=tax_id)
                     ambi_label_id.append(lid)
                 
-                except ValueError as e:
-                    logging.error("Encountered invalid (source,type) combination in parsing ambiguous assignments")
-                    logging.error(str(e)) #log error, and continue
-                    continue
+                except ValueError:
+                    msg = f"Invalid ambiguous label ({ss}, {st})"
+
+                    if error_handling == IGNORE:
+                        msg += " ignored"
+                        logging.warning(msg)
+
+                    else:
+                        raise ValueError(msg)
 
             if len(ambi_label_id) == 0:
                 ambi_label_id = None
@@ -990,7 +997,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
 
             v["granularity_id"] = rows[0][0]
 
-        # replace invalid frequency ranges with default values and flag annotation as containing invalid data
+        # replace invalid frequency ranges with default values and flag annotation for review
         if error_handling == REPLACE and \
             (np.isnan(v["freq_max_hz"]) or v["freq_max_hz"] <= v.get("freq_min_hz", 0)):
 
@@ -1010,7 +1017,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
                 + f" [{fmin:.0f},{fmax:.0f}] -> [{new_fmin:.0f},{new_fmax:.0f}] (Hz)"
             v["comments"] = comments + warn_msg
 
-            warn_msg += "; annotation flagged as containing invalid data."
+            warn_msg += "; annotation flagged for review (valid=0)."
             logging.warning(warn_msg)
 
         # insert row into database
@@ -1033,29 +1040,26 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
                 annot_ids.append(c.lastrowid)
                 break
 
-            except sqlite3.IntegrityError:
-                err_msg = f"Failed to add annotation {idx} to the database because it does not meet the table constraints: duration_ms > 0 AND freq_min_hz < freq_max_hz"
-                logging.error(err_msg)
-                logging.debug(traceback.format_exc())
-                if error_handling == ABORT:
-                    raise
-                elif error_handling == IGNORE:
-                    break
-                elif error_handling in [REPLACE, MANUAL]:
-                    row = edit_row_manually(idx, row)
-
             except KeyboardInterrupt:
                 raise
 
             except:
-                err_msg = f"Failed to add annotation {idx} to the database. To view the full Error report, re-run in debug mode."
-                logging.error(err_msg)
-                logging.error(traceback.format_exc())
+                msg = f"Failed to add annotation {idx} to the database."
+
                 if error_handling == ABORT:
+                    logging.error(traceback.format_exc())
+                    logging.error(msg)
                     raise
+
                 elif error_handling == IGNORE:
+                    msg += ". Ignoring entry."
+                    logging.debug(traceback.format_exc())
+                    logging.warning(msg)
                     break
+
                 elif error_handling in [REPLACE, MANUAL]:
+                    logging.error(traceback.format_exc())
+                    logging.error(msg)
                     row = edit_row_manually(idx, row)
 
     return annot_ids
@@ -1250,7 +1254,7 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
     annot_tbl["tag"] = None
     annot_tbl.loc[~idx, "tag"] = annot_tbl.loc[~idx].tag_id.apply(lambda x: [tag_map[tag_id] for tag_id in x])
 
-    # convert ambiguous label IDs to source/type labels, joined by semi-colon (;) and slash (/)
+    # convert ambiguous label IDs to source/type labels
     idx = annot_tbl.ambiguous_label_id.isna()   
     annot_tbl["ambiguous_label"] = None
     def lookup_label(label_ids):
@@ -1263,12 +1267,12 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
             query = f"SELECT sound_source_tag,sound_type_tag FROM label WHERE id = {label_id}"
             rows = c.execute(query).fetchall()
             src, typ = rows[0]
-            labels.append(f"{src};{typ}")
+            labels.append((src,typ))
 
         if len(labels) == 0:
             return None
         else:
-            return "/".join(labels)
+            return labels
 
     annot_tbl.loc[~idx, "ambiguous_label"] = annot_tbl.loc[~idx].ambiguous_label_id.apply(lambda x: lookup_label(x))
 

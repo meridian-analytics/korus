@@ -26,7 +26,7 @@ def test_from_raven(basic_db):
     assert r.tentative_sound_source == None
     assert r.tentative_sound_type == None
     assert r.ambiguous_sound_source == None
-    assert r.ambiguous_sound_type == "S01,S02"
+    assert r.ambiguous_sound_type == ["S01","S02"]
     assert r.granularity == "window"
 
     # check 2nd entry
@@ -37,7 +37,7 @@ def test_from_raven(basic_db):
     assert r.tentative_sound_source == None
     assert r.tentative_sound_type == None
     assert r.ambiguous_sound_source == None
-    assert r.ambiguous_sound_type == "S01,S02"
+    assert r.ambiguous_sound_type == ["S01","S02"]
     assert r.granularity == "window"
 
     # check 3rd entry
@@ -62,3 +62,8 @@ def test_from_raven(basic_db):
     assert r.ambiguous_sound_type == None
     assert r.granularity == "unit"
 
+
+def test_print_summary(db_with_annotations):
+    conn, sqlite_path = db_with_annotations
+    df = kdb.get_annotations(conn)
+    add.print_annotation_summary(conn)

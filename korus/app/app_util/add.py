@@ -602,9 +602,8 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
 
             # if the selection table contains any tags, check if they need to be added to the database
             if "tag" in df.columns.values:
-                tags = pd.unique(df.tag)
-                tags = tags[~tags.isna()]
-                tags = tags.tolist()
+                tag_count = unique_from_list(df.tag)
+                tags = list(tag_count.keys())
                 new_tags = []
                 for tag in tags:
                     tag_id = c.execute(f"SELECT id FROM tag WHERE name = '{tag}'").fetchone()
@@ -662,6 +661,25 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
         cprint(f"\n ## WARNING: {num_missing} of the annotations pertain to audio files not present in the database", "red")
 
 
+def unique_from_list(x):
+    """ Helper function for extracting unique values
+        from a pandas DataFrame column which contains list objects 
+
+        Args:
+            x: pandas.Series
+                The column containing the list objects
+        Returns:
+            value_count: dict
+                Unique values and the number of times they each occur.
+    """
+    value_count = {}
+    for idx, obj in x[~x.isna()].items():
+        for val in obj:
+            value_count[val] = value_count.get(val, 0) + 1
+
+    return value_count
+
+
 def add_tags(conn, tags):
     """ Interactive session for adding new annotations to the database.
 
@@ -698,9 +716,6 @@ def add_tags(conn, tags):
             "description": tag_description,
         }
         kdb.insert_row(conn, table_name="tag", values=v)
-
-        # commit changes
-        #conn.commit()
 
         cprint(f"\n ## Successfully added the tag `{tag_name}` to the database", "yellow")
 
@@ -830,6 +845,13 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
     df_out["valid"] = df_in["Valid"]
     df_out["granularity"] = granularity
     df_out["tag"] = df_in["Tag"]
+    
+    # convert from comma-separated str to list object
+    for col in ["tag", "ambiguous_sound_source", "ambiguous_sound_type"]:
+        idx = ~df_out[col].isna()
+        df_out.loc[idx, col] = df_out.loc[idx, col].apply(lambda x: x.split(","))
+        df_out[col] = df_out[col].astype("object")
+        df_out.loc[~idx, col] = None
 
     if has_duration:
         df_out["duration_ms"] = df_in["Delta Time (s)"] * 1000
@@ -849,20 +871,13 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
         idx_batch = (df_in["Batch Annotation"] == 1) 
         df_out.loc[idx_batch, "granularity"] = "batch"
 
-    # if the Selection Table contains the column 'Tag', use it
-    if "Tag" in df_in.columns.values:
-        df_out["tag"] = df_in["Tag"]
-
     # replace NaN values
-    #df_out.tag = df_out.tag.fillna("")
     df_out.comments = df_out.comments.fillna("")
     df_out.sound_source = df_out.sound_source.fillna("")
     df_out.sound_type = df_out.sound_type.fillna("")
     df_out.tentative_sound_source = df_out.tentative_sound_source.fillna("")
     df_out.tentative_sound_type = df_out.tentative_sound_type.fillna("")
-    df_out.ambiguous_sound_source = df_out.ambiguous_sound_source.fillna("")
-    df_out.ambiguous_sound_type = df_out.ambiguous_sound_type.fillna("")
-
+    
     # validate data
     # also detect and parse ambiguous assignments in confident/tentative columns
     cprint(f"\n ## Validating labels ...", "yellow")
@@ -886,12 +901,12 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
         "sound_type": "string",
         "tentative_sound_source": "string",
         "tentative_sound_type": "string",
-        "ambiguous_sound_source": "string",
-        "ambiguous_sound_type": "string",
+        "ambiguous_sound_source": "object",
+        "ambiguous_sound_type": "object",
         "granularity": "string",
         "comments": "string",
         "channel": np.uint8,
-        "tag": "string",
+        "tag": "object",
         "valid": np.uint8,
     }
 
@@ -924,9 +939,8 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
     # replace empty sound source with root tag
     df_out.sound_source = df_out.sound_source.apply(lambda x: x if x != "" else tax.get_node(tax.root).tag)
 
-    # replace empty tentative/ambiguous sound source with None
+    # replace empty tentative sound source with None
     df_out.tentative_sound_source = df_out.tentative_sound_source.apply(lambda x: x if x != "" else None)
-    df_out.ambiguous_sound_source = df_out.ambiguous_sound_source.apply(lambda x: x if x != "" else None)
 
     # replace empty sound type with root tag
     def fcn(r):
@@ -943,7 +957,6 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
 
     # replace empty tentative sound type with None
     df_out.tentative_sound_type = df_out.tentative_sound_type.apply(lambda x: x if x != "" else None)
-    df_out.ambiguous_sound_type = df_out.ambiguous_sound_type.apply(lambda x: x if x != "" else None)
 
     # round to appropriate number of digits
     decimals = {"start_ms": 0, "freq_min_hz": 1}
@@ -957,14 +970,14 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
     return df_out
 
 
-def print_annotation_summary(conn, indices):
+def print_annotation_summary(conn, indices=None):
     """ Print annotation summary
     
         Args:
             conn: sqlite3.Connection
                 Database connection
             indices: list(int)
-                Indices in the annotation table    
+                Indices in the annotation table. Optional.  
     """
     df = kdb.get_annotations(conn, indices)
 
@@ -979,9 +992,8 @@ def print_annotation_summary(conn, indices):
     print(tabulate(counts, headers=["Granularity", "Count"], tablefmt='psql'))
 
     # tags
-    df["tag_str"] = df.tag.apply(",".join)
-    counts = df.value_counts("tag", dropna=True)
-    counts = pd.DataFrame({"Count": counts})
+    tag_count = unique_from_list(df.tag)
+    counts = [[k,v] for k,v in tag_count.items()]
     print(tabulate(counts, headers=["Tag", "Count"], tablefmt='psql'))
 
     # confident labels
@@ -995,8 +1007,8 @@ def print_annotation_summary(conn, indices):
     print(tabulate(counts, headers=["Tentative label", "Count"], tablefmt='psql'))
 
     # ambiguous labels
-    counts = df.value_counts("ambiguous_label", dropna=True)
-    counts = pd.DataFrame({"Count": counts})
+    ambiguous_count = unique_from_list(df.ambiguous_label)
+    counts = [[k,v] for k,v in ambiguous_count.items()]
     print(tabulate(counts, headers=["Ambiguous label", "Count"], tablefmt='psql'))
 
 
@@ -1008,6 +1020,8 @@ def validate_annotations(df, tax, interactive=True, progress_bar=False):
         When ambiguous labels are found, they are moved to the ambiguous columns. 
         If they occur in the confident column, they are replaced by the last common ancestor node in the taxonomy. 
         If they occur in the tentative column, they are replaced by a 'null' value.
+
+        Notes: Expects columns `ambiguous_sound_source`, `ambiguous_sound_type`, `tag` to be of type `object`.
 
         Args:
             df: pandas DataFrame
@@ -1028,10 +1042,13 @@ def validate_annotations(df, tax, interactive=True, progress_bar=False):
     src_map = dict()
     typ_map = dict()
 
-    def _parse_ambiguous(labels, tax, label_map, idx, row, sep="/", note=""):
+    def _parse_ambiguous(labels, tax, label_map, idx, row, note=""):
         """ Helper function for parsing and validating ambiguous label assignments """
+        if labels is None:
+            return None, label_map
+        
         labels_val = []
-        for label in labels.split(sep):
+        for label in labels:
             if interactive:
                 label, label_map = validate_label_interactive(label, tax, label_map, idx, row, note)
             else:
@@ -1051,39 +1068,39 @@ def validate_annotations(df, tax, interactive=True, progress_bar=False):
             try:
                 # 1) parse ambiguous assignments in confident/tentative columns
 
-                if row.ambiguous_sound_source == "":
-                    # sound source
+                # sound source
+                if row["ambiguous_sound_source"] is None:
                     s = row["sound_source"]
                     if "/" in s:
-                        sources, src_map = _parse_ambiguous(s, tax, src_map, idx, row, sep="/")
+                        sources, src_map = _parse_ambiguous(s.split("/"), tax, src_map, idx, row)
                         parent = tax.last_common_ancestor(sources)
-                        row["ambiguous_sound_source"] = ",".join(sources)
+                        row["ambiguous_sound_source"] = sources
                         row["sound_source"] = parent
 
                     # tentative sound source
                     s = row["tentative_sound_source"]
                     if "/" in s:
-                        sources, src_map = _parse_ambiguous(s, tax, src_map, idx, row, sep="/")
-                        row["ambiguous_sound_source"] = ",".join(sources)
+                        sources, src_map = _parse_ambiguous(s.split("/"), tax, src_map, idx, row)
+                        row["ambiguous_sound_source"] = sources
                         row["tentative_sound_source"] = ""
 
-                if row.ambiguous_sound_type == "":
+                if row["ambiguous_sound_type"] is None:
                     s = row["sound_source"]
                     typ_tax = tax.sound_types(s)
 
                     # sound type
                     t = row["sound_type"]
                     if "/" in t:            
-                        types, typ_map = _parse_ambiguous(t, typ_tax, typ_map, idx, row, sep="/")                
+                        types, typ_map = _parse_ambiguous(t.split("/"), typ_tax, typ_map, idx, row)                
                         parent = typ_tax.last_common_ancestor(types)
-                        row["ambiguous_sound_type"] = ",".join(types)
+                        row["ambiguous_sound_type"] = types
                         row["sound_type"] = parent
 
                     # tentative sound type
                     t = row["tentative_sound_type"]
                     if "/" in t:
-                        types, typ_map = _parse_ambiguous(t, typ_tax, typ_map, idx, row, sep="/")                
-                        row["ambiguous_sound_type"] = ",".join(types)
+                        types, typ_map = _parse_ambiguous(t.split("/"), typ_tax, typ_map, idx, row)      
+                        row["ambiguous_sound_type"] = types
                         row["tentative_sound_type"] = ""
 
 
@@ -1105,8 +1122,8 @@ def validate_annotations(df, tax, interactive=True, progress_bar=False):
 
                 # 2c) ambiguous sound source
                 ass = row["ambiguous_sound_source"]
-                ambiguous_sources, src_map = _parse_ambiguous(ass, tax, src_map, idx, row, sep=",")
-                row["ambiguous_sound_source"] = ",".join(ambiguous_sources)
+                ambiguous_sources, src_map = _parse_ambiguous(ass, tax, src_map, idx, row)
+                row["ambiguous_sound_source"] = ambiguous_sources
 
                 # 2d) sound type
                 st = row["sound_type"]
@@ -1140,16 +1157,16 @@ def validate_annotations(df, tax, interactive=True, progress_bar=False):
                 ast = row["ambiguous_sound_type"]
 
                 # pick which sound-type tree to validate against
-                if len(ambiguous_sources) > 0:
+                if ambiguous_sources is None:
+                    typ_tree = tax.sound_types(ss)
+                    note = f" (for sound source `{ss}`)"
+                else:
                     parent = tax.last_common_ancestor(ambiguous_sources)
                     typ_tree = tax.sound_types(parent)
                     note = f" (for sound source `{parent}`)"
-                else:
-                    typ_tree = tax.sound_types(ss)
-                    note = f" (for sound source `{ss}`)"
 
-                types, typ_map = _parse_ambiguous(ast, typ_tree, typ_map, idx, row, sep=",", note=note)
-                row["ambiguous_sound_type"] = ",".join(types)
+                types, typ_map = _parse_ambiguous(ast, typ_tree, typ_map, idx, row, note=note)
+                row["ambiguous_sound_type"] = types
 
 
                 # 3) all validations have passed so exit the loop
@@ -1178,8 +1195,8 @@ def validate_annotations(df, tax, interactive=True, progress_bar=False):
     df.sound_type = df.sound_type.fillna("")
     df.tentative_sound_source = df.tentative_sound_source.fillna("")
     df.tentative_sound_type = df.tentative_sound_type.fillna("")
-    df.ambiguous_sound_source = df.ambiguous_sound_source.fillna("")
-    df.ambiguous_sound_type = df.ambiguous_sound_type.fillna("")
+    #df.ambiguous_sound_source = df.ambiguous_sound_source.fillna("")
+    #df.ambiguous_sound_type = df.ambiguous_sound_type.fillna("")
 
     return df
 
