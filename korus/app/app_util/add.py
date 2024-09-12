@@ -675,13 +675,15 @@ def unique_from_list(x):
                 The column containing the list objects
         Returns:
             value_count: dict
-                Unique values and the number of times they each occur.
+                Unique values and the number of times they each occur, 
+                sorted in order of decreasing occurrence frequency.
     """
     value_count = {}
     for idx, obj in x[~x.isna()].items():
         for val in obj:
             value_count[val] = value_count.get(val, 0) + 1
 
+    value_count = dict(sorted(value_count.items(), key=lambda item: item[1], reverse=True))
     return value_count
 
 
