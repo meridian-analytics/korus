@@ -1,6 +1,17 @@
 Change log
 ==========
 
+**Version 0.0.8** (Sep 12, 2024)
+
+ * Various improvements to `korus-submit`
+ * `db.get_annotations` returns ambiguous labels
+ * New function for printing annotation summary
+ * Improved error handling when adding annotations
+ * Fixed bug in parsing of ambiguous labels
+ * Added column `valid` to annotation table
+ * Added support for inserting annotations with invalid/missing file IDs into the database
+ * Added `issues` column to `job` table and renamed `model_config` to `configuration`
+
 **Version 0.0.7** (July 05, 2024)
 
  * Added support for filtering on ambiguous labels

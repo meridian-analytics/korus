@@ -138,12 +138,13 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
         "primary_sound": json.dumps(primary_sound),
         "background_sound": json.dumps(background_sound),
         "is_exhaustive": 1,
-        "model_config": None,
+        "configuration": None,
         "start_utc": "2022-10",
         "end_utc": "2023-03",
         "by_human": 1,
         "by_machine": 0,
-        "comments": "Vessel noise annotated opportunistically"
+        "comments": "Vessel noise annotated opportunistically",
+        "issues": json.dumps(["start and end times may not always be accurate", "some KW sounds may have been incorrectly labelled as HW"]),
     }
     c = kdb.insert_row(conn, table_name="job", values=v)
 
@@ -323,7 +324,9 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
         "tentative_sound_source": "object",
         "tentative_sound_type": "object",
         "machine_prediction": "object",
+        "ambiguous_label": "object",
     })
+    #expected.ambiguous_label = expected.ambiguous_label.fillna("")
     def _decode_tag(x):
         if isinstance(x, float) and np.isnan(x):
             return None
@@ -351,7 +354,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
         "ambiguous_sound_source": [None, None, None, "SRKW,NRKW", None],
         "ambiguous_sound_type": [None, None, None, "S01,S02,S16,N01,N22", "PC,W"],
     })
-    annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1)
+    annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1, error="ignore")
     rows = c.execute(f"SELECT label_id, ambiguous_label_id FROM annotation WHERE id IN {list_to_str(annot_ids)}").fetchall()
     assert rows[0] == (36, '[null]')
     assert rows[1] == (37, '[null]')
@@ -398,6 +401,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
 
     idx = kdb.filter_negative(conn, source_type=("HW","%"), taxonomy_id=3)
     assert len(idx) == 0
+
 
 def test_import_taxonomy(basic_db):
     """ Test import_taxonomy function"""

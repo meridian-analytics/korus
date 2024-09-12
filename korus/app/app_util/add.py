@@ -1,19 +1,45 @@
 import os
 import sqlite3
+import json
+import yaml
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
+from glob import glob
 from datetime import datetime, timedelta
 from termcolor import colored, cprint
 import traceback
+from tabulate import tabulate
 from korus.util import collect_audiofile_metadata
 import korus.db as kdb
+from korus.util import list_to_str
 import korus.app.app_util.view as vw
 import korus.app.app_util.ui as ui
 
 
-def terminate(conn):
+def save_changes_to_db(conn):
+    """ Helper function for saving changes to the database"""
+    try:
+        save = ui.UserInputYesNo(
+            "save_changes", 
+            "Save changes (if any) to the local Korus database? [y/N]", 
+        ).request()
+
+    except KeyboardInterrupt:
+        terminate(conn, save=False)
+
+    if save:
+        conn.commit()
+        cprint(f" ## Successfully updated local Korus database", "yellow")
+
+
+def terminate(conn, save=True):
     """ Helper function for gracefully terminating the program"""
-    print("\n Closing database connection and exiting ...")
+    cprint("\n ## Terminating ...", "yellow")
+    if save:
+        save_changes_to_db(conn)
+    
+    cprint("\n ## Closing database connection and exiting ...", "yellow")
     conn.close()
     exit(1)
 
@@ -78,7 +104,7 @@ def add_deployment(conn, logger):
     cursor = kdb.insert_row(conn, table_name="deployment", values=data)
 
     # commit changes
-    conn.commit()
+    #conn.commit()
 
     cprint(f"\n ## Successfully added deployment `{name}` to the database", "yellow")
 
@@ -87,6 +113,8 @@ def add_deployment(conn, logger):
 
 def add_job(conn, logger):
     """ Interactive session for adding a new annotation job to the database.
+
+        TODO: remove background_sound
 
         Args:
             conn: sqlite3.Connection
@@ -101,14 +129,9 @@ def add_job(conn, logger):
     cprint(f"\n ## Collecting metadata about the annotation job", "yellow")
 
     default_prim = [
-        ("Whale","TC"),
+        ("Cetacean","TC"),
         ("KW","PC"),
         ("KW","W"),
-    ]
-
-    default_backgr = [
-        ("KW","BP"),
-        ("KW","EC"),
     ]
 
     # query user for input
@@ -124,16 +147,22 @@ def add_job(conn, logger):
     annotator = ui.UserInput("annotator", "Annotator (initials only)", group="job").request(logger)
     start_utc = ui.UserInput("start_utc", "UTC start date (e.g. 2020-06-01)", group="job").request(logger) 
     end_utc = ui.UserInput("end_utc", "UTC end date (e.g. 2020-06-01)", group="job").request(logger)
+    is_exhaustive = ui.UserInputYesNo("is_exhaustive", "Were all primary sounds annotated? [y/N]", group="job").request(logger)
 
-    primary_sound = ui.UserInputSound(
-        name="primary_sound", 
-        message='Primary sounds that were systematically annotated, e.g. [(\'HW\',\'Upsweep\'), (\'HW\',\'Moan\')]',
-        conn=conn,
-        taxonomy_id=taxonomy_id,
-        group="job",
-        default=default_prim,
-    ).request(logger)
+    if is_exhaustive:
+        primary_sound = ui.UserInputSound(
+            name="primary_sound", 
+            message='Primary sounds that were systematically annotated, e.g. [(\'HW\',\'Upsweep\'), (\'HW\',\'Moan\')]',
+            conn=conn,
+            taxonomy_id=taxonomy_id,
+            group="job",
+            default=default_prim,
+        ).request(logger)
+    
+    else:
+        primary_sound = None
 
+    """
     background_sound = ui.UserInputSound(
         name="background_sound", 
         message='Background sounds that were only opportunistically annotated, e.g., (\'Anthro\',\'%\')',
@@ -142,16 +171,25 @@ def add_job(conn, logger):
         group="job",
         default=default_backgr,
     ).request(logger)
+    """
+    background_sound = None
 
-    def fcn(x):
-        if isinstance(x, str):
-            return x.lower() == "y"
-        elif isinstance(x, bool):
-            return x
+    # prompt user for issues
+    ui_add_another_issue = ui.UserInputYesNo(
+        "add_another_issue", 
+        "Do the annotations have any known issues? [y/N]", 
+    )
+
+    issues = []
+    while True:
+        if ui_add_another_issue.request():
+            description = ui.UserInput("add_issue", "Briefly describe the issue").request(logger)
+            issues.append(description)
+
+            ui_add_another_issue.message = "Do the annotations have any other known issues? [y/N]"
         else:
-            raise TypeError           
+            break
 
-    is_exhaustive = ui.UserInput("is_exhaustive", "Were all primary sounds annotated? [y/N]", transform_fcn=fcn, group="job").request(logger)
 
     def fcn(x):
         """Helper function for transforming user input for `comments`"""
@@ -175,12 +213,14 @@ def add_job(conn, logger):
     data = {
         "taxonomy_id": taxonomy_id,
         "annotator": annotator,
-        "primary_sound": primary_sound,
         "is_exhaustive": is_exhaustive,
         "start_utc": start_utc,
         "end_utc": end_utc,
+        "issues": json.dumps(issues),
         "comments": comments
     }
+    if primary_sound is not None and primary_sound != "":
+        data["primary_sound"] = primary_sound
     if background_sound is not None and background_sound != "":
         data["background_sound"] = background_sound
 
@@ -193,7 +233,7 @@ def add_job(conn, logger):
     cursor = kdb.insert_job(conn, values=data)
 
     # commit changes
-    conn.commit()
+    #conn.commit()
 
     cprint(f"\n ## Successfully added annotation job to the database", "yellow")
 
@@ -248,12 +288,74 @@ def add_data_storage_location(conn, logger):
     cursor = kdb.insert_row(conn, table_name="storage", values=v)
 
     # commit changes
-    conn.commit()
+    #conn.commit()
 
     cprint(f"\n ## Successfully added data storage location to the database", "yellow")
 
     return cursor.lastrowid
 
+
+def create_timestamp_parser(group=None, logger=None):
+    """ Interative session for creating a timestamp parser 
+    
+        Args:
+            group: str
+                Group that the parameter belongs to. Optional. 
+                Parameter names must be unique within groups.
+            logger: korus.app.app_util.ui.InputLogger
+                Input logger
+
+        Returns:
+            timestamp_parser: callable
+                Takes a string as input and returns a datetime object
+    """
+    ui_ts_fmt = ui.UserInput(
+        "timestamp_format", 
+        "Timestamp format, e.g., %Y%m%dT%H%M%S.%f", 
+        group=group,
+    )
+    ui_ts_fmt.add_option(
+        key=["s","smru"],
+        message="SMRU timestamp format",
+        fcn=lambda x: "%Y%m%d_%H%M%S_%f"
+    )    
+    ts_fmt = ui_ts_fmt.request(logger) 
+
+    ts_offset = ui.UserInput(
+        "timestamp_offset", 
+        "Time zone offset (hours) relative to UTC", 
+        group=group,
+        transform_fcn=float,
+    ).request(logger)
+
+    ui_ts_siz = ui.UserInput(
+        "timestamp_size", 
+        "Timestamp length (no. characters)", 
+        group=group,
+        transform_fcn=int,
+    )
+    ui_ts_siz.add_option(
+        key=["s","smru"],
+        message="SMRU timestamp format",
+        fcn=lambda x: 19
+    )
+    ts_siz = ui_ts_siz.request(logger)
+
+    ts_pos = ui.UserInput(
+        "timestamp_position", 
+        "Timestamp position (no. characters from left if positive / from right if negative)", 
+        group=group,
+        transform_fcn=int,
+    ).request(logger)
+
+    def timestamp_parser(x):        
+        p = ts_pos if ts_pos >= 0 else len(x) + ts_pos - ts_siz
+        x = x[p : p + ts_siz]
+        dt = datetime.strptime(x, ts_fmt)
+        dt -= timedelta(seconds=int(ts_offset*3600))
+        return dt
+    
+    return timestamp_parser
 
 
 def add_files(conn, deployment_id, start_utc, end_utc, logger):
@@ -319,57 +421,12 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
         group="audio",
     ).request(logger)
 
-    ui_ts_fmt = ui.UserInput(
-        "timestamp_format", 
-        "Timestamp format, e.g., %Y%m%dT%H%M%S.%f", 
-        group="audio",
-    )
-    ui_ts_fmt.add_option(
-        key=["s","smru"],
-        message="SMRU timestamp format",
-        fcn=lambda x: "%Y%m%d_%H%M%S_%f"
-    )    
-    ts_fmt = ui_ts_fmt.request(logger) 
+    # timestamp parser
+    timestamp_parser = create_timestamp_parser("audio", logger)
 
-    ts_offset = ui.UserInput(
-        "timestamp_offset", 
-        "Time zone offset (hours) relative to UTC", 
-        group="audio",
-        transform_fcn=float,
-    ).request(logger)
-
-    ui_ts_siz = ui.UserInput(
-        "timestamp_size", 
-        "Timestamp length (no. characters)", 
-        group="audio",
-        transform_fcn=int,
-    )
-    ui_ts_siz.add_option(
-        key=["s","smru"],
-        message="SMRU timestamp format",
-        fcn=lambda x: 19
-    )
-    ts_siz = ui_ts_siz.request(logger)
-
-    ts_rpos = ui.UserInput(
-        "timestamp_reverse_position", 
-        "Timestamp reverse position (no. characters from the end, not including the file extension)", 
-        group="audio",
-        transform_fcn=int,
-    ).request(logger)
-
-    def timestamp_parser(x):
-        p = x.rfind(".") - ts_rpos
-        x = x[p - ts_siz : p]
-        dt = datetime.strptime(x, ts_fmt)
-        dt -= timedelta(seconds=int(ts_offset*3600))
-        return dt
-
-    date_subfolder = ui.UserInput(
+    date_subfolder = ui.UserInputYesNo(
         "date_subfolder", 
         "Are audio files organized in date-stamped subfolders named `yyymmdd`? [y/N]", 
-        transform_fcn=lambda x: x.lower() == "y", 
-        json_fcn=lambda x: "y" if x else "N",
     ).request(logger)
 
     # automatically search for audio files and collect metadata
@@ -464,14 +521,14 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
             cursor = kdb.insert_row(conn, table_name="file", values=data)
 
     # commit changes
-    conn.commit()
+    #conn.commit()
 
     cprint(f"\n ## Successfully added {len(df)} audio files to the database", "yellow")
 
-    return cursor.lastrowid
+    return cursor.lastrowid, timestamp_parser
 
 
-def add_annotations(conn, deployment_id, job_id, logger):
+def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
     """ Interactive session for adding new annotations to the database.
 
         Args:
@@ -483,13 +540,21 @@ def add_annotations(conn, deployment_id, job_id, logger):
                 Annotation job index
             logger: korus.app.app_util.ui.InputLogger
                 Input logger
+            timestamp_parser: callable
+                Given a filename (str) returns the UTC timestamp embedded 
+                in the filename as a datetime object.
+                Only required if some of the annotations reference audio files not present in the database.
 
         Returns:
             None
     """
 
     # query user
-    path = ui.UserInput("path", "Full path to RavenPro selection table", group="annotation").request(logger)
+    path = ui.UserInput(
+        "path", 
+        "Full path to RavenPro selection table. (Use wildcard to select multiple files.)", 
+        group="annotation"
+    ).request(logger)
 
     # get all file IDs
     c = conn.cursor()
@@ -502,22 +567,43 @@ def add_annotations(conn, deployment_id, job_id, logger):
     tax_id = c.execute(f"SELECT taxonomy_id FROM job WHERE id = '{job_id}'").fetchall()[0][0]
     tax = kdb.get_taxonomy(conn, tax_id)
 
+    annot_ids = []
     while True:
         try:
-            # load selection table
-            df = from_raven(path, tax)
+            # prompt user for granularity
+            query = "SELECT name FROM granularity"
+            rows = c.execute(query).fetchall()
+            allowed_values = list(np.unique([row[0] for row in rows]))
+            granularity = ui.UserInput(
+                name="granularity",
+                message=f"Annotation granularity.",
+                group="annotation",
+                allowed_values=allowed_values,
+            ).request(logger)
+
+            # load selection table(s)
+            df = from_raven(
+                path, 
+                tax, 
+                timestamp_parser=timestamp_parser, 
+                granularity=granularity, 
+                interactive=True,
+                progress_bar=True,
+            )
 
             # add missing fields
+            # (set file ID to zero (0) if file is missing)
             df["job_id"] = job_id
             df["deployment_id"] = deployment_id
-            df["file_id"] = df.path.apply(lambda x: file_id_map[os.path.basename(x)])
+            df["file_id"] = df.path.apply(lambda x: file_id_map.get(os.path.basename(x), 0))
 
             # drop columns
             df = df.drop(columns=["path"])
 
             # if the selection table contains any tags, check if they need to be added to the database
             if "tag" in df.columns.values:
-                tags = pd.unique(df.tag).tolist()
+                tag_count = unique_from_list(df.tag)
+                tags = list(tag_count.keys())
                 new_tags = []
                 for tag in tags:
                     tag_id = c.execute(f"SELECT id FROM tag WHERE name = '{tag}'").fetchone()
@@ -527,10 +613,9 @@ def add_annotations(conn, deployment_id, job_id, logger):
                 if len(new_tags) > 0:
                     cprint(f"\n ## The selection table contains the following new tags: {new_tags}", "red")
 
-                    proceed = ui.UserInput(
+                    proceed = ui.UserInputYesNo(
                         "add_tags", 
                         "Add the new tags to the database? [y/N]  (required to proceed with submission)", 
-                        transform_fcn=lambda x: x.lower() == "y", 
                     ).request()
 
                     if not proceed:
@@ -539,7 +624,7 @@ def add_annotations(conn, deployment_id, job_id, logger):
                     add_tags(conn, tags)
                     
             # insert into db
-            cprint(f"\n ## Adding annotations to the database ...", "yellow")
+            cprint(f"\n ## Adding {len(df)} annotations to the database ...", "yellow")
 
             start = datetime.now()
             annot_ids = kdb.add_annotations(conn, annot_tbl=df, job_id=job_id, progress_bar=True)
@@ -547,16 +632,59 @@ def add_annotations(conn, deployment_id, job_id, logger):
 
             break
 
+        except KeyboardInterrupt:
+            terminate(conn)
+
         except Exception:
             cprint("\n ## "+ traceback.format_exc(), "red")
             cprint(" ## Error processing selection table", "red")
             terminate(conn)
 
 
-    # commit changes
-    conn.commit()
-
     cprint(f"\n ## Successfully added {len(annot_ids)} annotations to the database in {(end - start).total_seconds():.2f} seconds", "yellow")
+
+    # check if any of the annotations just added pertain to audio files not present in the database
+    c = conn.cursor()
+    query = f"SELECT file_id FROM annotation WHERE id in {list_to_str(annot_ids)}"
+    rows = c.execute(query).fetchall()
+    num_missing = 0
+    for row in rows:
+        num_missing += (row[0] == 0)
+
+    if num_missing > 0:
+        cprint(f"\n ## WARNING: {num_missing} of the annotations pertain to audio files not present in the database", "red")
+
+    # print summary
+    if len(annot_ids) > 0:
+        print_summary = ui.UserInputYesNo(
+            "print_summary", 
+            "Print summary? [y/N]", 
+            group="annotation"
+        ).request()
+
+        if print_summary:  
+            print_annotation_summary(conn, annot_ids)
+
+
+def unique_from_list(x):
+    """ Helper function for extracting unique values
+        from a pandas DataFrame column which contains list objects 
+
+        Args:
+            x: pandas.Series
+                The column containing the list objects
+        Returns:
+            value_count: dict
+                Unique values and the number of times they each occur, 
+                sorted in order of decreasing occurrence frequency.
+    """
+    value_count = {}
+    for idx, obj in x[~x.isna()].items():
+        for val in obj:
+            value_count[val] = value_count.get(val, 0) + 1
+
+    value_count = dict(sorted(value_count.items(), key=lambda item: item[1], reverse=True))
+    return value_count
 
 
 def add_tags(conn, tags):
@@ -596,35 +724,59 @@ def add_tags(conn, tags):
         }
         kdb.insert_row(conn, table_name="tag", values=v)
 
-        # commit changes
-        conn.commit()
-
         cprint(f"\n ## Successfully added the tag `{tag_name}` to the database", "yellow")
 
 
-def from_raven(input_path, tax, sep="\t", extra_required_cols=None, granularity="unit"):
-    """Loads entries from a RavenPro selections table
+def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, interactive=True, progress_bar=False):
+    """ Loads entries from a RavenPro selections table
 
-    Args:
-        input_path: str
-            Path to the RavenPro selection table.
-        tax: korus.tax.AcousticTaxonomy
-            Annotation taxonomy
-        sep: str
-            Character used to separate columns in the selection table. Default is \t (tab)
-        granularity: str
-            Default granularity of annotations. 
+        Args:
+            input_path: str
+                Path to the RavenPro selection table(s). Use of wildcards is allowed.
+            tax: korus.tax.AcousticTaxonomy
+                Annotation taxonomy
+            sep: str
+                Character used to separate columns in the selection table. If None, tries to auto-detect the separator character.
+            granularity: str
+                Default granularity of annotations. Optional.
+            timestamp_parser: callable
+                Given a filename (str) returns the UTC timestamp embedded 
+                in the filename as a datetime object. Optional.
+            interactive: bool
+                If True (default), the user will be prompted via the console to fix any invalid data.
+                If False, entries with invalid data will be flagged by setting `valid=0`.
+            progress_bar: bool
+                Display progress bar. Default is False.
 
-    Returns:
-        df_out: pandas.DataFrame
-            Table of detections
+        Returns:
+            df_out: pandas.DataFrame
+                Table of selections
 
-    Raises:
-        FileNotFoundError: if the input file does not exist.
-        ValueError: if the input table contains fields with invalid data types
+        Raises:
+            FileNotFoundError: if the input file does not exist.
+            ValueError: if the input table contains fields with invalid data types
     """
-    # load selections
-    df_in = pd.read_csv(input_path, sep=sep)
+    # find files
+    input_paths = glob(input_path)
+
+    cprint(f"\n ## Found {len(input_paths)} selection tables matching the search criteria", "yellow")
+
+    # load files
+    dfs = []
+    for input_path in input_paths:
+        # detect separator
+        if sep is None:
+            with open(input_path, "r") as f:
+                header = f.readline()
+                if "\t" in header: sep = "\t"
+                elif ";" in header: sep = ";"
+                elif "," in header: sep = ","
+
+        # load selections
+        dfs.append(pd.read_csv(input_path, sep=sep))
+
+    # concatenate
+    df_in = pd.concat(dfs, ignore_index=True)
 
     # required columns
     required_cols = [
@@ -642,7 +794,11 @@ def from_raven(input_path, tax, sep="\t", extra_required_cols=None, granularity=
         "Sound Type": None,
         "Tentative Sound Source": None,
         "Tentative Sound Type": None,
+        "Ambiguous Sound Source": None,
+        "Ambiguous Sound Type": None,
         "Comments": None,
+        "Valid": 1,
+        "Tag": None,
     }
 
     has_duration = ("Delta Time (s)" in df_in.columns)
@@ -674,19 +830,12 @@ def from_raven(input_path, tax, sep="\t", extra_required_cols=None, granularity=
         "ambiguous_sound_type": [],
         "granularity": [],
         "comments": [],
-        "channel": []
+        "channel": [],
+        "valid": [],
+        "tag": [],
     }
 
-    if has_duration:
-        data_out["duration_ms"] = []
-
-    if has_freq_max:
-        data_out["freq_max_hz"] = []
-
     df_out = pd.DataFrame(data_out)
-
-    # number of detections
-    N = len(df_in)
 
     # fill data into output dataframe
     df_out["path"] = df_in["Begin File"]
@@ -696,8 +845,20 @@ def from_raven(input_path, tax, sep="\t", extra_required_cols=None, granularity=
     df_out["sound_type"] = df_in["Sound Type"]
     df_out["tentative_sound_source"] = df_in["Tentative Sound Source"]
     df_out["tentative_sound_type"] = df_in["Tentative Sound Type"]
+    df_out["ambiguous_sound_source"] = df_in["Ambiguous Sound Source"]
+    df_out["ambiguous_sound_type"] = df_in["Ambiguous Sound Type"]
     df_out["comments"] = df_in["Comments"]
     df_out["channel"] = df_in["Channel"] - 1
+    df_out["valid"] = df_in["Valid"]
+    df_out["granularity"] = granularity
+    df_out["tag"] = df_in["Tag"]
+    
+    # convert from comma-separated str to list object
+    for col in ["tag", "ambiguous_sound_source", "ambiguous_sound_type"]:
+        idx = ~df_out[col].isna()
+        df_out.loc[idx, col] = df_out.loc[idx, col].apply(lambda x: x.split(","))
+        df_out[col] = df_out[col].astype("object")
+        df_out.loc[~idx, col] = None
 
     if has_duration:
         df_out["duration_ms"] = df_in["Delta Time (s)"] * 1000
@@ -705,24 +866,17 @@ def from_raven(input_path, tax, sep="\t", extra_required_cols=None, granularity=
     if has_freq_max:
         df_out["freq_max_hz"] = df_in["High Freq (Hz)"]
 
-    # if the Selection Table contains the columns 'Granularity', 'Batch Annotation', or
-    # 'Window Annotation', use them (in that order of preference)
-    df_out["granularity"] = granularity
-
+    # if the Selection Table contains the columns 'Granularity' and 'Batch Annotation', use them (in that order of preference)
     if "Granularity" in df_in.columns.values:
         df_out["granularity"] = df_in["Granularity"].apply(lambda x: x.lower() if isinstance(x, str) else granularity)
+
+        if "Batch Annotation" in df_in.columns.values:
+            warn_msg = "The selection table contains redundant columns `Granularity` and `Batch Annotation`. Dropping `Batch Annotation`."
+            cprint(f"\n ## WARNING: {warn_msg}", "red")
 
     elif "Batch Annotation" in df_in.columns.values:
         idx_batch = (df_in["Batch Annotation"] == 1) 
         df_out.loc[idx_batch, "granularity"] = "batch"
-
-    elif "Window Annotation" in df_in.columns.values:
-        idx_batch = (df_in["Window Annotation"] == 1) 
-        df_out.loc[idx_batch, "granularity"] = "window"
-
-    # if the Selection Table contains the column 'Tag', use it
-    if "Tag" in df_in.columns.values:
-        df_out["tag"] = df_in["Tag"]
 
     # replace NaN values
     df_out.comments = df_out.comments.fillna("")
@@ -730,23 +884,20 @@ def from_raven(input_path, tax, sep="\t", extra_required_cols=None, granularity=
     df_out.sound_type = df_out.sound_type.fillna("")
     df_out.tentative_sound_source = df_out.tentative_sound_source.fillna("")
     df_out.tentative_sound_type = df_out.tentative_sound_type.fillna("")
+    
+    # validate data
+    # also detect and parse ambiguous assignments in confident/tentative columns
+    cprint(f"\n ## Validating labels ...", "yellow")
 
-    # handle ambiguous assignments
-    df_out["ambiguous_sound_source"] = df_out["tentative_sound_source"]    
-    df_out["ambiguous_sound_type"] = df_out["tentative_sound_type"]
+    df_out = validate_annotations(df_out, tax, interactive=interactive, progress_bar=progress_bar)
 
-    def parse_ambiguous(x):
-        x = x.replace("/", ",")
-        return x if "," in x else "" 
+    # parse timestamps from filenames
+    if timestamp_parser is not None:
+        def get_start_utc(row):
+            """ Helper function for obtaining UTC start times """
+            return timestamp_parser(row.path) + timedelta(microseconds=row.duration_ms * 1E3)
 
-    df_out.ambiguous_sound_source = df_out.ambiguous_sound_source.apply(lambda x: parse_ambiguous(x))
-    df_out.ambiguous_sound_type = df_out.ambiguous_sound_type.apply(lambda x: parse_ambiguous(x))
-
-    idx = (df_out.ambiguous_sound_source == "")
-    df_out.loc[~idx, "tentative_sound_source"] = ""
-
-    idx = (df_out.ambiguous_sound_type == "")
-    df_out.loc[~idx, "tentative_sound_type"] = ""
+        df_out["start_utc"] = df_out.apply(lambda r: get_start_utc(r), axis=1)
 
     # dictionary to specify column types
     dtype_dict = {
@@ -757,12 +908,13 @@ def from_raven(input_path, tax, sep="\t", extra_required_cols=None, granularity=
         "sound_type": "string",
         "tentative_sound_source": "string",
         "tentative_sound_type": "string",
-        "ambiguous_sound_source": "string",
-        "ambiguous_sound_type": "string",
+        "ambiguous_sound_source": "object",
+        "ambiguous_sound_type": "object",
         "granularity": "string",
         "comments": "string",
         "channel": np.uint8,
-        "tag": "string",
+        "tag": "object",
+        "valid": np.uint8,
     }
 
     if has_duration:
@@ -794,22 +946,24 @@ def from_raven(input_path, tax, sep="\t", extra_required_cols=None, granularity=
     # replace empty sound source with root tag
     df_out.sound_source = df_out.sound_source.apply(lambda x: x if x != "" else tax.get_node(tax.root).tag)
 
-    # replace empty tentative/ambiguous sound source with None
+    # replace empty tentative sound source with None
     df_out.tentative_sound_source = df_out.tentative_sound_source.apply(lambda x: x if x != "" else None)
-    df_out.ambiguous_sound_source = df_out.ambiguous_sound_source.apply(lambda x: x if x != "" else None)
 
     # replace empty sound type with root tag
     def fcn(r):
         if r.sound_type != "": 
             return r.sound_type
         else:
-            types = tax.sound_types(r.sound_source)   
-            return types.get_node(types.root).tag
+            try:
+                types = tax.sound_types(r.sound_source)   
+                return types.get_node(types.root).tag
+            except AttributeError:
+                return "Unknown"
+
     df_out.sound_type = df_out.apply(lambda r: fcn(r), axis=1)
 
     # replace empty tentative sound type with None
     df_out.tentative_sound_type = df_out.tentative_sound_type.apply(lambda x: x if x != "" else None)
-    df_out.ambiguous_sound_type = df_out.ambiguous_sound_type.apply(lambda x: x if x != "" else None)
 
     # round to appropriate number of digits
     decimals = {"start_ms": 0, "freq_min_hz": 1}
@@ -821,4 +975,384 @@ def from_raven(input_path, tax, sep="\t", extra_required_cols=None, granularity=
     df_out = df_out.round(decimals)
 
     return df_out
+
+
+def print_annotation_summary(conn, indices=None):
+    """ Print annotation summary
+    
+        Args:
+            conn: sqlite3.Connection
+                Database connection
+            indices: list(int)
+                Indices in the annotation table. Optional.  
+    """
+    df = kdb.get_annotations(conn, indices)
+
+    # validity
+    counts = df.value_counts("valid", dropna=False).sort_index()
+    counts = pd.DataFrame({"Count": counts})
+    print(tabulate(counts, headers=["Valid", "Count"], tablefmt='psql'))
+
+    # granularity
+    counts = df.value_counts("granularity", dropna=False).sort_index()
+    counts = pd.DataFrame({"Count": counts})
+    print(tabulate(counts, headers=["Granularity", "Count"], tablefmt='psql'))
+
+    # tags
+    tag_count = unique_from_list(df.tag)
+    counts = [[k,v] for k,v in tag_count.items()]
+    print(tabulate(counts, headers=["Tag", "Count"], tablefmt='psql'))
+
+    # confident labels
+    counts = df.value_counts(["sound_source", "sound_type"], dropna=True)
+    counts = pd.DataFrame({"Count": counts})
+    print(tabulate(counts, headers=['Label', "Count"], tablefmt='psql'))
+
+    # tentative labels
+    counts = df.value_counts(["tentative_sound_source", "tentative_sound_type"], dropna=True)
+    counts = pd.DataFrame({"Count": counts})
+    print(tabulate(counts, headers=["Tentative label", "Count"], tablefmt='psql'))
+
+    # ambiguous labels
+    ambiguous_count = unique_from_list(df.ambiguous_label)
+    counts = [[k,v] for k,v in ambiguous_count.items()]
+    print(tabulate(counts, headers=["Ambiguous label", "Count"], tablefmt='psql'))
+
+
+def validate_annotations(df, tax, interactive=True, progress_bar=False):
+    """ Helper function for validating annotation data.
+    
+        Also parses ambiguous label assignments separated by slash (/).
+        The function checks the confident/tentative label columns for occurrences of slash (/) characters.
+        When ambiguous labels are found, they are moved to the ambiguous columns. 
+        If they occur in the confident column, they are replaced by the last common ancestor node in the taxonomy. 
+        If they occur in the tentative column, they are replaced by a 'null' value.
+
+        Notes: Expects columns `ambiguous_sound_source`, `ambiguous_sound_type`, `tag` to be of type `object`.
+
+        Args:
+            df: pandas DataFrame
+                Selection table
+            tax: korus.tax.AcousticTaxonomy
+                Annotation taxonomy
+            interactive: bool
+                If True (default), the user will be prompted via the console to fix any invalid data.
+                If False, entries with invalid data will be flagged by setting `valid=0`.
+            progress_bar: bool
+                Display progress bar. Default is False.
+
+        Returns:
+            df: pandas DataFrame
+                Selection table with ambiguous assignments resolved.
+    """
+    # maps for invalid labels
+    src_map = dict()
+    typ_map = dict()
+
+    def _parse_ambiguous(labels, tax, label_map, idx, row, note=""):
+        """ Helper function for parsing and validating ambiguous label assignments """
+        if labels is None:
+            return None, label_map
+        
+        labels_val = []
+        for label in labels:
+            if interactive:
+                label, label_map = validate_label_interactive(label, tax, label_map, idx, row, note)
+            else:
+                label = validate_label(label, tax)
+
+            if label is not None and label != "":
+                labels_val.append(label)
+
+        return labels_val, label_map
+
+    # loop over all entries
+    for idx,row in tqdm(df.iterrows(), disable=not progress_bar, total=df.shape[0]):   
+
+        # repeat until all validations pass
+        while True:
+
+            try:
+                # 1) parse ambiguous assignments in confident/tentative columns
+
+                # sound source
+                if row["ambiguous_sound_source"] is None:
+                    s = row["sound_source"]
+                    if "/" in s:
+                        sources, src_map = _parse_ambiguous(s.split("/"), tax, src_map, idx, row)
+                        parent = tax.last_common_ancestor(sources)
+                        row["ambiguous_sound_source"] = sources
+                        row["sound_source"] = parent
+
+                    # tentative sound source
+                    s = row["tentative_sound_source"]
+                    if "/" in s:
+                        sources, src_map = _parse_ambiguous(s.split("/"), tax, src_map, idx, row)
+                        row["ambiguous_sound_source"] = sources
+                        row["tentative_sound_source"] = ""
+
+                if row["ambiguous_sound_type"] is None:
+                    s = row["sound_source"]
+                    typ_tax = tax.sound_types(s)
+
+                    # sound type
+                    t = row["sound_type"]
+                    if "/" in t:            
+                        types, typ_map = _parse_ambiguous(t.split("/"), typ_tax, typ_map, idx, row)                
+                        parent = typ_tax.last_common_ancestor(types)
+                        row["ambiguous_sound_type"] = types
+                        row["sound_type"] = parent
+
+                    # tentative sound type
+                    t = row["tentative_sound_type"]
+                    if "/" in t:
+                        types, typ_map = _parse_ambiguous(t.split("/"), typ_tax, typ_map, idx, row)      
+                        row["ambiguous_sound_type"] = types
+                        row["tentative_sound_type"] = ""
+
+
+                # 2) validate labels
+
+                # 2a) sound source
+                ss = row["sound_source"]
+                if interactive:
+                    row["sound_source"], src_map = validate_label_interactive(ss, tax, src_map, idx, row)
+                else:
+                    row["sound_source"] = validate_label(ss, tax)
+
+                # 2b) tentative sound source
+                tss = row["tentative_sound_source"]
+                if interactive:
+                    row["tentative_sound_source"], src_map = validate_label_interactive(tss, tax, src_map, idx, row)
+                else:
+                    row["tentative_sound_source"] = validate_label(tss, tax)
+
+                # 2c) ambiguous sound source
+                ass = row["ambiguous_sound_source"]
+                ambiguous_sources, src_map = _parse_ambiguous(ass, tax, src_map, idx, row)
+                row["ambiguous_sound_source"] = ambiguous_sources
+
+                # 2d) sound type
+                st = row["sound_type"]
+
+                # pick which sound-type tree to validate against
+                typ_tree = tax.sound_types(ss)
+                note = f" (for sound source `{ss}`)"
+
+                if interactive:
+                    row["sound_type"], typ_map = validate_label_interactive(st, typ_tree, typ_map, idx, row, note)
+                else:
+                    row["sound_type"] = validate_label(st, typ_tree)
+
+                # 2e) tentative sound type
+                tst = df.loc[idx, "tentative_sound_type"]
+
+                # pick which sound-type tree to validate against
+                if tss is not None and tss != "":
+                    typ_tree = tax.sound_types(tss)
+                    note = f" (for sound source `{tss}`)"
+                else:
+                    typ_tree = tax.sound_types(ss)
+                    note = f" (for sound source `{ss}`)"
+
+                if interactive:                    
+                    row["tentative_sound_type"], typ_map = validate_label_interactive(tst, typ_tree, typ_map, idx, row, note)
+                else:
+                    row["tentative_sound_type"] = validate_label(tst, typ_tree)
+
+                # 2f) ambiguous sound type
+                ast = row["ambiguous_sound_type"]
+
+                # pick which sound-type tree to validate against
+                if ambiguous_sources is None:
+                    typ_tree = tax.sound_types(ss)
+                    note = f" (for sound source `{ss}`)"
+                else:
+                    parent = tax.last_common_ancestor(ambiguous_sources)
+                    typ_tree = tax.sound_types(parent)
+                    note = f" (for sound source `{parent}`)"
+
+                types, typ_map = _parse_ambiguous(ast, typ_tree, typ_map, idx, row, note=note)
+                row["ambiguous_sound_type"] = types
+
+
+                # 3) all validations have passed so exit the loop
+                df.loc[idx] = row                       
+                break        
+
+
+            except ValueError as e:
+                if interactive:
+                    # edit row manually
+                    row = edit_row_manually(idx, row)
+
+                else:
+                    # flag as containing invalid data
+                    row.valid = 0
+                    df.loc[idx] = row
+
+                    warn_msg = f"{str(e)}. Entry {idx} flagged as containing invalid data."
+                    cprint(f"\n ## WARNING: {warn_msg}", "red")
+
+                    break
+
+    # replace NaN values
+    df.comments = df.comments.fillna("")
+    df.sound_source = df.sound_source.fillna("")
+    df.sound_type = df.sound_type.fillna("")
+    df.tentative_sound_source = df.tentative_sound_source.fillna("")
+    df.tentative_sound_type = df.tentative_sound_type.fillna("")
+
+    return df
+
+
+def edit_row_manually(idx, row):
+    """ Edit an annotation manually.
+
+        The annotation data is saved to a temporary YAML file. The user is prompted via the console 
+        to edit and save the file, then hit ENTER to proceed.
+        
+        Datetime objects are converted to strings using the format `%Y-%m-%d %H:%M:%S.%f`
+
+        Args:
+            idx: int
+                Index
+            row: pandas Series
+                Values
+
+        Returns:
+            row: pandas Series
+                The edited values
+    """
+    path = f"korus-entry-{idx}.yaml"
+
+    with open(path, "w") as f:
+        row_dict = row.to_dict()
+        for k,v in row_dict.items():
+            if isinstance(v, datetime):
+                row_dict[k] = v.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+        yaml.dump(row_dict, f)      
+
+    try:
+        msg = f"\n >> Entry {idx} saved to {path}. Edit file manually and save. Then hit ENTER to proceed with submission."
+        cprint(msg, "yellow")
+        input()
+    
+    except KeyboardInterrupt:
+        os.remove(path)
+        raise
+
+    with open(path, "r") as f:
+        row_dict = yaml.safe_load(f)
+
+    row = pd.Series(row_dict)
+
+    os.remove(path)
+
+    return row
+
+
+def validate_label(x, tax):
+    """ Validate a label against a taxonomy of allowed values.
+
+        Args:
+            x: str
+                Label to be validated. OBS: If None or empty string, no validation is performed.
+            tax: Korus.tax.AcousticTaxonomy
+                Taxonomy of allowed labels, against which x will be validated
+
+        Returns:
+            x: str
+                The validated label.
+
+        Raises:
+            ValueError: if the label is found to be invalid
+    """
+    if x is None or x == "":
+        return x
+    
+    if tax.get_id(x) is None:
+        raise ValueError(f"Invalid label `{x}`")
+    
+    return x
+
+
+def validate_label_interactive(x, tax, label_map, idx, row, note=""):
+    """ Interactive session for validating a label against a taxonomy of allowed values.
+
+        If the label is found to be invalid, the user is prompted via the terminal for an alternative label.
+
+        Args:
+            x: str
+                Label to be validated
+            tax: Korus.tax.AcousticTaxonomy
+                Taxonomy of allowed labels, against which x will be validated
+            label_map: dict
+                Mapping for invalid labels
+            idx: int
+                Row index. Only used for interactive prompt.
+            row: pandas Series
+                Row values. Only used for interactive prompt.
+            note: str
+                Optional note, appended to the console message.
+
+        Returns:
+            y: str
+                The validated label.
+            label_map: dict
+                The updated label map.
+
+        Raises:
+            ValueError: if the user requests to switch to manual editing mode
+    """
+    if x is None or x == "":
+        return x, label_map
+
+    y = x
+    while tax.get_id(y) is None:
+        if y in label_map:
+            y = label_map[y]
+
+        else:
+            try:
+                cprint(f" >> Invalid label in entry {idx}: {y} {note}", "red")
+                msg = " >> Options:"
+                msg += "\n >>  - [name]:      alternative, valid label"
+                msg += "\n >>  - v/view:      view entry"
+                msg += "\n >>  - t/taxonomy:  view taxonomy"
+                msg += "\n >>  - m/manual:    switch to manual editing mode"
+                msg += "\n >>  - Ctrl-C:      abort\n"
+
+                res = input(msg)
+
+                if res in ["v","view"]:
+                    tbl = [[k,v] for k,v in row.to_dict().items()]
+                    print(tabulate(tbl, headers=["Field","Value"], tablefmt="psql"))                    
+
+                elif res in ["t","taxonomy"]:
+                    tax.show()
+
+                elif res in ["m","manual"]:
+                    raise ValueError
+
+                else:
+                    y = res
+
+            except KeyboardInterrupt:
+                raise
+
+    if y != x:
+        cprint(f" >> Replacing label in entry {idx}: {x} -> {y}", "green")
+        
+        if x not in label_map:
+            replace = ui.UserInputYesNo(
+                "label_replacement_rule", 
+                "Apply same replacement rule to all other entries? [y/N]", 
+            ).request()
+            if replace:
+                label_map[x] = y
+
+    return y, label_map
+
 

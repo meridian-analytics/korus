@@ -1,6 +1,7 @@
 import os
 import json
 import traceback
+import numpy as np
 from termcolor import colored, cprint
 import korus.db as kdb
 
@@ -131,13 +132,17 @@ class UserInput:
                 Parameter names must be unique within groups.
             json_fcn: callable
                 Function applied to input when storing in JSON logging file.
+            allowed_values: 
+                Allowed input value(s).
     """
-    def __init__(self, 
+    def __init__(
+        self, 
         name, 
         message,
         transform_fcn=lambda x: x,
         group=None,
         json_fcn=lambda x: x,
+        allowed_values=None,
     ):
         self.group = group
         self.name = name
@@ -146,6 +151,11 @@ class UserInput:
         self.json_fcn = json_fcn
         self.value = None
         self.options = dict()
+
+        if allowed_values is not None and np.ndim(allowed_values) == 0:
+            allowed_values = [allowed_values]
+
+        self.allowed_values = allowed_values
 
     def add_option(self, key, message, fcn):
         """ Add a special, configurable option to the user prompt.
@@ -207,11 +217,15 @@ class UserInput:
                         break
 
                 if self.selected_opt and value is None:
-                    msg = self._form_request_msg()
+                    msg = self._form_request_msg(include_options=True)
                     continue
 
                 if not self.selected_opt:
                     value = None if inp is None else self.transform_fcn(inp)
+
+                if self.allowed_values is not None and value not in self.allowed_values:
+                    err_msg = f"Invalid input. Allowed values are: {self.allowed_values}"
+                    raise ValueError(err_msg)
 
                 break
 
@@ -225,6 +239,41 @@ class UserInput:
 
         self.value = value
         return self.value
+
+
+class UserInputYesNo(UserInput):
+    """ Interactive session specifically for inputting yes/no answers.
+
+        Args:
+            name: str
+                Parameter name
+            message: str
+                Request message presented to the user
+            group: str
+                Group that the parameter belongs to. Optional. 
+                Parameter names must be unique within groups.
+    """    
+    def __init__(
+        self, 
+        name, 
+        message,
+        group=None,
+    ):
+        def transform_fcn(x):
+            if x.lower() in ["y", "yes"]:
+                return True
+            elif x.lower() in ["n", "no"]:
+                return False
+            else:
+                raise ValueError
+
+        super().__init__(
+            name=name, 
+            message=message,
+            transform_fcn=transform_fcn,
+            group=group,
+            json_fcn=lambda x: "y" if x else "N",
+        )
 
 
 class UserInputSound(UserInput):
@@ -319,3 +368,5 @@ class UserInputSound(UserInput):
                 break
 
         return sounds
+
+

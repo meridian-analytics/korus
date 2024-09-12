@@ -15,6 +15,7 @@ from korus.util import get_num_samples_and_rate, list_to_str
 import korus.tax as kx
 import korus.db_util.table as ktb
 import korus.db_util.label as klb
+from korus.app.app_util.add import edit_row_manually
 
 
 def filter_files(conn, deployment_id=None, start_utc=None, end_utc=None, job_id=None):
@@ -80,11 +81,15 @@ def filter_annotation(
         strict=False,
         tentative=False,
         ambiguous=False,
+        file=False,
+        valid=False,
         taxonomy_id=None,
     ):
     """ Query annotation table by filtering on sound source and sound type.
 
         TODO: implement strict
+        TODO: implement file
+        TODO: implement valid
 
         Args:
             conn: sqlite3.Connection
@@ -115,6 +120,12 @@ def filter_annotation(
                 Whether to filter on tentative label assignments, when available. Default is False.
             ambiguous: bool
                 Whether to also filter on ambiguous label assignments. Default is False.
+            file: bool
+                If True, exclude annotations pertaining to audio files not present in the database. 
+                Default is False. NOT YET IMPLEMENTED.
+            valid: bool
+                If True, exclude annotations with invalid data or flagged as requiring review.  
+                Default is False. NOT YET IMPLEMENTED.
             taxonomy_id: int
                 Acoustic taxonomy that the (source,type) label arguments refer to. If not specified, 
                 the latest taxonomy will be used.
@@ -124,7 +135,13 @@ def filter_annotation(
                 Annotation indices  
     """
     if strict:
-        raise NotImplementedError("@strict not yet implemented")
+        raise NotImplementedError("`strict` not yet implemented")
+
+    if file:
+        raise NotImplementedError("`file` not yet implemented")
+
+    if valid:
+        raise NotImplementedError("`valid` not yet implemented")
 
     c = conn.cursor()
 
@@ -220,7 +237,7 @@ def filter_negative(
                 Annotation indices  
     """
     if strict:
-        raise NotImplementedError("@strict not yet implemented")
+        raise NotImplementedError("`strict` not yet implemented")
 
     c = conn.cursor()
 
@@ -626,7 +643,7 @@ def assign_files_to_job(conn, job_id, file_id, channel=0, extendable=True):
 
     return counter
 
-def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
+def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"):
     """ Add a set of annotations to the database.
 
         The annotations must be provided in the form of Pandas DataFrame 
@@ -639,12 +656,16 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             :delim: ;
 
         Columns without a default value are mandatory; columns with a 
-        default value are optional. Either `file_id` or `deployment_id` 
-        must be specified.
+        default value are optional. 
+        
+        `deployment_id` and `start_utc` are normally not required, as they are 
+        inferred from the `file_id`, but must be specified in cases where the 
+        `file_id` column is missing, or some rows have invalid/missing file IDs.
+
+        Annotations without file IDs are inserted into the database with the ID value 0 (zero).
 
         TODO: chech that tentative (source,type) assignments are more specific cases of confident assignments
         TODO: check that there are no conflicts with existing annotations in the database
-        TODO: generalize to handle annotation tables without file_id column
                     
         Args:
             conn: sqlite3.Connection
@@ -657,6 +678,17 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
                 Annotation job unique identifier
             progress_bar: bool
                 Display progress bar. Default is False.
+            error: str
+                Error handling. NOT YET IMPLEMENTED.                
+                Options are:
+
+                    * a/abort: If any of the annotations have invalid data, abort the entire submission
+                    * i/ignore: Ignore any annotations with invalid data, but proceed with 
+                                    submitting all other annotations to the database
+                    * r/replace: Automatically replace invalid data fields with default values (where possible) 
+                                    and flag the affected annotations for review; 
+                                    if replacement is not possible, switch to manual mode.
+                    * m/manual: Manually review and fix every annotation with invalid data
 
         Returns:
             annot_ids: list(int)
@@ -666,7 +698,30 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             ValueError: If the input table contains annotations with invalid (source,type) assignments.
                         Note: this consistency check is only performed for confident and tentative 
                             assignments, not for ambiguous assignments.
+            AssertionError: If the annotation table does not have the required columns.
     """
+    ABORT = 0
+    IGNORE = 1
+    REPLACE = 2
+    MANUAL = 3
+
+    if error.lower() in ["a","abort"]:
+        error_handling = ABORT
+    elif error.lower() in ["i","ignore"]:
+        error_handling = IGNORE
+    elif error.lower() in ["r","replace"]:
+        error_handling = REPLACE
+    elif error.lower() in ["m","manual"]:
+        error_handling = MANUAL
+    else:
+        raise ValueError(f"Argument `error` has invalid value: {error}")
+
+    assert "file_id" in annot_tbl.columns or \
+        ("deployment_id" in annot_tbl.columns 
+            and "start_utc" in annot_tbl.columns \
+            and "duration_ms" in annot_tbl.columns), \
+        "Annotation table must have column `file_id` or `deployment_id` and `start_utc` and `duration_ms`"
+
     c = conn.cursor()
 
     # get information about job
@@ -709,10 +764,40 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
     # build file table for this annotation job
     file_tbl = build_file_table(conn, job_id)
 
-    # add filename and deployment_id columns to annotation table
     file_tbl.set_index("file_id", inplace=True)
-    annot_tbl["filename"] = annot_tbl.file_id.apply(lambda x: file_tbl.loc[x].filename) 
-    annot_tbl["deployment_id"] = annot_tbl.file_id.apply(lambda x: file_tbl.loc[x].deployment_id)
+
+    # obtain file IDs
+    def get_filename(row):
+        """ Helper function for obtaining filenames.
+        
+            Attempts to look up the filename in the file table using the file ID, if available.
+            If the file is missing/invalid, returns an empty string
+        """
+        try:
+            return file_tbl.loc[row.file_id].filename
+        except:
+            return ""
+
+    annot_tbl["filename"] = annot_tbl.apply(lambda r: get_filename(r), axis=1) 
+
+    # obtain deployment IDs
+    def get_deployment_id(row):
+        """ Helper function for obtaining deployment IDs.
+        
+            Attempts to look up the deployment ID in the file table using the file ID, if available.
+            If the file is missing/invalid, returns the value of the deployment_id column.
+            If the annotation table does not have a deployment_id column, raises an Error 
+        """
+        try:
+            return file_tbl.loc[row.file_id].deployment_id
+        except:
+            try:
+                return row.deployment_id
+            except:
+                err_msg = f"Deployment ID required for annotation:\n{row}"
+                raise ValueError(err_msg)            
+
+    annot_tbl["deployment_id"] = annot_tbl.apply(lambda r: get_deployment_id(r), axis=1)
 
     # use filename as index
     file_tbl.reset_index(inplace=True)
@@ -728,21 +813,38 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
     # helper function for inserting a single annotation into the database
     def insert_annotation(c, file_tbl, row):
         # get file data
-        file_data = file_tbl.loc[row.filename]
-        file_id = int(file_data["file_id"])        
-        file_start_utc = file_data["start_utc"]
-        file_id_list = [int(file_id)]
+        try:
+            file_data = file_tbl.loc[row.filename]
+            file_id = int(file_data["file_id"])        
+            file_start_utc = file_data["start_utc"]
+            file_id_list = [int(file_id)]
+        
+        except:
+            file_data = None
+            file_id = 0
+            file_start_utc = None
+            file_id_list = [0]
 
         # deployment index
-        if "deployment_id" in row:
+        if "deployment_id" in row and file_data is not None:
             assert row.deployment_id == file_data["deployment_id"], "deployment IDs do not match"
+
+        if file_data is not None:
             deployment_id = int(file_data["deployment_id"])
 
-        # annotation UTC start time
-        if "start_utc" not in row:
-            start_utc = file_start_utc + timedelta(microseconds=row.start_ms*1e3)
         else:
-            start_utc = row.start_utc
+            deployment_id = row.deployment_id
+
+        # annotation UTC start time
+        if file_start_utc is None:
+            try:
+                start_utc = row.start_utc
+            except:
+                err_msg = f"UTC start time required for annotation:\n{row}"
+                raise ValueError(err_msg)
+
+        else:
+            start_utc = file_start_utc + timedelta(microseconds=row.start_ms*1e3)
 
         # annotation duration
         duration_ms = row.duration_ms
@@ -755,16 +857,17 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
         end_utc = start_utc + timedelta(microseconds=duration_ms*1e3)
 
         # if the annotation spans multiple files, capture all file ids
-        file_end_utc = file_data["end_utc"]
-        filename = row.filename
-        while end_utc > file_end_utc:
-            loc = file_tbl.index.get_loc(filename) + 1
-            if loc >= len(file_tbl):
-                break
-            file_data = file_tbl.iloc[loc]
-            file_id_list.append(int(file_data["file_id"]))
+        if file_data is not None:
             file_end_utc = file_data["end_utc"]
-            filename = file_tbl.index[loc]
+            filename = row.filename
+            while end_utc > file_end_utc:
+                loc = file_tbl.index.get_loc(filename) + 1
+                if loc >= len(file_tbl):
+                    break
+                file_data = file_tbl.iloc[loc]
+                file_id_list.append(int(file_data["file_id"]))
+                file_end_utc = file_data["end_utc"]
+                filename = file_tbl.index[loc]
 
         # (confident) label id
         label_id = get_label_id(
@@ -812,6 +915,8 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             elif isinstance(ambi_type, str):
                 ambi_type = ambi_type.split(",")
 
+            # TODO: also combine with confident assignments
+
             # form all possible combinations
             ambi_sound_type = [(ss, st) for st in ambi_type for ss in ambi_source]
 
@@ -820,10 +925,16 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
                 try:
                     lid = get_label_id(conn, source_type=(ss, st), taxonomy_id=tax_id)
                     ambi_label_id.append(lid)
-                except ValueError as e:
-                    logging.error("Encountered invalid (source,type) combination in parsing of ambiguous assignments")
-                    logging.error(str(e)) #log error, and continue
-                    continue
+                
+                except ValueError:
+                    msg = f"Invalid ambiguous label ({ss}, {st})"
+
+                    if error_handling == IGNORE:
+                        msg += " ignored"
+                        logging.warning(msg)
+
+                    else:
+                        raise ValueError(msg)
 
             if len(ambi_label_id) == 0:
                 ambi_label_id = None
@@ -835,13 +946,14 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             "file_id": file_id,
             "label_id": label_id,
             "tentative_label_id": tent_label_id,
-            "ambiguous_label_id": json.dumps(ambi_label_id),
+            "ambiguous_label_id": json.dumps(ambi_label_id),  
             "num_files": len(file_id_list),
             "file_id_list": json.dumps(file_id_list), 
-            "start_utc": start_utc.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+            "start_utc": start_utc.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] if isinstance(start_utc, datetime) else start_utc,
             "duration_ms": duration_ms,
             "start_ms": row.start_ms,
             "channel": row.channel,
+            "valid": row.valid if "valid" in row else 1,
         }
 
         # add optional fields
@@ -871,8 +983,12 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
             not np.isnan(row.freq_max_hz):
 
             v["freq_max_hz"] = int(np.round(row.freq_max_hz))
+
         else:
-            v["freq_max_hz"] = int(file_data["sample_rate"] // 2)
+            if file_data is None:
+                v["freq_max_hz"] = np.nan
+            else:
+                v["freq_max_hz"] = int(file_data["sample_rate"] // 2)
 
         if "granularity" in row:
             rows = c.execute(f"SELECT id FROM granularity WHERE name = '{row.granularity}'").fetchall()
@@ -880,6 +996,29 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
                 raise ValueError(f"Unrecognized annotation granularity: {row.granularity}")
 
             v["granularity_id"] = rows[0][0]
+
+        # replace invalid frequency ranges with default values and flag annotation for review
+        if error_handling == REPLACE and \
+            (np.isnan(v["freq_max_hz"]) or v["freq_max_hz"] <= v.get("freq_min_hz", 0)):
+
+            fmin = v["freq_min_hz"]
+            fmax = v["freq_max_hz"]
+            new_fmin = 0
+            new_fmax = 256000 if file_data is None else int(file_data["sample_rate"] // 2)
+            v["freq_min_hz"] = new_fmin
+            v["freq_max_hz"] = new_fmax
+            v["valid"] = 0
+
+            comments = v.get("comments", "")
+            if len(comments) > 0:
+                comments += "; "
+                
+            warn_msg = "Invalid frequency range replaced with default range to allow insertion into database:" \
+                + f" [{fmin:.0f},{fmax:.0f}] -> [{new_fmin:.0f},{new_fmax:.0f}] (Hz)"
+            v["comments"] = comments + warn_msg
+
+            warn_msg += f"; entry flagged for review (valid=0)."
+            logging.warning(warn_msg)
 
         # insert row into database
         c = insert_row(conn, table_name="annotation", values=v)
@@ -894,20 +1033,34 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False):
 
     # loop over all annotations
     for idx,row in tqdm(annot_tbl.iterrows(), disable=not progress_bar, total=annot_tbl.shape[0]):
-        try:
-            c = insert_annotation(c, file_tbl, row)
-            annot_ids.append(c.lastrowid)
+        while True:
 
-        except sqlite3.IntegrityError:
-            err_msg = f"Failed to add annotation {idx} to the database because it does not meet the table constraints: "
-            err_msg += "duration_ms > 0 AND freq_min_hz < freq_max_hz"
-            logging.error(err_msg)
-            logging.debug(traceback.format_exc())
+            try:
+                c = insert_annotation(c, file_tbl, row)
+                annot_ids.append(c.lastrowid)
+                break
 
-        except:
-            err_msg = f"Failed to add annotation {idx} to the database. To view the full Error report, re-run in debug mode."
-            logging.error(err_msg)
-            logging.debug(traceback.format_exc())
+            except KeyboardInterrupt:
+                raise
+
+            except:
+                msg = f"Failed to add annotation {idx} to the database."
+
+                if error_handling == ABORT:
+                    logging.error(traceback.format_exc())
+                    logging.error(msg)
+                    raise
+
+                elif error_handling == IGNORE:
+                    msg += ". Ignoring entry."
+                    logging.debug(traceback.format_exc())
+                    logging.warning(msg)
+                    break
+
+                elif error_handling in [REPLACE, MANUAL]:
+                    logging.error(traceback.format_exc())
+                    logging.error(msg)
+                    row = edit_row_manually(idx, row)
 
     return annot_ids
 
@@ -976,7 +1129,6 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
         TODO: add @group_by_deployment arg
         TODO: consider replacing @top arg with @full_path arg
         TODO: Handle cases where len(indices) = 0 more gracefully
-        TODO: Include ambiguous labels in return table
         TODO: Remove columns with exclusively 'None' values from the returned DataFrame
 
         Args:
@@ -1026,7 +1178,9 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
             f.relative_path,
             s.path,
             a.num_files,
-            a.file_id_list
+            a.file_id_list,
+            a.valid,
+            a.ambiguous_label_id
         FROM
             annotation AS a
         LEFT JOIN
@@ -1058,7 +1212,7 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
     data = [[] for _ in range(n_cols)]
     for row in rows:
         for i,v in enumerate(row):
-            if (i == 7 or i == 21) and v is not None:  #tag, file_id_list
+            if (i == 7 or i == 21 or i == 23) and v is not None:  #tag, file_id_list, ambiguous_label_id
                 v = json.loads(v)
 
             data[i].append(v)
@@ -1088,6 +1242,8 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
             "top_path": pd.Series(data[19], dtype="str"),
             "num_files": pd.Series(data[20], dtype="int"),
             "file_id_list": pd.Series(data[21], dtype="object"),
+            "valid": pd.Series(data[22], dtype="int"),
+            "ambiguous_label_id": pd.Series(data[23], dtype="object"),
         }
     )
 
@@ -1098,6 +1254,28 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
     annot_tbl["tag"] = None
     annot_tbl.loc[~idx, "tag"] = annot_tbl.loc[~idx].tag_id.apply(lambda x: [tag_map[tag_id] for tag_id in x])
 
+    # convert ambiguous label IDs to source/type labels
+    idx = annot_tbl.ambiguous_label_id.isna()   
+    annot_tbl["ambiguous_label"] = None
+    def lookup_label(label_ids):
+        """ Helper function for looking up source/type labels """
+        labels = []
+        for label_id in label_ids:
+            if label_id is None:
+                continue
+
+            query = f"SELECT sound_source_tag,sound_type_tag FROM label WHERE id = {label_id}"
+            rows = c.execute(query).fetchall()
+            src, typ = rows[0]
+            labels.append((src,typ))
+
+        if len(labels) == 0:
+            return None
+        else:
+            return labels
+
+    annot_tbl.loc[~idx, "ambiguous_label"] = annot_tbl.loc[~idx].ambiguous_label_id.apply(lambda x: lookup_label(x))
+
     if ketos:
         annot_tbl = _convert_to_ketos(
             annot_tbl, tentative=tentative, top=top, v3=ketos_v3, conn=conn
@@ -1106,7 +1284,7 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
 
     else:
         drop_cols = [
-            "filename","relative_path","top_path","num_files","file_id_list","tag_id"
+            "filename","relative_path","top_path","num_files","file_id_list","tag_id","ambiguous_label_id"
         ]
         annot_tbl.drop(columns=drop_cols, inplace=True)
         return annot_tbl

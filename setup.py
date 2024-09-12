@@ -16,7 +16,8 @@ setup(
         "numpy",
         "termcolor", 
         "treelib", 
-        "tqdm"
+        "tqdm",
+        "tabulate",
     ],
     entry_points={
         "console_scripts": [
