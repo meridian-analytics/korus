@@ -630,9 +630,6 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
             annot_ids = kdb.add_annotations(conn, annot_tbl=df, job_id=job_id, progress_bar=True)
             end = datetime.now()
 
-            # print summary
-            print_annotation_summary(conn, annot_ids)
-
             break
 
         except KeyboardInterrupt:
@@ -643,9 +640,6 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
             cprint(" ## Error processing selection table", "red")
             terminate(conn)
 
-
-    # commit changes
-    #conn.commit()
 
     cprint(f"\n ## Successfully added {len(annot_ids)} annotations to the database in {(end - start).total_seconds():.2f} seconds", "yellow")
 
@@ -659,6 +653,17 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
 
     if num_missing > 0:
         cprint(f"\n ## WARNING: {num_missing} of the annotations pertain to audio files not present in the database", "red")
+
+    # print summary
+    if len(annot_ids) > 0:
+        print_summary = ui.UserInputYesNo(
+            "print_summary", 
+            "Print summary? [y/N]", 
+            group="annotation"
+        ).request()
+
+        if print_summary:  
+            print_annotation_summary(conn, annot_ids)
 
 
 def unique_from_list(x):
@@ -1195,8 +1200,6 @@ def validate_annotations(df, tax, interactive=True, progress_bar=False):
     df.sound_type = df.sound_type.fillna("")
     df.tentative_sound_source = df.tentative_sound_source.fillna("")
     df.tentative_sound_type = df.tentative_sound_type.fillna("")
-    #df.ambiguous_sound_source = df.ambiguous_sound_source.fillna("")
-    #df.ambiguous_sound_type = df.ambiguous_sound_type.fillna("")
 
     return df
 
