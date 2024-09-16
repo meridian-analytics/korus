@@ -1146,7 +1146,8 @@ def validate_annotations(df, tax, interactive=True, progress_bar=False):
                     row["sound_type"] = validate_label(st, typ_tree)
 
                 # 2e) tentative sound type
-                tst = df.loc[idx, "tentative_sound_type"]
+
+                tst = row["tentative_sound_type"]
 
                 # pick which sound-type tree to validate against
                 if tss is not None and tss != "":
