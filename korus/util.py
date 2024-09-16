@@ -127,10 +127,6 @@ def collect_audiofile_metadata(
     if timestamp_parser is not None:
         indices, timestamps = parse_timestamp(rel_path, timestamp_parser, progress_bar)
 
-        print(rel_path)
-        print(indices)
-        print(timestamps)
-
         df["t"] = None
         df.t = pd.to_datetime(df.t)
         df.loc[indices, "t"] = timestamps
