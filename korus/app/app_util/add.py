@@ -448,7 +448,7 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
     cprint(f" ## Found {len(df)} {audio_format} files in the folder {audio_path} between {start_utc} and {end_utc}", "yellow")
 
     if len(df) == 0:
-        return 0
+        return 0, timestamp_parser
 
     def fcn(x):
         """Helper function for transforming user input for select_files option"""
