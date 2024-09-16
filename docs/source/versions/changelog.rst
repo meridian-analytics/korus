@@ -3,7 +3,7 @@ Change log
 
 **Version 0.0.9** (Month Day, Year)
 
- * 
+ * Bug fix in `korus-submit` timestamp parser 
 
 **Version 0.0.8** (Sep 12, 2024)
 
