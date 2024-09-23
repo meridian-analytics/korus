@@ -1061,6 +1061,9 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
                     logging.error(traceback.format_exc())
                     logging.error(msg)
                     row = edit_row_manually(idx, row)
+                    if row is None:
+                        logging.info(f"Ignoring entry {idx}")
+                        break
 
     return annot_ids
 

@@ -1224,7 +1224,7 @@ def edit_row_manually(idx, row):
 
         Returns:
             row: pandas Series
-                The edited values
+                The edited values. Returns None if the user elects to ignore/skip the entry.
     """
     path = f"korus-entry-{idx}.yaml"
 
@@ -1237,9 +1237,11 @@ def edit_row_manually(idx, row):
         yaml.dump(row_dict, f)      
 
     try:
-        msg = f"\n >> Entry {idx} saved to {path}. Edit file manually and save. Then hit ENTER to proceed with submission."
+        msg = f"\n >> Entry {idx} saved to {path}. Edit file manually and save. Then hit ENTER to proceed with submission. Or type i/ignore to skip the entry."
         cprint(msg, "yellow")
-        input()
+        res = input()
+        if res.lower() in ["i", "ignore"]:
+            return None
     
     except KeyboardInterrupt:
         os.remove(path)
