@@ -98,6 +98,9 @@ def view_jobs(conn):
     def transform_fcn(name, value):
         """ Transform function for converting label IDs to source/type names """
         if name == "primary_sound":
+            if value is None:
+                return []
+            
             ids = value.replace("[","").replace("]","").replace(" ","").split(",")
             query = f"SELECT sound_source_tag,sound_type_tag FROM label WHERE id IN {list_to_str(ids)}"
             c = conn.cursor()
