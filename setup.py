@@ -18,6 +18,7 @@ setup(
         "treelib", 
         "tqdm",
         "tabulate",
+        "pyyaml",
     ],
     entry_points={
         "console_scripts": [
