@@ -6,7 +6,7 @@ Welcome to `Korus`, a Python package for managing acoustic annotations.
 ## Documentation
 
 Full documentation including code examples and Jupyter Notebook tutorials
-can be found at [meridian-acoustics.github.io/korus](https://meridian-acoustics.github.io/korus).
+can be found at [meridian-analytics.github.io/korus](https://meridian-analytics.github.io/korus).
 
 
 ## Installation 
