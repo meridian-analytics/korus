@@ -509,6 +509,7 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
     old_fmt = "dir_path" in columns
 
     # insert files into database, one by one
+    file_counter = 0
     for _,row in df.iterrows(): 
         data = row.to_dict() #convert pd.Series to dict
 
@@ -524,6 +525,7 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
         # insert in the 'file' table
         try:
             cursor = kdb.insert_row(conn, table_name="file", values=data)
+            file_counter += 1
 
         except sqlite3.IntegrityError:
             # skip if file already exists in db
@@ -533,7 +535,7 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
     # commit changes
     #conn.commit()
 
-    cprint(f"\n ## Successfully added {len(df)} audio files to the database", "yellow")
+    cprint(f"\n ## Successfully added {file_counter} audio files to the database", "yellow")
 
     return cursor.lastrowid, timestamp_parser
 
