@@ -503,6 +503,11 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
         progress_bar=True,
     )
 
+    # check for table format to ensure backward compatibility with Korus versions <= 0.0.2
+    c = conn.cursor()
+    columns = [i[1] for i in c.execute("PRAGMA table_info(file)")]
+    old_fmt = "dir_path" in columns
+
     # insert files into database, one by one
     for _,row in df.iterrows(): 
         data = row.to_dict() #convert pd.Series to dict
@@ -511,15 +516,19 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
         data["storage_id"] = storage_id
         data["deployment_id"] = deployment_id
 
+        # to ensure backward compatibility with Korus versions <= 0.0.2
+        if old_fmt:
+            data["dir_path"] = data["relative_path"]
+            data["location"] = audio_path
+
         # insert in the 'file' table
         try:
             cursor = kdb.insert_row(conn, table_name="file", values=data)
 
-        # to ensure backward compatibility with Korus versions <= 0.0.2
         except sqlite3.IntegrityError:
-            data["dir_path"] = data["relative_path"]
-            data["location"] = audio_path
-            cursor = kdb.insert_row(conn, table_name="file", values=data)
+            # skip if file already exists in db
+            fname = data["filename"]
+            cprint(f" ## File {fname} already in database, skipping ...", "red")            
 
     # commit changes
     #conn.commit()
