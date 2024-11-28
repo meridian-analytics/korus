@@ -304,6 +304,9 @@ def main():
             if missing_files and timestamp_parser is None:
                 timestamp_parser = add.create_timestamp_parser("audio", logger)
 
+            if not missing_files:
+                timestamp_parser = None
+
             add.add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=timestamp_parser)
 
 
