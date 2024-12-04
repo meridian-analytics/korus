@@ -301,13 +301,25 @@ def main():
                 "Do any of the annotations pertain to audio files not present in the database? [y/N] (Answer `y` if unsure)", 
             ).request()
 
+            ui_deployment_ids = ui.UserInput(
+                "deployment_ids", 
+                "Specify deployment IDs (use comma to separate multiple IDs)", 
+                transform_fcn=lambda x: [int(xi) for xi in x.split(",")],
+            )
+            ui_deployment_ids.add_option(
+                key=["c","current"],
+                message=f"Use current ID: {deployment_id}",
+                fcn=lambda x: deployment_id
+            )
+            deployment_ids = ui_deployment_ids.request()
+
             if missing_files and timestamp_parser is None:
                 timestamp_parser = add.create_timestamp_parser("audio", logger)
 
             if not missing_files:
                 timestamp_parser = None
 
-            add.add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=timestamp_parser)
+            add.add_annotations(conn, deployment_ids, job_id, logger, timestamp_parser=timestamp_parser)
 
 
         # step 7: save and close connection to database

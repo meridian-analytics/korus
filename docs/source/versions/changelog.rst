@@ -3,6 +3,7 @@ Change log
 
 **Version 0.0.9** (Month Day, Year)
 
+ * Added option in `korus-submit` to specify multiply deployment IDs for the same annotation job
  * Bug fix in `korus-submit` manual annotation review function
  * Bug fix in `korus-submit` timestamp parser 
 

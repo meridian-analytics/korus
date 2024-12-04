@@ -546,8 +546,8 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
         Args:
             conn: sqlite3.Connection
                 Database connection
-            deployment_id: int
-                Deployment index
+            deployment_id: int, list(int)
+                Deployment index or indices
             job_id: int
                 Annotation job index
             logger: korus.app.app_util.ui.InputLogger
@@ -560,6 +560,8 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
         Returns:
             None
     """
+    if isinstance(deployment_id, int):
+        deployment_id = [deployment_id]
 
     # query user
     path = ui.UserInput(
@@ -570,8 +572,15 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
 
     # get all file IDs
     c = conn.cursor()
-    query = f"SELECT id,filename FROM file WHERE deployment_id = '{deployment_id}'"
+    query = f"SELECT id,filename FROM file WHERE deployment_id IN {list_to_str(deployment_id)}"
     rows = c.execute(query).fetchall()
+    
+    # check that filenames are unique across deployments
+    filenames = [row[1] for row in rows]
+    if len(filenames) > len(set(filenames)):
+        cprint(" ## Non-unique filename across deployments", "red")
+        terminate(conn)
+
     file_id_map = {row[1]: row[0] for row in rows}  # filename -> file ID mapping
 
     # load taxonomy
