@@ -572,16 +572,16 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
 
     # get all file IDs
     c = conn.cursor()
-    query = f"SELECT id,filename FROM file WHERE deployment_id IN {list_to_str(deployment_id)}"
+    query = f"SELECT id,deployment_id,filename FROM file WHERE deployment_id IN {list_to_str(deployment_id)}"
     rows = c.execute(query).fetchall()
     
     # check that filenames are unique across deployments
-    filenames = [row[1] for row in rows]
+    filenames = [row[2] for row in rows]
     if len(filenames) > len(set(filenames)):
         cprint(" ## Non-unique filename across deployments", "red")
         terminate(conn)
 
-    file_id_map = {row[1]: row[0] for row in rows}  # filename -> file ID mapping
+    file_id_map = {row[2]: (row[0], row[1]) for row in rows}  # filename -> (file ID, deployment ID) mapping
 
     # load taxonomy
     c = conn.cursor()
@@ -615,8 +615,11 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
             # add missing fields
             # (set file ID to zero (0) if file is missing)
             df["job_id"] = job_id
-            df["deployment_id"] = deployment_id
-            df["file_id"] = df.path.apply(lambda x: file_id_map.get(os.path.basename(x), 0))
+            df["file_id"] = df.path.apply(lambda x: file_id_map.get(os.path.basename(x)[0], 0))
+            if len(deployment_id) == 1:
+                df["deployment_id"] = deployment_id[0]
+            else:
+                df["deployment_id"] = df.path.apply(lambda x: file_id_map[os.path.basename(x)][1])
 
             # drop columns
             df = df.drop(columns=["path"])
