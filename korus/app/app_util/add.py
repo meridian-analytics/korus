@@ -916,7 +916,7 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
     if timestamp_parser is not None:
         def get_start_utc(row):
             """ Helper function for obtaining UTC start times """
-            return timestamp_parser(row.path) + timedelta(microseconds=row.duration_ms * 1E3)
+            return timestamp_parser(row.path) + timedelta(microseconds=row.start_ms * 1E3)
 
         df_out["start_utc"] = df_out.apply(lambda r: get_start_utc(r), axis=1)
 
