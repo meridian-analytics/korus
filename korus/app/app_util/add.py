@@ -615,7 +615,7 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
             # add missing fields
             # (set file ID to zero (0) if file is missing)
             df["job_id"] = job_id
-            df["file_id"] = df.path.apply(lambda x: file_id_map.get(os.path.basename(x)[0], 0))
+            df["file_id"] = df.path.apply(lambda x: file_id_map.get(os.path.basename(x), [0])[0])
             if len(deployment_id) == 1:
                 df["deployment_id"] = deployment_id[0]
             else:
