@@ -309,7 +309,7 @@ def main():
             ui_deployment_ids.add_option(
                 key=["c","current"],
                 message=f"Use current ID: {deployment_id}",
-                fcn=lambda x: deployment_id
+                fcn=lambda x: f"{deployment_id}"
             )
             deployment_ids = ui_deployment_ids.request()
 
