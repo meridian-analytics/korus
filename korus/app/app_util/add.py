@@ -566,8 +566,9 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
     # query user
     path = ui.UserInput(
         "path", 
-        "Full path to RavenPro selection table. (Use wildcard to select multiple files.)", 
-        group="annotation"
+        "Full path to RavenPro selection table. (Use comma to separate multiple files. Use of wildcards is also supported.)", 
+        group="annotation",
+        transform_fcn=lambda x: x.split(",") if "," in x else x
     ).request(logger)
 
     # get all file IDs
@@ -755,7 +756,7 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
     """ Loads entries from a RavenPro selections table
 
         Args:
-            input_path: str
+            input_path: str, list(str)
                 Path to the RavenPro selection table(s). Use of wildcards is allowed.
             tax: korus.tax.AcousticTaxonomy
                 Annotation taxonomy
@@ -781,7 +782,10 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
             ValueError: if the input table contains fields with invalid data types
     """
     # find files
-    input_paths = glob(input_path)
+    if isinstance(input_path, str):
+        input_paths = glob(input_path)
+    else:
+        input_paths = [x for x in input_path if os.path.exists(x)]
 
     cprint(f"\n ## Found {len(input_paths)} selection tables matching the search criteria", "yellow")
 
