@@ -1,7 +1,7 @@
 Change log
 ==========
 
-**Version 0.0.9** (Month Day, Year)
+**Version 0.0.9** (Dec 6, 2024)
 
  * Bug fix in `korus-submit` that was causing incorrect timestamps for audio files not present in the database
  * Added `excluded_label_id` column in annotation table and updated filtering function to consider data in this column too
