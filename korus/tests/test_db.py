@@ -197,7 +197,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
 
     #insert annotation using add_annotation function
     annot_tbl = pd.DataFrame({
-        "file_id": [1,1,1],
+        "file_id": [1,1,1],  #id:1,2,3
         "channel": [0,0,0],
         "sound_source": ["KW","SRKW",None],
         "sound_type": ["PC","S01",None],
@@ -212,7 +212,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
         "comments": ["no additional observations","","this is a negative sample"]
     })
     annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1)
-    neg_ids = kdb.add_negatives(conn, job_id=1)
+    neg_ids = kdb.add_negatives(conn, job_id=1) #this adds 3 negatives
 
     query = "SELECT label_id,start_ms,duration_ms,file_id,tag_id FROM annotation"
     rows = c.execute(query).fetchall()
@@ -277,7 +277,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
 
     #insert annotations with minimal required info
     annot_tbl = pd.DataFrame({
-        "file_id": [2,2,2],
+        "file_id": [2,2,2], #id:7,8,9
         "sound_source": ["KW","SRKW",None],
         "sound_type": ["PC","S01",None],
     })
@@ -297,7 +297,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
 
     #insert annotations with tags
     annot_tbl = pd.DataFrame({
-        "file_id": [2,2],
+        "file_id": [2,2], #id: 10,11
         "sound_source": ["SRKW","SRKW"],
         "sound_type": ["PC","PC"],
         "tag": ["noise", "Loud noise"]
@@ -348,7 +348,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
 
     #insert annotations with ambiguous labels
     annot_tbl = pd.DataFrame({
-        "file_id": [2, 2, 2, 2, 2],
+        "file_id": [2, 2, 2, 2, 2],#id: 12,13,14,15,16
         "sound_source": ["SRKW", "SRKW", "NRKW", "KW", "KW"],
         "sound_type": ["S01", "S02", "N01", "PC", "PC"],
         "ambiguous_sound_source": [None, None, None, "SRKW,NRKW", None],
@@ -379,7 +379,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
  
     #insert a humpback annotation
     annot_tbl = pd.DataFrame({
-        "file_id": [2],
+        "file_id": [2], #id:17
         "sound_source": ["HW"],
         "sound_type": ["TC"],
     })
@@ -388,7 +388,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
     #filter using @invert=True 
     idx = kdb.filter_annotation(conn, source_type=("KW","%"), invert=True, taxonomy_id=3)
 
-    assert idx == [3, 9, 17] #[3, 4, 5, 6, 9, 17]
+    assert idx == [3, 9, 17] 
 
     #filter on negatives
     idx = kdb.filter_negative(conn, source_type=("KW","%"), taxonomy_id=3)
@@ -401,6 +401,31 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
 
     idx = kdb.filter_negative(conn, source_type=("HW","%"), taxonomy_id=3)
     assert len(idx) == 0
+
+
+    #insert annotations with excluded labels
+    annot_tbl = pd.DataFrame({
+        "file_id": [2, 2, 2], #id:18,19,20
+        "excluded_sound_source": ["KW", ["KW","HW"], "SRKW"],
+        "excluded_sound_type": ["PC", "Unknown", "S01"],
+    })
+    annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1, error="ignore")
+
+    # check that the first two annotations (18,19) are returned when searching for non-KW annotations
+    idx = kdb.filter_annotation(conn, source_type=("KW","%"), invert=True, taxonomy_id=2)
+    assert idx == [3, 9, 17, 18, 19]
+
+    # check that all three annotations (18,19,20) are returned when searching for non-(SRKW,S01) annotations
+    idx = kdb.filter_annotation(conn, source_type=("SRKW","S01"), invert=True, taxonomy_id=2)
+    assert idx == [3, 9, 13, 14, 17, 18, 19, 20]
+
+    # check that the first two annotations (18,19) are returned when searching for non-(SRKW,S02) annotations
+    idx = kdb.filter_annotation(conn, source_type=("SRKW","S02"), invert=True, taxonomy_id=2)
+    assert idx == [2, 3, 8, 9, 12, 14, 17, 18, 19]
+
+    # check that second annotation (19) is returned when searching for non-HW annotations
+    idx = kdb.filter_annotation(conn, source_type=("HW","%"), invert=True, taxonomy_id=2)
+    assert idx == [1, 2, 3, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19]
 
 
 def test_import_taxonomy(basic_db):

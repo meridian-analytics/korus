@@ -349,9 +349,10 @@ def create_timestamp_parser(group=None, logger=None):
     ).request(logger)
 
     def timestamp_parser(x):        
-        p = ts_pos if ts_pos >= 0 else len(x) + ts_pos - ts_siz
-        x = x[p : p + ts_siz]
-        dt = datetime.strptime(x, ts_fmt)
+        fname = os.path.basename(x)
+        p = ts_pos if ts_pos >= 0 else len(fname) + ts_pos - ts_siz
+        dt_str = fname[p : p + ts_siz]
+        dt = datetime.strptime(dt_str, ts_fmt)
         dt -= timedelta(seconds=int(ts_offset*3600))
         return dt
     
@@ -448,7 +449,7 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
     cprint(f" ## Found {len(df)} {audio_format} files in the folder {audio_path} between {start_utc} and {end_utc}", "yellow")
 
     if len(df) == 0:
-        return 0
+        return 0, timestamp_parser
 
     def fcn(x):
         """Helper function for transforming user input for select_files option"""
@@ -502,7 +503,13 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
         progress_bar=True,
     )
 
+    # check for table format to ensure backward compatibility with Korus versions <= 0.0.2
+    c = conn.cursor()
+    columns = [i[1] for i in c.execute("PRAGMA table_info(file)")]
+    old_fmt = "dir_path" in columns
+
     # insert files into database, one by one
+    file_counter = 0
     for _,row in df.iterrows(): 
         data = row.to_dict() #convert pd.Series to dict
 
@@ -510,20 +517,25 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
         data["storage_id"] = storage_id
         data["deployment_id"] = deployment_id
 
+        # to ensure backward compatibility with Korus versions <= 0.0.2
+        if old_fmt:
+            data["dir_path"] = data["relative_path"]
+            data["location"] = audio_path
+
         # insert in the 'file' table
         try:
             cursor = kdb.insert_row(conn, table_name="file", values=data)
+            file_counter += 1
 
-        # to ensure backward compatibility with Korus versions <= 0.0.2
         except sqlite3.IntegrityError:
-            data["dir_path"] = data["relative_path"]
-            data["location"] = audio_path
-            cursor = kdb.insert_row(conn, table_name="file", values=data)
+            # skip if file already exists in db
+            fname = data["filename"]
+            cprint(f" ## File {fname} already in database, skipping ...", "red")            
 
     # commit changes
     #conn.commit()
 
-    cprint(f"\n ## Successfully added {len(df)} audio files to the database", "yellow")
+    cprint(f"\n ## Successfully added {file_counter} audio files to the database", "yellow")
 
     return cursor.lastrowid, timestamp_parser
 
@@ -534,8 +546,8 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
         Args:
             conn: sqlite3.Connection
                 Database connection
-            deployment_id: int
-                Deployment index
+            deployment_id: int, list(int)
+                Deployment index or indices
             job_id: int
                 Annotation job index
             logger: korus.app.app_util.ui.InputLogger
@@ -548,19 +560,29 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
         Returns:
             None
     """
+    if isinstance(deployment_id, int):
+        deployment_id = [deployment_id]
 
     # query user
     path = ui.UserInput(
         "path", 
-        "Full path to RavenPro selection table. (Use wildcard to select multiple files.)", 
-        group="annotation"
+        "Full path to RavenPro selection table. (Use comma to separate multiple files. Use of wildcards is also supported.)", 
+        group="annotation",
+        transform_fcn=lambda x: x.split(",") if "," in x else x
     ).request(logger)
 
     # get all file IDs
     c = conn.cursor()
-    query = f"SELECT id,filename FROM file WHERE deployment_id = '{deployment_id}'"
+    query = f"SELECT id,deployment_id,filename FROM file WHERE deployment_id IN {list_to_str(deployment_id)}"
     rows = c.execute(query).fetchall()
-    file_id_map = {row[1]: row[0] for row in rows}  # filename -> file ID mapping
+    
+    # check that filenames are unique across deployments
+    filenames = [row[2] for row in rows]
+    if len(filenames) > len(set(filenames)):
+        cprint(" ## Non-unique filename across deployments", "red")
+        terminate(conn)
+
+    file_id_map = {row[2]: (row[0], row[1]) for row in rows}  # filename -> (file ID, deployment ID) mapping
 
     # load taxonomy
     c = conn.cursor()
@@ -594,8 +616,11 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
             # add missing fields
             # (set file ID to zero (0) if file is missing)
             df["job_id"] = job_id
-            df["deployment_id"] = deployment_id
-            df["file_id"] = df.path.apply(lambda x: file_id_map.get(os.path.basename(x), 0))
+            df["file_id"] = df.path.apply(lambda x: file_id_map.get(os.path.basename(x), [0])[0])
+            if len(deployment_id) == 1:
+                df["deployment_id"] = deployment_id[0]
+            else:
+                df["deployment_id"] = df.path.apply(lambda x: file_id_map[os.path.basename(x)][1])
 
             # drop columns
             df = df.drop(columns=["path"])
@@ -731,7 +756,7 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
     """ Loads entries from a RavenPro selections table
 
         Args:
-            input_path: str
+            input_path: str, list(str)
                 Path to the RavenPro selection table(s). Use of wildcards is allowed.
             tax: korus.tax.AcousticTaxonomy
                 Annotation taxonomy
@@ -757,7 +782,10 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
             ValueError: if the input table contains fields with invalid data types
     """
     # find files
-    input_paths = glob(input_path)
+    if isinstance(input_path, str):
+        input_paths = glob(input_path)
+    else:
+        input_paths = [x for x in input_path if os.path.exists(x)]
 
     cprint(f"\n ## Found {len(input_paths)} selection tables matching the search criteria", "yellow")
 
@@ -895,7 +923,7 @@ def from_raven(input_path, tax, granularity, sep=None, timestamp_parser=None, in
     if timestamp_parser is not None:
         def get_start_utc(row):
             """ Helper function for obtaining UTC start times """
-            return timestamp_parser(row.path) + timedelta(microseconds=row.duration_ms * 1E3)
+            return timestamp_parser(row.path) + timedelta(microseconds=row.start_ms * 1E3)
 
         df_out["start_utc"] = df_out.apply(lambda r: get_start_utc(r), axis=1)
 
@@ -1145,7 +1173,8 @@ def validate_annotations(df, tax, interactive=True, progress_bar=False):
                     row["sound_type"] = validate_label(st, typ_tree)
 
                 # 2e) tentative sound type
-                tst = df.loc[idx, "tentative_sound_type"]
+
+                tst = row["tentative_sound_type"]
 
                 # pick which sound-type tree to validate against
                 if tss is not None and tss != "":
@@ -1222,7 +1251,7 @@ def edit_row_manually(idx, row):
 
         Returns:
             row: pandas Series
-                The edited values
+                The edited values. Returns None if the user elects to ignore/skip the entry.
     """
     path = f"korus-entry-{idx}.yaml"
 
@@ -1235,9 +1264,11 @@ def edit_row_manually(idx, row):
         yaml.dump(row_dict, f)      
 
     try:
-        msg = f"\n >> Entry {idx} saved to {path}. Edit file manually and save. Then hit ENTER to proceed with submission."
+        msg = f"\n >> Entry {idx} saved to {path}. Edit file manually and save. Then hit ENTER to proceed with submission. Or type i/ignore to skip the entry."
         cprint(msg, "yellow")
-        input()
+        res = input()
+        if res.lower() in ["i", "ignore"]:
+            return None
     
     except KeyboardInterrupt:
         os.remove(path)

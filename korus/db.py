@@ -192,9 +192,19 @@ def filter_annotation(
         FROM 
             annotation AS a
         LEFT JOIN
-            json_each('a'.'tag_id') AS tag_id  
-        LEFT JOIN
-            json_each('a'.'ambiguous_label_id') AS ambiguous_label_id
+            json_each('a'.'tag_id') AS tag_id"""
+
+    if ambiguous:
+        query += """
+            LEFT JOIN
+                json_each('a'.'ambiguous_label_id') AS ambiguous_label_id"""  
+
+    if invert:
+        query += """
+            LEFT JOIN
+                json_each('a'.'excluded_label_id') AS excluded_label_id"""
+
+    query += """
         LEFT JOIN
             job as j
         ON
@@ -361,6 +371,9 @@ def _invert_select_label_condition(conn, source_type, strict, tentative, ambiguo
     if strict:
         raise NotImplementedError("@strict not yet implemented")
 
+    if ambiguous:
+        raise NotImplementedError("@ambiguous not yet implemented for inverted filter")
+
     c = conn.cursor()
 
     # get taxonomy identifiers
@@ -383,17 +396,29 @@ def _invert_select_label_condition(conn, source_type, strict, tentative, ambiguo
 
     conn.create_function("INVERT_SELECT_LABEL_ID", 2, _invert_select_label_id_fcn)
 
+    # crosswalk to all taxonomies, including only ascendants
+    asc_ids_crosswalk = dict()
+    for tax_id in tax_ids:
+        ids_x = klb.crosswalk_label_ids(conn, ids, dst_taxonomy_id=tax_id, ascend=True, descend=False)
+        asc_ids_crosswalk[tax_id] = np.unique(ids_x).tolist()
+
+    # callable for selecting excluded label identifiers across taxonomies
+    def _select_excluded_label_id_fcn(label_id, tax_id):
+        return (label_id is not None and label_id in asc_ids_crosswalk[tax_id])
+
+    conn.create_function("SELECT_EXCLUDED_LABEL_ID", 2, _select_excluded_label_id_fcn)
+
     # form WHERE condition for SQLite query
     wc = "("
-    wc += "INVERT_SELECT_LABEL_ID(a.label_id, j.taxonomy_id) = 1"
+    wc += "(INVERT_SELECT_LABEL_ID(a.label_id, j.taxonomy_id) = 1"
 
     if tentative:
         wc += " OR INVERT_SELECT_LABEL_ID(a.tentative_label_id, j.taxonomy_id) = 1"
 
-    if ambiguous:
-        raise NotImplementedError("@ambiguous not yet implemented for inverted filter")
-        #wc += " OR INVERT_SELECT_LABEL_ID(ambiguous_label_id.value, j.taxonomy_id) = 1"
-        #TODO: condition on ambiguous label ids must be chained together using logical AND ...
+    wc += ")"
+
+    # also filter on excluded labels
+    wc += " OR SELECT_EXCLUDED_LABEL_ID(excluded_label_id.value, j.taxonomy_id) = 1"
 
     wc += ")"
 
@@ -728,6 +753,14 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
     query = f"SELECT taxonomy_id FROM job WHERE id = '{job_id}'"
     (tax_id,) = c.execute(query).fetchall()[0]
 
+    # if sound_source is not specified, but excluded_sound_source is, set sound_source to Unknown
+    if "sound_source" not in annot_tbl.columns and "excluded_sound_source" in annot_tbl.columns:
+        annot_tbl["sound_source"] = "Unknown"
+
+    # if sound_type is not specified, just set it to Unknown
+    if "sound_type" not in annot_tbl.columns:
+        annot_tbl["sound_type"] = "Unknown"
+
     # ensure required columns have been specified
     required_cols = [
         "file_id", "sound_source", "sound_type"        
@@ -760,6 +793,12 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
         annot_tbl["ambiguous_sound_source"] = None
     if "ambiguous_sound_type" not in annot_tbl.columns:
         annot_tbl["ambiguous_sound_type"] = None
+
+    # default exclusion assignments
+    if "excluded_sound_source" not in annot_tbl.columns:
+        annot_tbl["excluded_sound_source"] = None
+    if "excluded_sound_type" not in annot_tbl.columns:
+        annot_tbl["excluded_sound_type"] = None
 
     # build file table for this annotation job
     file_tbl = build_file_table(conn, job_id)
@@ -898,36 +937,40 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
                 always_list=True
             )[0]
 
-        # ambiguous label id
-        ambi_source = row.ambiguous_sound_source
-        ambi_type = row.ambiguous_sound_type
-        if ambi_source is None and ambi_type is None:
-            ambi_label_id = [None]
-        
-        else:
-            if ambi_source is None:
-                ambi_source = [row.sound_source]
-            elif isinstance(ambi_source, str):
-                ambi_source = ambi_source.split(",")
+        # ambiguous and excluded label ids
+        def _infer_label_ids(s,t,sx,tx):
+            """ Helper function for inferring ambiguous/excluded label IDs
+            s: sound source (confident)
+            t: sound type (confident)
+            sx: sound source (ambiguous or excluded)
+            tx: sound type (ambiguous or excluded)
+            """
+            if sx is None and tx is None:
+                return [None]
+            
+            if sx is None:
+                sx = [s]
+            elif isinstance(sx, str):
+                sx = sx.split(",")
 
-            if ambi_type is None:
-                ambi_type = [row.sound_type]
-            elif isinstance(ambi_type, str):
-                ambi_type = ambi_type.split(",")
+            if tx is None:
+                tx = [t]
+            elif isinstance(tx, str):
+                tx = tx.split(",")
 
             # TODO: also combine with confident assignments
 
             # form all possible combinations
-            ambi_sound_type = [(ss, st) for st in ambi_type for ss in ambi_source]
+            combinations = [(src, typ) for typ in tx for src in sx]
 
-            ambi_label_id = []
-            for (ss, st) in ambi_sound_type:
+            ids = []
+            for (src, typ) in combinations:
                 try:
-                    lid = get_label_id(conn, source_type=(ss, st), taxonomy_id=tax_id)
-                    ambi_label_id.append(lid)
+                    lid = get_label_id(conn, source_type=(src, typ), taxonomy_id=tax_id)
+                    ids.append(lid)
                 
                 except ValueError:
-                    msg = f"Invalid ambiguous label ({ss}, {st})"
+                    msg = f"Invalid ambiguous/excluded label ({src}, {typ})"
 
                     if error_handling == IGNORE:
                         msg += " ignored"
@@ -936,8 +979,26 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
                     else:
                         raise ValueError(msg)
 
-            if len(ambi_label_id) == 0:
-                ambi_label_id = None
+            if len(ids) == 0:
+                ids = None
+
+            return ids
+
+        # ambiguous labels
+        ambi_label_id = _infer_label_ids(
+            row.sound_source, 
+            row.sound_type, 
+            row.ambiguous_sound_source, 
+            row.ambiguous_sound_type
+        )
+
+        # excluded labels
+        excl_label_id = _infer_label_ids(
+            row.sound_source, 
+            row.sound_type, 
+            row.excluded_sound_source, 
+            row.excluded_sound_type
+        )
 
         # collect data in a dict        
         v = {
@@ -947,6 +1008,7 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
             "label_id": label_id,
             "tentative_label_id": tent_label_id,
             "ambiguous_label_id": json.dumps(ambi_label_id),  
+            "excluded_label_id": json.dumps(excl_label_id),  
             "num_files": len(file_id_list),
             "file_id_list": json.dumps(file_id_list), 
             "start_utc": start_utc.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] if isinstance(start_utc, datetime) else start_utc,
@@ -1061,6 +1123,9 @@ def add_annotations(conn, annot_tbl, job_id, progress_bar=False, error="replace"
                     logging.error(traceback.format_exc())
                     logging.error(msg)
                     row = edit_row_manually(idx, row)
+                    if row is None:
+                        logging.info(f"Ignoring entry {idx}")
+                        break
 
     return annot_ids
 

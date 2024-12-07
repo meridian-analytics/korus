@@ -1,6 +1,14 @@
 Change log
 ==========
 
+**Version 0.0.9** (Dec 6, 2024)
+
+ * Bug fix in `korus-submit` that was causing incorrect timestamps for audio files not present in the database
+ * Added `excluded_label_id` column in annotation table and updated filtering function to consider data in this column too
+ * Added option in `korus-submit` to specify multiply deployment IDs for the same annotation job
+ * Bug fix in `korus-submit` manual annotation review function
+ * Bug fix in `korus-submit` timestamp parser 
+
 **Version 0.0.8** (Sep 12, 2024)
 
  * Various improvements to `korus-submit`

@@ -116,7 +116,7 @@ Korus is still in its infancy and under active development. We aim to have a fir
 release out by the end of 2024, but until then users should be prepared for substantial and 
 non-backward compatible changes to the code base. If you have any feedback for us, we would 
 love to hear it. Please create an issue on the 
-`Korus GitHub repository <https://github.com/oliskir/korus>`_.
+`Korus GitHub repository <https://github.com/meridian-analytics/korus>`_.
 
 
 Annotation Taxonomies

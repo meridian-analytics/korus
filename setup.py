@@ -7,7 +7,7 @@ setup(
     description="Python package for managing acoustic metadata and annotations",
     author="Oliver Kirsebom",
     author_email="oliver.kirsebom@gmail.com",
-    url=None,
+    url='https://github.com/meridian-analytics/korus',
     license="",
     packages=find_packages(),
     install_requires=[
@@ -18,6 +18,7 @@ setup(
         "treelib", 
         "tqdm",
         "tabulate",
+        "pyyaml",
     ],
     entry_points={
         "console_scripts": [

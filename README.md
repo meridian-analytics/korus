@@ -1,15 +1,13 @@
-# Korus
-
 Welcome to `Korus`, a Python package for managing acoustic annotations.
 
 
-## Documentation
+# Documentation
 
 Full documentation including code examples and Jupyter Notebook tutorials
-can be found at [oliskir.github.io/korus](https://oliskir.github.io/korus).
+can be found at [meridian-analytics.github.io/korus](https://meridian-analytics.github.io/korus).
 
 
-## Installation 
+# Installation 
 
 ```
 python setup.py sdist
@@ -17,12 +15,12 @@ pip install dist/korus*
 ```
 
 
-## Support
+# Support
 
 oliver.kirsebom@gmail.com
 
 
-## Authors
+# Authors
 
 Oliver Kirsebom
 
@@ -41,12 +39,12 @@ support through partnerships with NSERC, MITACS, SIMRES, JASCO, SMRU Consulting 
 Port's ECHO Program. 
 
 
-## License
+# License
 
 [GNU GPLv3 license](https://www.gnu.org/licenses/) 
 
 
-## Project status
+# Project status
 
 Korus is still in its infancy and under active development. We aim to have a first, stable 
 release out by the end of 2024, but until then users should be prepared for substantial and 
@@ -54,7 +52,7 @@ non-backward compatible changes to the code base. If you have any feedback for u
 love to hear it. Please create an issue with your question or suggestion.
 
 
-## Notes for developers
+# Notes for developers
 
 The database schema diagram can be generated automatically with,
 ```
@@ -74,7 +72,7 @@ twine upload dist/korus-X.Y.Z.tar.gz
 ```
 
 
-## Miscellaneous
+# Miscellaneous
 
  * [SQLite data types](https://www.sqlite.org/datatype3.html)
 
