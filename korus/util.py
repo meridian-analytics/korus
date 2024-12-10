@@ -5,8 +5,7 @@ import soundfile as sf
 import pandas as pd
 import numpy as np
 import tarfile
-import warnings
-from datetime import datetime, timedelta
+from datetime import timedelta
 from tqdm import tqdm
 
 
@@ -111,7 +110,7 @@ def collect_audiofile_metadata(
             else:
                 kwargs = {"path": os.path.join(path, sub_folder)}
 
-            file_paths = find_files(**kwargs, substr=[ext.lower(), ext.upper()], subdirs=True)       
+            file_paths = find_files(**kwargs, substr=[ext.lower(), ext.upper()], subdirs=True, progress_bar=progress_bar)       
             rel_path += [os.path.join(sub_folder, file_path) for file_path in file_paths]
 
     if isinstance(rel_path, str):
@@ -222,7 +221,7 @@ def get_num_samples_and_rate(path):
         raise IOError(f"{path} could not be read.")
 
 
-def find_files(path, substr=None, subdirs=False, tar_path=""):
+def find_files(path, substr=None, subdirs=False, tar_path="", progress_bar=False):
     """Search a directory or tar archive for files with a specified sequence of characters in their path.
 
     Args:
@@ -234,6 +233,8 @@ def find_files(path, substr=None, subdirs=False, tar_path=""):
             If True, also search all subdirectories.
         tar_path: str
             Path within tar archive. Only relavant if @path points to a tar archive.
+        progress_bar: bool
+            Display progress bar. Default is False.
 
     Returns:
         files: list (str)
@@ -259,7 +260,7 @@ def find_files(path, substr=None, subdirs=False, tar_path=""):
     all_files = []
     if is_tar:
         with tarfile.open(path) as tar:
-            for member in tar.getmembers():
+            for member in tqdm(tar.getmembers(), disable=not progress_bar):
                 if member.isreg(): #skip if not a file
                     mem_path = member.name
 
