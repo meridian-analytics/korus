@@ -257,6 +257,9 @@ def find_files(path, substr=None, subdirs=False, tar_path="", progress_bar=False
         substr = [substr]
 
     # find all files
+    if progress_bar:
+        print("Listing all files in directory ...")
+
     all_files = []
     if is_tar:
         with tarfile.open(path) as tar:
@@ -288,8 +291,11 @@ def find_files(path, substr=None, subdirs=False, tar_path="", progress_bar=False
             all_files = os.listdir(path)
 
     # filter
+    if progress_bar:
+        print("Filtering and sorting files ...")
+
     files = []
-    for f in all_files:
+    for f in tqdm(all_files, disable=not progress_bar):
         # skip directories
         if not is_tar and os.path.isdir(os.path.join(path, f)):
             continue
