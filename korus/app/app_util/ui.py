@@ -143,6 +143,7 @@ class UserInput:
         group=None,
         json_fcn=lambda x: x,
         allowed_values=None,
+        unknown=False,
     ):
         self.group = group
         self.name = name
@@ -156,6 +157,15 @@ class UserInput:
             allowed_values = [allowed_values]
 
         self.allowed_values = allowed_values
+
+        if unknown:
+            self.unknown_key_str = self.add_option(
+                key=["u","unknown"],
+                message="Unknown or N/A",
+                fcn=lambda x: None
+            )
+        else:
+            self.unknown_key_str = None
 
     def add_option(self, key, message, fcn):
         """ Add a special, configurable option to the user prompt.
@@ -216,7 +226,7 @@ class UserInput:
                         self.selected_opt = opt
                         break
 
-                if self.selected_opt and value is None:
+                if self.selected_opt and value is None and self.selected_opt.key_str() != self.unknown_key_str:
                     msg = self._form_request_msg(include_options=True)
                     continue
 

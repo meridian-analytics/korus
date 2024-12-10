@@ -1,6 +1,10 @@
 Change log
 ==========
 
+**Version 0.0.10** (Month Day, Year)
+
+ * Option to specify unknown/NA input in `korus-submit`
+
 **Version 0.0.9** (Dec 6, 2024)
 
  * Bug fix in `korus-submit` that was causing incorrect timestamps for audio files not present in the database

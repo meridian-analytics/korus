@@ -65,16 +65,16 @@ def add_deployment(conn, logger):
     start_utc = ui.UserInput("start_utc", "UTC start date or time (e.g. 2020-06-01)", group="deployment").request(logger) 
     end_utc = ui.UserInput("end_utc", "UTC end date or time (e.g. 2020-06-01)", group="deployment").request(logger) 
     location = ui.UserInput("location", "Geographic location (e.g. Salish Sea, BC, Canada)", group="deployment").request(logger)
-    latitude_deg = ui.UserInput("latitude_deg", "Latitude (degrees)", transform_fcn=float, group="deployment").request(logger)
-    longitude_deg = ui.UserInput("longitude_deg", "Longitude (degrees)", transform_fcn=float, group="deployment").request(logger)
-    depth_m = ui.UserInput("depth_m", "Depth (meters)", transform_fcn=float, group="deployment").request(logger)
+    latitude_deg = ui.UserInput("latitude_deg", "Latitude (degrees)", transform_fcn=float, group="deployment", unknown=True).request(logger)
+    longitude_deg = ui.UserInput("longitude_deg", "Longitude (degrees)", transform_fcn=float, group="deployment", unknown=True).request(logger)
+    depth_m = ui.UserInput("depth_m", "Depth (meters)", transform_fcn=float, group="deployment", unknown=True).request(logger)
     sample_rate = ui.UserInput("sample_rate", "Sampling rate in samples/s per channel", transform_fcn=int, group="deployment").request(logger)
-    data_license = ui.UserInput("data_license", "License/terms for access to and use of data", group="deployment").request(logger)
+    data_license = ui.UserInput("data_license", "License/terms for access to and use of data", group="deployment", unknown=True).request(logger)
     hydrophone = ui.UserInput("hydrophone", "Hydrophone make and model", group="deployment").request(logger)
     bits_per_sample = ui.UserInput("bits_per_sample", "Bits per sample", transform_fcn=int, group="deployment").request(logger)
     num_channels = ui.UserInput("num_channels", "Number of recording channels", transform_fcn=int, group="deployment").request(logger)
-    sensitivity = ui.UserInput("sensitivity", "Hydrophone sensitivitiy in dB re 1 V/muPa", transform_fcn=float, group="deployment").request(logger)
-    comments = ui.UserInput("comments", "Any additional observations", group="deployment").request(logger)
+    sensitivity = ui.UserInput("sensitivity", "Hydrophone sensitivitiy in dB re 1 V/muPa", transform_fcn=float, group="deployment", unknown=True).request(logger)
+    comments = ui.UserInput("comments", "Any additional observations", group="deployment", unknown=True).request(logger)
 
     # collect the data in a dictionary
     data = {
