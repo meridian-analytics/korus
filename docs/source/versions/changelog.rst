@@ -1,6 +1,11 @@
 Change log
 ==========
 
+**Version 0.0.10** (Dec 12, 2024)
+
+ * New `exclude` argument in `db.filter_annotation` function
+ * Option to specify unknown/NA input in `korus-submit`
+
 **Version 0.0.9** (Dec 6, 2024)
 
  * Bug fix in `korus-submit` that was causing incorrect timestamps for audio files not present in the database
