@@ -90,6 +90,7 @@ def filter_annotation(
         TODO: implement strict
         TODO: implement file
         TODO: implement valid
+        TODO: consider renaming `source_type` to `select`
 
         Args:
             conn: sqlite3.Connection
