@@ -410,6 +410,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
     #insert annotations with excluded labels
     annot_tbl = pd.DataFrame({
         "file_id": [2, 2, 2], #id:18,19,20
+        "sound_source": ["Unknown", "Unknown", "KW"],
         "excluded_sound_source": ["KW", ["KW","HW"], "SRKW"],
         "excluded_sound_type": ["PC", "Unknown", "S01"],
     })
@@ -427,9 +428,15 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
     idx = kdb.filter_annotation(conn, source_type=("SRKW","S02"), invert=True, taxonomy_id=2)
     assert idx == [2, 3, 8, 9, 12, 14, 17, 18, 19]
 
-    # check that second annotation (19) is returned when searching for non-HW annotations
+    # check that second and third annotations (19,20) is returned when searching for non-HW annotations
     idx = kdb.filter_annotation(conn, source_type=("HW","%"), invert=True, taxonomy_id=2)
-    assert idx == [1, 2, 3, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19]
+    assert idx == [1, 2, 3, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20]
+
+
+    # check that `exclude` arg works as intended when filtering
+    # expecting query to return annotations 13, 14, and 20
+    idx = kdb.filter_annotation(conn, source_type=("KW","%"), exclude=("SRKW", "S01"), taxonomy_id=2)
+    assert idx == [13, 14, 20]
 
 
 def test_import_taxonomy(basic_db):

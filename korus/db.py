@@ -75,8 +75,8 @@ def filter_files(conn, deployment_id=None, start_utc=None, end_utc=None, job_id=
 def filter_annotation(
         conn, 
         source_type=None,
-        tag=None,
         exclude=None,
+        tag=None,
         granularity=None,
         invert=False,
         strict=False,
@@ -98,6 +98,13 @@ def filter_annotation(
                 Database connection
             source_type: tuple, list(tuple)                
                 Select annotations with this (source,type) label.
+                The character '%' can be used as wildcard.
+                Accepts both a single tuple and a list of tuples.
+                By default all descendant nodes in the taxonomy tree are also considered. Use 
+                the @strict argument to change this behaviour.
+            exclude: tuple, list(tuple)
+                Select annotations with this (source,type) *exclusion label* while also 
+                excluding annotations with this (source,type) label.
                 The character '%' can be used as wildcard.
                 Accepts both a single tuple and a list of tuples.
                 By default all descendant nodes in the taxonomy tree are also considered. Use 
@@ -156,7 +163,7 @@ def filter_annotation(
             where_conditions.append(wc)
 
             if exclude is not None:
-                wc = _exclude_label_condition(conn, exclude, strict, taxonomy_id)
+                wc = _exclude_label_condition(conn, exclude, strict, tentative, ambiguous, taxonomy_id)
                 where_conditions.append(wc)
 
         # @source_type with @invert=True
@@ -396,7 +403,7 @@ def _exclude_label_condition(conn, source_type, strict, tentative, ambiguous, ta
 
     # callable for avoding label identifiers across taxonomies
     def _avoid_label_id_fcn(label_id, tax_id):
-        return (label_id not in ids_crosswalk[tax_id])
+        return (label_id is not None and label_id not in ids_crosswalk[tax_id])
 
     conn.create_function("AVOID_LABEL_ID", 2, _avoid_label_id_fcn)
 
@@ -423,7 +430,7 @@ def _exclude_label_condition(conn, source_type, strict, tentative, ambiguous, ta
         wc += " AND AVOID_LABEL_ID(ambiguous_label_id.value, j.taxonomy_id) = 1"
 
     wc += ")"
-    wc = " OR SELECT_EXCLUDED_LABEL_ID(excluded_label_id.value, j.taxonomy_id) = 1"
+    wc += " OR SELECT_EXCLUDED_LABEL_ID(excluded_label_id.value, j.taxonomy_id) = 1"
     wc += ")"
 
     return wc

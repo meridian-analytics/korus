@@ -3,6 +3,7 @@ Change log
 
 **Version 0.0.10** (Month Day, Year)
 
+ * New `exclude` argument in `db.filter_annotation` function
  * Option to specify unknown/NA input in `korus-submit`
 
 **Version 0.0.9** (Dec 6, 2024)
