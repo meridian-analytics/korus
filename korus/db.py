@@ -76,6 +76,7 @@ def filter_annotation(
         conn, 
         source_type=None,
         tag=None,
+        exclude=None,
         granularity=None,
         invert=False,
         strict=False,
@@ -154,6 +155,10 @@ def filter_annotation(
             wc = _select_label_condition(conn, source_type, strict, tentative, ambiguous, taxonomy_id)
             where_conditions.append(wc)
 
+            if exclude is not None:
+                wc = _exclude_label_condition(conn, exclude, strict, taxonomy_id)
+                where_conditions.append(wc)
+
         # @source_type with @invert=True
         else:
             wc = _invert_select_label_condition(conn, source_type, strict, tentative, ambiguous, taxonomy_id)
@@ -200,7 +205,7 @@ def filter_annotation(
             LEFT JOIN
                 json_each('a'.'ambiguous_label_id') AS ambiguous_label_id"""  
 
-    if invert:
+    if invert or exclude is not None:
         query += """
             LEFT JOIN
                 json_each('a'.'excluded_label_id') AS excluded_label_id"""
@@ -338,6 +343,87 @@ def _select_label_condition(conn, source_type, strict, tentative, ambiguous, tax
     if ambiguous:
         wc += " OR SELECT_LABEL_ID(ambiguous_label_id.value, j.taxonomy_id) = 1"
 
+    wc += ")"
+
+    return wc
+
+
+def _exclude_label_condition(conn, source_type, strict, tentative, ambiguous, taxonomy_id):
+    """ Helper function for @filter_annotation.
+
+        Forms the WHERE condition required to query the annotation table 
+        for entries that exclude specific (source,type) labels.
+
+        Args:
+            conn: sqlite3.Connection
+                Database connection
+            source_type: tuple, list(tuple)                
+                Select annotations with this (source,type) label.
+                By default descendant nodes in the taxonomy tree are also considered.
+            strict: bool
+                Whether to interpret labels 'strictly', meaning that descendant nodes 
+                in the taxonomy tree are not considered. For example, when filtering on 'KW' 
+                annotations labelled as 'SRKW' will *not* be selected if @strict is set to True. 
+            tentative: bool
+                Whether to also filter on tentative label assignments. 
+            ambiguous: bool
+                Whether to also filter on ambiguous label assignments.
+            taxonomy_id: int
+                Acoustic taxonomy that the (source,type) label arguments refer to. 
+            
+        Returns:
+            wc: str
+                WHERE conditions for SQLite query
+    """
+    if strict:
+        raise NotImplementedError("@strict not yet implemented")
+
+    c = conn.cursor()
+
+    # get taxonomy identifiers
+    tax_ids = [tax_id for (tax_id,) in c.execute("SELECT id FROM taxonomy").fetchall()]
+    if taxonomy_id is None:
+        taxonomy_id = len(tax_ids)
+
+    # map source-type tuple to label identifiers
+    ids = get_label_id(conn, source_type=source_type, taxonomy_id=taxonomy_id, always_list=True)
+
+    # crosswalk to all taxonomies, including ascendants and descendants
+    ids_crosswalk = dict()
+    for tax_id in tax_ids:
+        ids_x = klb.crosswalk_label_ids(conn, ids, dst_taxonomy_id=tax_id, ascend=True, descend=True, equiv=True)
+        ids_crosswalk[tax_id] = np.unique(ids_x).tolist()
+
+    # callable for avoding label identifiers across taxonomies
+    def _avoid_label_id_fcn(label_id, tax_id):
+        return (label_id not in ids_crosswalk[tax_id])
+
+    conn.create_function("AVOID_LABEL_ID", 2, _avoid_label_id_fcn)
+
+    # crosswalk to all taxonomies, including only ascendants
+    asc_ids_crosswalk = dict()
+    for tax_id in tax_ids:
+        ids_x = klb.crosswalk_label_ids(conn, ids, dst_taxonomy_id=tax_id, ascend=True, descend=False)
+        asc_ids_crosswalk[tax_id] = np.unique(ids_x).tolist()
+
+    # callable for selecting excluded label identifiers across taxonomies
+    def _select_excluded_label_id_fcn(label_id, tax_id):
+        return (label_id is not None and label_id in asc_ids_crosswalk[tax_id])
+
+    conn.create_function("SELECT_EXCLUDED_LABEL_ID", 2, _select_excluded_label_id_fcn)
+
+    # form WHERE condition for SQLite query
+    wc = "(("
+    wc += "AVOID_LABEL_ID(a.label_id, j.taxonomy_id) = 1"
+
+    if tentative:
+        wc += " AND AVOID_LABEL_ID(a.tentative_label_id, j.taxonomy_id) = 1"
+
+    if ambiguous:
+        wc += " AND AVOID_LABEL_ID(ambiguous_label_id.value, j.taxonomy_id) = 1"
+
+    wc += ")"
+    wc = " OR SELECT_EXCLUDED_LABEL_ID(excluded_label_id.value, j.taxonomy_id) = 1"
     wc += ")"
 
     return wc

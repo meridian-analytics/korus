@@ -610,6 +610,9 @@ class AcousticTaxonomy(Taxonomy):
             Yields:
                 source_tag, type_tag: str, str
         """
+        debug_msg = f"[{self.__class__.__name__}] Ascending {self.name} v{self.version} starting from ({source_tag},{type_tag})"
+        logging.debug(debug_msg)
+
         types = self.get_node(source_tag).data["sound_types"]  #sound-type tree
         source_gen = self.rsearch(source_tag)  #ascending source-id generator
 
@@ -621,6 +624,7 @@ class AcousticTaxonomy(Taxonomy):
             if type_tag is None or type_tag == "%":
                 if include_start_node or counter > 0:
                     yield source_i.tag, type_tag
+                
                 counter += 1
 
             else:
@@ -633,6 +637,7 @@ class AcousticTaxonomy(Taxonomy):
                     type_i = types_i.get_node(tid)
                     if include_start_node or counter > 0:
                         yield source_i.tag, type_i.tag
+                    
                     counter += 1
 
     def descend(self, source_tag, type_tag=None, include_start_node=True):
@@ -651,6 +656,9 @@ class AcousticTaxonomy(Taxonomy):
             Yields:
                 source_tag, type_tag: str, str
         """
+        debug_msg = f"[{self.__class__.__name__}] Descending {self.name} v{self.version} starting from ({source_tag},{type_tag})"
+        logging.debug(debug_msg)
+
         source_gen = self.expand_tree(self.get_id(source_tag), mode=Tree.DEPTH)
 
         counter = 0
@@ -661,15 +669,19 @@ class AcousticTaxonomy(Taxonomy):
             if type_tag is None or type_tag == "%":
                 if include_start_node or counter > 0:
                     yield source_i.tag, type_tag
+                
                 counter += 1
 
             else:
                 if types_i.get_node(type_tag) is None:
-                    raise ValueError(f"sound source '{source_i.tag}' does not have sound type '{type_tag}'")
+                    debug_msg = f"[{self.__class__.__name__}] Sound source '{source_i.tag}' does not have sound type '{type_tag}'. Skipping ..."
+                    logging.debug(debug_msg)
+                    continue
 
                 type_gen = types_i.expand_tree(types_i.get_id(type_tag), mode=Tree.DEPTH)
                 for tid in type_gen:
                     type_i = types_i.get_node(tid)
                     if include_start_node or counter > 0:
                         yield source_i.tag, type_i.tag
+                    
                     counter += 1

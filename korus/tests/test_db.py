@@ -13,6 +13,10 @@ path_to_assets = os.path.join(current_dir, "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
+if not os.path.exists(path_to_tmp):
+    os.makedirs(path_to_tmp)
+
+
 def test_create_db():
     """Test that we can create an empty database"""
     path = os.path.join(path_to_tmp, "empty.sqlite")
