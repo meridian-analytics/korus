@@ -1327,10 +1327,37 @@ def get_annotations(conn, indices=None, format="ketos", label_map=None, taxonomy
     if indices is None:
         indices = filter_annotation(**kwargs)
 
+    # specify data that needs to be extracted
+    cols = [
+        ("a", "job_id", "int"),  # (table ref, column name, dtype)
+        ("a", "deployment_id", "int"),
+        ("a", "file_id", "int"),
+        ("l", "sound_source_tag", "str"),
+        ("l", "sound_type_tag", "str"),
+        ("lt", "sound_source_tag", "str"),
+        ("lt", "sound_type_tag", "str"),
+        ("a", "ambiguous_label_id", "object"),
+        ("a", "tag_id", "object"),
+        ("a", "start_utc", "datetime64[ns]"),
+        ("a", "duration_ms", "int"),
+        ("a", "freq_min_hz", "int"),
+        ("a", "freq_max_hz", "int"),
+        ("a", "num_files", "int"),
+        ("a", "file_id_list", "object"),
+        ("a", "channel", "int"),
+        ("a", "valid", "int"),
+        ("a", "comments", "str"),
+        ("g", "name", "str"),
+        ("f", "filename", "str"),
+        ("f", "relative_path", "str"),
+        ("s", "path", "str"),
+    ]
+
     # get db cursor
     c = conn.cursor()
 
-    # SQLite query
+    # form SQLite query
+    select = "SELECT " + ","join([])
     where_cond = f"WHERE a.id IN {list_to_str(indices)}" if indices is not None else ""
     query = f"""
         SELECT
