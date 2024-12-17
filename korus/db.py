@@ -167,7 +167,7 @@ def filter_annotation(
         where_conditions.append(wc)
         
     if deployment_id is not None:
-        wc = f"WHERE a.job_id IN {list_to_str(deployment_id)}"
+        wc = f"WHERE a.deployment_id IN {list_to_str(deployment_id)}"
         where_conditions.append(wc)
 
     if source_type is not None:
