@@ -85,6 +85,8 @@ def filter_annotation(
         file=False,
         valid=False,
         taxonomy_id=None,
+        job_id=None,
+        deployment_id=None,
     ):
     """ Query annotation table by filtering on sound source and sound type.
 
@@ -138,6 +140,10 @@ def filter_annotation(
             taxonomy_id: int
                 Acoustic taxonomy that the (source,type) label arguments refer to. If not specified, 
                 the latest taxonomy will be used.
+            job_id: int, list(int)
+                Restrict search to the specified annotation job(s).
+            deployment_id: int, list(int) 
+                Restrict search to the specified deployment(s).
 
         Returns:
             indices: list(int)
@@ -155,6 +161,14 @@ def filter_annotation(
     c = conn.cursor()
 
     where_conditions = []
+
+    if job_id is not None:
+        wc = f"WHERE a.job_id IN {list_to_str(job_id)}"
+        where_conditions.append(wc)
+        
+    if deployment_id is not None:
+        wc = f"WHERE a.job_id IN {list_to_str(deployment_id)}"
+        where_conditions.append(wc)
 
     if source_type is not None:
         # @source_type
