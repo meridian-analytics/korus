@@ -11,6 +11,7 @@ from tqdm import tqdm
 from datetime import datetime, timedelta
 from treelib import Tree
 import traceback
+import getpass
 from korus.util import get_num_samples_and_rate, list_to_str
 import korus.tax as kx
 import korus.db_util.table as ktb
@@ -162,10 +163,12 @@ def filter_annotation(
 
     where_conditions = []
 
+    # @job_id
     if job_id is not None:
         wc = f"WHERE a.job_id IN {list_to_str(job_id)}"
         where_conditions.append(wc)
-        
+
+    # @deployment_id  
     if deployment_id is not None:
         wc = f"WHERE a.deployment_id IN {list_to_str(deployment_id)}"
         where_conditions.append(wc)
@@ -1296,34 +1299,35 @@ def add_negatives(conn, job_id):
     return annot_ids
 
 
-def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False, ketos_v3=False):
-    """ Get annotations specified by index
-    
-        TODO: add @group_by_deployment arg
-        TODO: consider replacing @top arg with @full_path arg
-        TODO: Handle cases where len(indices) = 0 more gracefully
-        TODO: Remove columns with exclusively 'None' values from the returned DataFrame
+def get_annotations(conn, indices=None, format="ketos", label_map=None, taxonomy_id=None, **kwargs):
+    """ Get annotations specified by index.
 
         Args:
             conn: sqlite3.Connection
                 Database connection
             indices: list(int)
-                Indices in the annotation table
-            ketos: bool
-                Return in Ketos format. Default is False
-            tentative: bool
-                Whether to use tentative assignments, when available. Only applicable if @ketos=True.
-            top: bool
-                Whether to include the file location in the output table. Only applicable if @ketos=True.
-            ketos_v3: bool
-                Use the new Ketos 3.0 format
+                Indices in the annotation table. If None, the `filter_annotation` function is called with the provided keyword args.
+            format: bool
+                Currently supported formats are: `ketos`, `raven`
+            label_map: dict
+                Mapping of (source,type) labels to a set of class labels. Optional. Only applicable to the `ketos` format.
+            taxonomy_id: int
+                Acoustic taxonomy version that the (source,type) labels in the label map refer to. If not specified, 
+                the latest taxonomy will be used.
 
         Returns:
             annot_tbl: Pandas DataFrame
                 Annotation table
-            label_map: dict
-                Mapping from integer label to (source,type) label. Only returned if @ketos=True
     """
+    # check for valid input
+    valid_formats = ["ketos", "raven"]
+    assert isinstance(format, str) and format.lower() in valid_formats, f"Invalid table format. The valid formats are: {valid_formats}"
+
+    # run search
+    if indices is None:
+        indices = filter_annotation(**kwargs)
+
+    # get db cursor
     c = conn.cursor()
 
     # SQLite query
@@ -1448,6 +1452,9 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
             return labels
 
     annot_tbl.loc[~idx, "ambiguous_label"] = annot_tbl.loc[~idx].ambiguous_label_id.apply(lambda x: lookup_label(x))
+
+    # replace occurences of $USER in file paths with actual username
+    annot_tbl.path.str.replace("$USER",f"{getpass.getuser()}")
 
     if ketos:
         annot_tbl = _convert_to_ketos(
