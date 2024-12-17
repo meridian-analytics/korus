@@ -1299,21 +1299,18 @@ def add_negatives(conn, job_id):
     return annot_ids
 
 
-def get_annotations(conn, indices=None, format="ketos", label_map=None, taxonomy_id=None, **kwargs):
-    """ Get annotations specified by index.
+def get_annotations(conn, indices=None, format="raven", label=None):
+    """ Extract annotation data from the database.
 
         Args:
             conn: sqlite3.Connection
                 Database connection
             indices: list(int)
-                Indices in the annotation table. If None, the `filter_annotation` function is called with the provided keyword args.
+                Indices in the annotation table. Optional.
             format: bool
                 Currently supported formats are: `ketos`, `raven`
-            label_map: dict
-                Mapping of (source,type) labels to a set of class labels. Optional. Only applicable to the `ketos` format.
-            taxonomy_id: int
-                Acoustic taxonomy version that the (source,type) labels in the label map refer to. If not specified, 
-                the latest taxonomy will be used.
+            label: int,str
+                Label assigned to all returned annotations. Only required if `format=ketos`.
 
         Returns:
             annot_tbl: Pandas DataFrame
@@ -1323,9 +1320,11 @@ def get_annotations(conn, indices=None, format="ketos", label_map=None, taxonomy
     valid_formats = ["ketos", "raven"]
     assert isinstance(format, str) and format.lower() in valid_formats, f"Invalid table format. The valid formats are: {valid_formats}"
 
-    # run search
+    # filter on indices
     if indices is None:
-        indices = filter_annotation(**kwargs)
+        where_cond = ""
+    else:
+        where_cond = f"WHERE a.id IN {list_to_str(indices)}"
 
     # specify data that needs to be extracted
     cols = [
