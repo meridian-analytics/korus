@@ -1409,7 +1409,7 @@ def get_annotations(conn, indices=None, format="korus", label=None):
             annot_tbl[name] = annot_tbl[name].apply(lambda x: json.loads(x))
 
     # replace occurences of $USER in file paths with actual username
-    annot_tbl.top_path.str.replace("$USER",f"{getpass.getuser()}")
+    annot_tbl.top_path = annot_tbl.top_path.str.replace("$USER",f"{getpass.getuser()}")
 
     # temporary fix: replace None with ""
     annot_tbl = annot_tbl.replace({"None": np.nan})
@@ -1475,8 +1475,8 @@ def _convert_to_ketos(annot_tbl, label, conn):
     """
     c = conn.cursor()
 
-    # create column to store annotation IDs
-    annot_tbl["annot_id"] = annot_tbl.index.values       
+    # annotation IDs
+    annot_tbl = annot_tbl.rename(columns={"korus_id": "annot_id"})
 
     # unfold annotations that span multiple files
     idx_mf = (annot_tbl.num_files > 1)
@@ -1522,7 +1522,7 @@ def _convert_to_ketos(annot_tbl, label, conn):
     if "label" in annot_tbl.columns:
         cols.append("label")
         
-    cols += ["comments","korus_id"]
+    cols.append("comments")
     annot_tbl = annot_tbl[cols]
 
     # use multi-index

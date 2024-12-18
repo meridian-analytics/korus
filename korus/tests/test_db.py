@@ -348,7 +348,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
 
     # temporary fix: reformat to match expectatin
     df_kt.reset_index(inplace=True)
-    df_kt.drop(columns=["annot_id","korus_id","top_path"], inplace=True)
+    df_kt.drop(columns=["annot_id","top_path"], inplace=True)
 
     path = os.path.join(path_to_assets, "compr-example-test-annot2.csv")
     expected = pd.read_csv(path)
