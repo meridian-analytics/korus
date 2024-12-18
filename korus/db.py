@@ -1302,6 +1302,8 @@ def add_negatives(conn, job_id):
 def get_annotations(conn, indices=None, format="korus", label=None):
     """ Extract annotation data from the database.
 
+        TODO: create tests for the case format="raven"
+
         Args:
             conn: sqlite3.Connection
                 Database connection
@@ -1448,7 +1450,6 @@ def get_annotations(conn, indices=None, format="korus", label=None):
         annot_tbl = _convert_to_ketos(annot_tbl, label, conn)
 
     elif format == "raven":
-        raise NotImplementedError("format `raven` not yet implemented")
         annot_tbl = _convert_to_raven(annot_tbl, conn)
 
     elif format == "korus":
@@ -1560,6 +1561,7 @@ def _convert_to_raven(annot_tbl, conn):
         "Sound Type": [],
         "Tentative Sound Source": [],
         "Tentative Sound Type": [],
+        "Ambiguous Label": [],
         "Tag": [],
         "Granularity": [],
         "Korus ID": [],
@@ -1568,30 +1570,41 @@ def _convert_to_raven(annot_tbl, conn):
 
     df_out = pd.DataFrame(data_out)
 
-    '''
-    # get file offsets
-    file_paths = df_in.path.unique()
-    file_durations = [
-        get_duration_and_sampling_rate(os.path.join(base, x))[0] / 1e6
-        for x in file_paths
-    ]
-    file_offsets = np.cumsum(file_durations) - file_durations[0]
-    file_offsets_dict = {x: y for x, y in zip(file_paths, file_offsets)}
-    df_in["offset"] = df_in.path.apply(lambda x: file_offsets_dict[x])
-    '''
+    # sort
+    annot_tbl = annot_tbl.sort_values(by=["deployment_id", "start_utc"])
+
+    # file cumulative offsets
+    file_ids = annot_tbl.file_id.unique()
+    def file_duration_fcn(file_id):
+        query = f"SELECT num_samples,sample_rate FROM file WHERE id = {file_id}"
+        (num_samples, sample_rate) = c.execute(query).fetchall()[0]
+        return num_samples / sample_rate
+
+    file_dur = [file_duration_fcn(x) for x in file_ids]
+    file_offsets = np.cumsum(file_dur) - file_dur[0]
+    file_offsets_dict = {x: y for x,y in zip(file_ids, file_offsets)}
+    annot_tbl["offset"] = annot_tbl.file_id.apply(lambda x: file_offsets_dict[x])
 
     # fill data into output dataframe
     df_out["Low Freq (Hz)"] = annot_tbl.freq_min_hz
     df_out["High Freq (Hz)"] = annot_tbl.freq_max_hz
     df_out["Delta Time (s)"] = annot_tbl.duration_ms / 1000.
     df_out["File Offset (s)"] = annot_tbl.start_ms / 1000.
-    #df_out["Begin Time (s)"] = df_in["offset"] + df_out["File Offset (s)"]
-    #df_out["End Time (s)"] = df_in["offset"] + df_out["File Offset (s)"] + df_out["Delta Time (s)"]
-    df_out["Begin Path"] = annot_tbl.apply(lambda r: os.path.join(r.top_path, r.relative_path, r.filename), axis=1)
+    df_out["Begin Time (s)"] = annot_tbl["offset"] + df_out["File Offset (s)"]
+    df_out["End Time (s)"] = annot_tbl["offset"] + df_out["File Offset (s)"] + df_out["Delta Time (s)"]
+    df_out["Begin Path"] = annot_tbl.apply(lambda r: os.path.join(str(r.top_path), str(r.relative_path), r.filename), axis=1)
     df_out["Begin File"] = annot_tbl.filename
     df_out["View"] = "Spectrogram"
     df_out["Channel"] = annot_tbl.channel + 1
     df_out["Selection"] = np.arange(len(annot_tbl)) + 1
+    df_out["Sound Source"] = annot_tbl.sound_source
+    df_out["Sound Type"] = annot_tbl.sound_type
+    df_out["Tentative Sound Source"] = annot_tbl.tentative_sound_source
+    df_out["Tentative Sound Type"] = annot_tbl.tentative_sound_type
+    df_out["Ambiguous Label"] = annot_tbl.ambiguous_label
+    df_out["Tag"] = annot_tbl.tag
+    df_out["Granularity"] = annot_tbl.granularity
+    df_out["Korus ID"] = annot_tbl.korus_id
 
     # round to appropriate number of digits
     df_out = df_out.round(
