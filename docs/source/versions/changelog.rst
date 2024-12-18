@@ -1,6 +1,10 @@
 Change log
 ==========
 
+**Version 0.0.11** (Month Day, Year)
+
+ * Changes to annotation table format when `format=ketos` is used
+
 **Version 0.0.10** (Dec 12, 2024)
 
  * New `exclude` argument in `db.filter_annotation` function
