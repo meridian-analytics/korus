@@ -1449,7 +1449,7 @@ def get_annotations(conn, indices=None, format="korus", label=None):
 
     elif format == "raven":
         raise NotImplementedError("format `raven` not yet implemented")
-        #annot_tbl = _convert_to_raven(annot_tbl)
+        annot_tbl = _convert_to_raven(annot_tbl, conn)
 
     elif format == "korus":
         drop_cols = [
@@ -1528,6 +1528,84 @@ def _convert_to_ketos(annot_tbl, label, conn):
     annot_tbl.set_index(["annot_id","filename"], inplace=True)
 
     return annot_tbl
+
+
+def _convert_to_raven(annot_tbl, conn):
+    """Helper function for `get_annotations`. Converts annotation table to RavenPro format.
+
+    Args:
+        annot_tbl: Pandas DataFrame
+            Annotation table
+
+    Returns:
+        annot_tbl: Pandas DataFrame
+            Annotation table in Ketos-friendly format
+    """
+    c = conn.cursor()
+
+    # define structure of output csv file
+    data_out = {
+        "Selection": [],
+        "View": [],
+        "Channel": [],
+        "Begin Time (s)": [],
+        "End Time (s)": [],
+        "Low Freq (Hz)": [],
+        "High Freq (Hz)": [],
+        "Delta Time (s)": [],
+        "File Offset (s)": [],
+        "Begin Path": [],
+        "Begin File": [],
+        "Sound Source": [],
+        "Sound Type": [],
+        "Tentative Sound Source": [],
+        "Tentative Sound Type": [],
+        "Tag": [],
+        "Granularity": [],
+        "Korus ID": [],
+        "Comments": [],
+    }
+
+    df_out = pd.DataFrame(data_out)
+
+    '''
+    # get file offsets
+    file_paths = df_in.path.unique()
+    file_durations = [
+        get_duration_and_sampling_rate(os.path.join(base, x))[0] / 1e6
+        for x in file_paths
+    ]
+    file_offsets = np.cumsum(file_durations) - file_durations[0]
+    file_offsets_dict = {x: y for x, y in zip(file_paths, file_offsets)}
+    df_in["offset"] = df_in.path.apply(lambda x: file_offsets_dict[x])
+    '''
+
+    # fill data into output dataframe
+    df_out["Low Freq (Hz)"] = annot_tbl.freq_min_hz
+    df_out["High Freq (Hz)"] = annot_tbl.freq_max_hz
+    df_out["Delta Time (s)"] = annot_tbl.duration_ms / 1000.
+    df_out["File Offset (s)"] = annot_tbl.start_ms / 1000.
+    #df_out["Begin Time (s)"] = df_in["offset"] + df_out["File Offset (s)"]
+    #df_out["End Time (s)"] = df_in["offset"] + df_out["File Offset (s)"] + df_out["Delta Time (s)"]
+    df_out["Begin Path"] = annot_tbl.apply(lambda r: os.path.join(r.top_path, r.relative_path, r.filename), axis=1)
+    df_out["Begin File"] = annot_tbl.filename
+    df_out["View"] = "Spectrogram"
+    df_out["Channel"] = annot_tbl.channel + 1
+    df_out["Selection"] = np.arange(len(annot_tbl)) + 1
+
+    # round to appropriate number of digits
+    df_out = df_out.round(
+        {
+            "Begin Time (s)": 3,
+            "End Time (s)": 3,
+            "Delta Time (s)": 3,
+            "File Offset (s)": 3,
+            "Low Freq (Hz)": 1,
+            "High Freq (Hz)": 1,
+        }
+    )
+
+    return df_out
 
 
 def find_negatives(file_tbl, annot_tbl, max_gap_ms=100, tag_id=1):
