@@ -11,6 +11,7 @@ from tqdm import tqdm
 from datetime import datetime, timedelta
 from treelib import Tree
 import traceback
+import getpass
 from korus.util import get_num_samples_and_rate, list_to_str
 import korus.tax as kx
 import korus.db_util.table as ktb
@@ -85,6 +86,8 @@ def filter_annotation(
         file=False,
         valid=False,
         taxonomy_id=None,
+        job_id=None,
+        deployment_id=None,
     ):
     """ Query annotation table by filtering on sound source and sound type.
 
@@ -138,6 +141,10 @@ def filter_annotation(
             taxonomy_id: int
                 Acoustic taxonomy that the (source,type) label arguments refer to. If not specified, 
                 the latest taxonomy will be used.
+            job_id: int, list(int)
+                Restrict search to the specified annotation job(s).
+            deployment_id: int, list(int) 
+                Restrict search to the specified deployment(s).
 
         Returns:
             indices: list(int)
@@ -155,6 +162,16 @@ def filter_annotation(
     c = conn.cursor()
 
     where_conditions = []
+
+    # @job_id
+    if job_id is not None:
+        wc = f"WHERE a.job_id IN {list_to_str(job_id)}"
+        where_conditions.append(wc)
+
+    # @deployment_id  
+    if deployment_id is not None:
+        wc = f"WHERE a.deployment_id IN {list_to_str(deployment_id)}"
+        where_conditions.append(wc)
 
     if source_type is not None:
         # @source_type
@@ -1282,64 +1299,74 @@ def add_negatives(conn, job_id):
     return annot_ids
 
 
-def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False, ketos_v3=False):
-    """ Get annotations specified by index
-    
-        TODO: add @group_by_deployment arg
-        TODO: consider replacing @top arg with @full_path arg
-        TODO: Handle cases where len(indices) = 0 more gracefully
-        TODO: Remove columns with exclusively 'None' values from the returned DataFrame
+def get_annotations(conn, indices=None, format="korus", label=None):
+    """ Extract annotation data from the database.
+
+        TODO: create tests for the case format="raven"
 
         Args:
             conn: sqlite3.Connection
                 Database connection
             indices: list(int)
-                Indices in the annotation table
-            ketos: bool
-                Return in Ketos format. Default is False
-            tentative: bool
-                Whether to use tentative assignments, when available. Only applicable if @ketos=True.
-            top: bool
-                Whether to include the file location in the output table. Only applicable if @ketos=True.
-            ketos_v3: bool
-                Use the new Ketos 3.0 format
+                Indices in the annotation table. Optional.
+            format: bool
+                Currently supported formats are: `korus`, `ketos`, `raven`
+            label: int,str
+                Label assigned to all in the `ketos` formatted table. Optional.
 
         Returns:
             annot_tbl: Pandas DataFrame
                 Annotation table
-            label_map: dict
-                Mapping from integer label to (source,type) label. Only returned if @ketos=True
     """
+    # check for valid format
+    valid_formats = ["korus", "ketos", "raven"]
+    assert isinstance(format, str) and format.lower() in valid_formats, f"Invalid table format. The valid formats are: {valid_formats}"
+
+    # get cursor
     c = conn.cursor()
 
-    # SQLite query
-    where_cond = f"WHERE a.id IN {list_to_str(indices)}" if indices is not None else ""
+    # specify data that needs to be extracted
+    # (see below for definitions of table refs)
+    cols = [
+        ("a", "id", "korus_id", "int"),  # (table ref, input column name, output column name, dtype)
+        ("a", "job_id", "job_id", "int"),
+        ("a", "deployment_id", "deployment_id", "int"),
+        ("a", "file_id", "file_id", "int"),
+        ("l", "sound_source_tag", "sound_source", "str"),
+        ("l", "sound_type_tag", "sound_type", "str"),
+        ("lt", "sound_source_tag", "tentative_sound_source", "str"),
+        ("lt", "sound_type_tag", "tentative_sound_type", "str"),
+        ("a", "ambiguous_label_id", "ambiguous_label_id", "object"),
+        ("a", "tag_id", "tag_id", "object"),
+        ("a", "start_utc", "start_utc", "datetime64[ns]"),
+        ("a", "start_ms", "start_ms", "int"),
+        ("a", "duration_ms", "duration_ms", "int"),
+        ("a", "freq_min_hz", "freq_min_hz", "int"),
+        ("a", "freq_max_hz", "freq_max_hz", "int"),
+        ("a", "machine_prediction", "machine_prediction", "str"),
+        ("a", "num_files", "num_files", "int"),
+        ("a", "file_id_list", "file_id_list", "object"),
+        ("a", "channel", "channel", "int"),
+        ("a", "valid", "valid", "int"),
+        ("a", "comments", "comments", "str"),
+        ("g", "name", "granularity", "str"),
+        ("f", "filename", "filename", "str"),
+        ("f", "relative_path", "relative_path", "str"),
+        ("s", "path", "top_path", "str"),
+    ]
+
+    # WHERE condition to filter on indices
+    if indices is None:
+        where_cond = ""
+    else:
+        where_cond = f"WHERE a.id IN {list_to_str(indices)}"
+
+    # SELECT
+    select = "SELECT " + ",".join([".".join(col[:2]) for col in cols])
+
+    # form SQLite query
     query = f"""
-        SELECT
-            a.job_id,
-            a.deployment_id,
-            a.file_id,
-            l.sound_source_tag,
-            l.sound_type_tag,
-            lt.sound_source_tag,
-            lt.sound_type_tag,
-            a.tag_id,  
-            a.start_utc,
-            a.duration_ms,
-            a.start_ms,
-            a.freq_min_hz,
-            a.freq_max_hz,
-            a.channel,
-            g.name,
-            a.machine_prediction,
-            a.comments,
-            f.filename,
-            f.relative_path,
-            s.path,
-            a.num_files,
-            a.file_id_list,
-            a.valid,
-            a.ambiguous_label_id
+        {select}
         FROM
             annotation AS a
         LEFT JOIN
@@ -1366,54 +1393,38 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
     """
     rows = c.execute(query).fetchall()
 
-    # reformat JSON entries
-    n_cols = len(rows[0])
-    data = [[] for _ in range(n_cols)]
-    for row in rows:
-        for i,v in enumerate(row):
-            if (i == 7 or i == 21 or i == 23) and v is not None:  #tag, file_id_list, ambiguous_label_id
-                v = json.loads(v)
+    # put data in a Pandas DataFrame
+    annot_tbl = pd.DataFrame(rows)
 
-            data[i].append(v)
+    # set column names
+    annot_tbl.columns = [col[2] for col in cols]
 
-    # collect in a Pandas DataFrame
-    annot_tbl = pd.DataFrame(
-        {
-            "job_id": pd.Series(data[0], dtype="int"),
-            "deployment_id": pd.Series(data[1], dtype="int"),
-            "file_id": pd.Series(data[2], dtype="int"),
-            "sound_source": pd.Series(data[3], dtype="str"),
-            "sound_type": pd.Series(data[4], dtype="str"),
-            "tentative_sound_source": pd.Series(data[5], dtype="str"),
-            "tentative_sound_type": pd.Series(data[6], dtype="str"),
-            "tag_id": pd.Series(data[7], dtype="object"),
-            "start_utc": pd.Series(data[8], dtype="datetime64[ns]"),
-            "duration_ms": pd.Series(data[9], dtype="float").astype("int"),
-            "start_ms": pd.Series(data[10], dtype="float").astype("int"),
-            "freq_min_hz": pd.Series(data[11], dtype="float").astype("int"),
-            "freq_max_hz": pd.Series(data[12], dtype="float").astype("int"),
-            "channel": pd.Series(data[13], dtype="int"),
-            "granularity": pd.Series(data[14], dtype="str"),
-            "machine_prediction": pd.Series(data[15], dtype="object"),
-            "comments": pd.Series(data[16], dtype="str"),
-            "filename": pd.Series(data[17], dtype="str"),
-            "relative_path": pd.Series(data[18], dtype="str"),
-            "top_path": pd.Series(data[19], dtype="str"),
-            "num_files": pd.Series(data[20], dtype="int"),
-            "file_id_list": pd.Series(data[21], dtype="object"),
-            "valid": pd.Series(data[22], dtype="int"),
-            "ambiguous_label_id": pd.Series(data[23], dtype="object"),
-        }
-    )
+    # set dtypes
+    dtypes = {col[2]: col[3] for col in cols}
+    annot_tbl = annot_tbl.astype(dtypes)
 
-    # convert tag IDs to tag names
+    # parse JSON columns
+    for name, dtype in dtypes.items():
+        if dtype == "object":
+            annot_tbl[name] = annot_tbl[name].apply(lambda x: json.loads(x))
+
+    # replace occurences of $USER in file paths with actual username
+    annot_tbl.top_path = annot_tbl.top_path.str.replace("$USER",f"{getpass.getuser()}")
+
+    # temporary fix: replace None with ""
+    annot_tbl = annot_tbl.replace({"None": np.nan})
+
+    # temporary fix: convert 'machine_prediction' column from 'str' to 'object'
+    annot_tbl = annot_tbl.astype({"machine_prediction": "object"})
+
+    # tag ID --> tag name
     rows = c.execute(f"SELECT id,name FROM tag").fetchall()
     tag_map = {row[0]: row[1] for row in rows}
     idx = annot_tbl.tag_id.isna()   
     annot_tbl["tag"] = None
     annot_tbl.loc[~idx, "tag"] = annot_tbl.loc[~idx].tag_id.apply(lambda x: [tag_map[tag_id] for tag_id in x])
 
-    # convert ambiguous label IDs to source/type labels
+    # ambiguous label IDs --> (source,type) labels
     idx = annot_tbl.ambiguous_label_id.isna()   
     annot_tbl["ambiguous_label"] = None
     def lookup_label(label_ids):
@@ -1435,97 +1446,65 @@ def get_annotations(conn, indices=None, ketos=False, tentative=False, top=False,
 
     annot_tbl.loc[~idx, "ambiguous_label"] = annot_tbl.loc[~idx].ambiguous_label_id.apply(lambda x: lookup_label(x))
 
-    if ketos:
-        annot_tbl = _convert_to_ketos(
-            annot_tbl, tentative=tentative, top=top, v3=ketos_v3, conn=conn
-        )
-        return annot_tbl
+    if format == "ketos":
+        annot_tbl = _convert_to_ketos(annot_tbl, label, conn)
 
-    else:
+    elif format == "raven":
+        annot_tbl = _convert_to_raven(annot_tbl, conn)
+
+    elif format == "korus":
         drop_cols = [
-            "filename","relative_path","top_path","num_files","file_id_list","tag_id","ambiguous_label_id"
+            "korus_id","filename","relative_path","top_path","num_files","file_id_list","tag_id","ambiguous_label_id"
         ]
         annot_tbl.drop(columns=drop_cols, inplace=True)
-        return annot_tbl
 
+    return annot_tbl
 
-def _convert_to_ketos(annot_tbl, tentative=False, top=False, v3=False, conn=None):
+def _convert_to_ketos(annot_tbl, label, conn):
     """ Helper function for @get_annotations. Converts annotation table to Ketos-friendly format.
     
-        TODO: Allow for tentative/ambiguous labels to be included in Ketos-formatted return table
-
         Args:
             annot_tbl: Pandas DataFrame
                 Annotation table
-            tentative: bool
-                Whether to use tentative assignments, when available.
-            top: bool
-                Whether to include the path to the top directory in the output table. 
-            v3: bool
-                Use the new Ketos 3.0 format
-            conn: sqlite3.Connection
-                Database connection. Only required if @v3 is True.
+            label: int,str
+                If specified, the returned table will have an extra column named `label` with this value in all rows
 
         Returns:
             annot_tbl: Pandas DataFrame
                 Annotation table in Ketos-friendly format
-            label_map: dict
-                Mapping from integer label to (source,type) label
     """
-    # create 'label' column with int labels 0,1,2,...
-    def _label_fcn(r):
-        tag = r.tag
-        ss = r.sound_source
-        st = r.sound_type
-        if tentative:
-            if r.tentative_sound_source is not None:
-                ss = r.tentative_sound_source
-            if r.tentative_sound_type is not None:
-                st = r.tentative_sound_type
-        if ss is None and st is None and tag is not None:
-            return ";".join(tag) if isinstance(tag, list) else tag 
-        else:
-            return ss + ";" + st
+    c = conn.cursor()
 
-    annot_tbl["label"] = annot_tbl.apply(lambda r: _label_fcn(r), axis=1)
-    unique_labels = annot_tbl.label.unique()
-    label_map = {label: count for count,label in enumerate(unique_labels)}
-    annot_tbl.label = annot_tbl.label.apply(lambda x: label_map[x])
+    # annotation IDs
+    annot_tbl = annot_tbl.rename(columns={"korus_id": "annot_id"})
 
-    if v3:
-        c = conn.cursor()
+    # unfold annotations that span multiple files
+    idx_mf = (annot_tbl.num_files > 1)
+    df = annot_tbl[idx_mf]
+    data = []
+    for idx,row in df.iterrows():
+        remaining_ms = row.duration_ms
+        for j,file_id in enumerate(row.file_id_list):
+            query = f"SELECT num_samples,sample_rate FROM file WHERE id = {file_id}"
+            (num_samples, sample_rate) = c.execute(query).fetchall()[0]
+            file_duration_ms = 1000. * num_samples / sample_rate
+            new_row = row.copy()
+            if j > 0:
+                new_row.start_ms = 0
 
-        # create column to store annotation IDs
-        annot_tbl["annot_id"] = annot_tbl.index.values       
+            new_row.duration_ms = min(remaining_ms, file_duration_ms - new_row.start_ms)
+            new_row.start_utc = row.start_utc + timedelta(microseconds=1E3*(row.duration_ms - remaining_ms))
+            data.append(new_row)
+            remaining_ms -= new_row.duration_ms
 
-        # unfold annotations that span multiple files
-        idx_mf = (annot_tbl.num_files > 1)
-        df = annot_tbl[idx_mf]
-        data = []
-        for idx,row in df.iterrows():
-            remaining_ms = row.duration_ms
-            for j,file_id in enumerate(row.file_id_list):
-                query = f"SELECT num_samples,sample_rate FROM file WHERE id = {file_id}"
-                (num_samples, sample_rate) = c.execute(query).fetchall()[0]
-                file_duration_ms = 1000. * num_samples / sample_rate
-                new_row = row.copy()
-                if j > 0:
-                    new_row.start_ms = 0
+    if len(data) > 0:
+        df_unfolded = pd.DataFrame(data, columns=df.columns)
 
-                new_row.duration_ms = min(remaining_ms, file_duration_ms - new_row.start_ms)
-                new_row.start_utc = row.start_utc + timedelta(microseconds=1E3*(row.duration_ms - remaining_ms))
-                data.append(new_row)
-                remaining_ms -= new_row.duration_ms
+        # re-join with other annotations
+        annot_tbl = pd.concat([annot_tbl[~idx_mf], df_unfolded])
 
-        if len(data) > 0:
-            df_unfolded = pd.DataFrame(data, columns=df.columns)
-
-            # re-join with other annotations
-            annot_tbl = pd.concat([annot_tbl[~idx_mf], df_unfolded])
-
-        # sort
-        annot_tbl.sort_values(by=["annot_id", "start_utc"], inplace=True)
-
+    # sort
+    annot_tbl.sort_values(by=["annot_id", "start_utc"], inplace=True)
 
     # convert ms -> s
     annot_tbl["start"] = annot_tbl.start_ms.astype(float) / 1e3
@@ -1534,22 +1513,112 @@ def _convert_to_ketos(annot_tbl, tentative=False, top=False, v3=False, conn=None
     # rename
     annot_tbl.rename(columns={"freq_min_hz":"freq_min", "freq_max_hz":"freq_max"}, inplace=True)
 
+    # add label
+    if label is not None:
+        annot_tbl["label"] = label
+
     # only keep relevant columns
-    cols = ["annot_id"] if v3 else []
-    cols += ["filename", "relative_path","start","duration","freq_min","freq_max","label","comments"]
-    if top: 
-        cols += ["top_path"]
-    
+    cols = ["annot_id","filename","top_path","relative_path","start","duration","freq_min","freq_max"]
+    if "label" in annot_tbl.columns:
+        cols.append("label")
+        
+    cols.append("comments")
     annot_tbl = annot_tbl[cols]
 
     # use multi-index
-    if v3:
-        annot_tbl.set_index(["annot_id","filename"], inplace=True)
+    annot_tbl.set_index(["annot_id","filename"], inplace=True)
 
-    # invert label_map 
-    label_map = {v:k for k,v in label_map.items()}
+    return annot_tbl
 
-    return annot_tbl, label_map
+
+def _convert_to_raven(annot_tbl, conn):
+    """Helper function for `get_annotations`. Converts annotation table to RavenPro format.
+
+    Args:
+        annot_tbl: Pandas DataFrame
+            Annotation table
+
+    Returns:
+        annot_tbl: Pandas DataFrame
+            Annotation table in Ketos-friendly format
+    """
+    c = conn.cursor()
+
+    # define structure of output csv file
+    data_out = {
+        "Selection": [],
+        "View": [],
+        "Channel": [],
+        "Begin Time (s)": [],
+        "End Time (s)": [],
+        "Low Freq (Hz)": [],
+        "High Freq (Hz)": [],
+        "Delta Time (s)": [],
+        "File Offset (s)": [],
+        "Begin Path": [],
+        "Begin File": [],
+        "Sound Source": [],
+        "Sound Type": [],
+        "Tentative Sound Source": [],
+        "Tentative Sound Type": [],
+        "Ambiguous Label": [],
+        "Tag": [],
+        "Granularity": [],
+        "Korus ID": [],
+        "Comments": [],
+    }
+
+    df_out = pd.DataFrame(data_out)
+
+    # sort
+    annot_tbl = annot_tbl.sort_values(by=["deployment_id", "start_utc"])
+
+    # file cumulative offsets
+    file_ids = annot_tbl.file_id.unique()
+    def file_duration_fcn(file_id):
+        query = f"SELECT num_samples,sample_rate FROM file WHERE id = {file_id}"
+        (num_samples, sample_rate) = c.execute(query).fetchall()[0]
+        return num_samples / sample_rate
+
+    file_dur = [file_duration_fcn(x) for x in file_ids]
+    file_offsets = np.cumsum(file_dur) - file_dur[0]
+    file_offsets_dict = {x: y for x,y in zip(file_ids, file_offsets)}
+    annot_tbl["offset"] = annot_tbl.file_id.apply(lambda x: file_offsets_dict[x])
+
+    # fill data into output dataframe
+    df_out["Low Freq (Hz)"] = annot_tbl.freq_min_hz
+    df_out["High Freq (Hz)"] = annot_tbl.freq_max_hz
+    df_out["Delta Time (s)"] = annot_tbl.duration_ms / 1000.
+    df_out["File Offset (s)"] = annot_tbl.start_ms / 1000.
+    df_out["Begin Time (s)"] = annot_tbl["offset"] + df_out["File Offset (s)"]
+    df_out["End Time (s)"] = annot_tbl["offset"] + df_out["File Offset (s)"] + df_out["Delta Time (s)"]
+    df_out["Begin Path"] = annot_tbl.apply(lambda r: os.path.join(str(r.top_path), str(r.relative_path), r.filename), axis=1)
+    df_out["Begin File"] = annot_tbl.filename
+    df_out["View"] = "Spectrogram"
+    df_out["Channel"] = annot_tbl.channel + 1
+    df_out["Selection"] = np.arange(len(annot_tbl)) + 1
+    df_out["Sound Source"] = annot_tbl.sound_source
+    df_out["Sound Type"] = annot_tbl.sound_type
+    df_out["Tentative Sound Source"] = annot_tbl.tentative_sound_source
+    df_out["Tentative Sound Type"] = annot_tbl.tentative_sound_type
+    df_out["Ambiguous Label"] = annot_tbl.ambiguous_label
+    df_out["Tag"] = annot_tbl.tag
+    df_out["Granularity"] = annot_tbl.granularity
+    df_out["Korus ID"] = annot_tbl.korus_id
+
+    # round to appropriate number of digits
+    df_out = df_out.round(
+        {
+            "Begin Time (s)": 3,
+            "End Time (s)": 3,
+            "Delta Time (s)": 3,
+            "File Offset (s)": 3,
+            "Low Freq (Hz)": 1,
+            "High Freq (Hz)": 1,
+        }
+    )
+
+    return df_out
 
 
 def find_negatives(file_tbl, annot_tbl, max_gap_ms=100, tag_id=1):

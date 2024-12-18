@@ -337,13 +337,18 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
         else:
             return json.loads(x)
     expected.tag = expected.tag.apply(lambda x: _decode_tag(x))
-    pd.testing.assert_frame_equal(annot_tbl, expected)
+    pd.testing.assert_frame_equal(annot_tbl[expected.columns], expected[expected.columns])
 
 
-    indices = kdb.filter_annotation(conn, tag=["NEGATIVE", ktb.AUTO_NEG])
-    df_kt, label_dict = kdb.get_annotations(conn, indices, ketos=True)
+    indices_0 = kdb.filter_annotation(conn, tag="NEGATIVE")
+    indices_1 = kdb.filter_annotation(conn, tag=ktb.AUTO_NEG)
+    df_0 = kdb.get_annotations(conn, indices_0, format="ketos", label=0)
+    df_1 = kdb.get_annotations(conn, indices_1, format="ketos", label=1)
+    df_kt = pd.concat([df_0, df_1])
 
-    assert label_dict == {0: "NEGATIVE", 1: ktb.AUTO_NEG}
+    # temporary fix: reformat to match expectatin
+    df_kt.reset_index(inplace=True)
+    df_kt.drop(columns=["annot_id","top_path"], inplace=True)
 
     path = os.path.join(path_to_assets, "compr-example-test-annot2.csv")
     expected = pd.read_csv(path)

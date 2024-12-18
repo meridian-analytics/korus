@@ -12,6 +12,8 @@ from tqdm import tqdm
 def list_to_str(l):
     """ Transform a list to a string, suitably formatted for forming SQLite queries.
     
+        Example query: `SELECT * FROM y WHERE z IN {list_to_str(x)}`
+
         Args:
             l: list or numpy array
                 List of values
