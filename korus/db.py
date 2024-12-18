@@ -206,7 +206,7 @@ def filter_annotation(
     if granularity is not None:
         rows = c.execute(f"SELECT id FROM granularity WHERE name IN {list_to_str(granularity)}").fetchall()
         gran_ids = [str(row[0]) for row in rows]
-        wc = f"granularity_id.value IN {list_to_str(gran_ids)}"
+        wc = f"granularity_id IN {list_to_str(gran_ids)}"
         where_conditions.append(wc)
 
     # join WHERE conditions together with 'AND' 
