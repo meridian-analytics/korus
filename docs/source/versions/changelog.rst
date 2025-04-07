@@ -1,7 +1,7 @@
 Change log
 ==========
 
-**Version 0.0.11** (Month Day, Year)
+**Version 0.0.11** (April 7, 2025)
 
  * `db.get_annotations` function can export to RavenPro format
  * Changes to output format of `db.get_annotations` function when `format=ketos`
