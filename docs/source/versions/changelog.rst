@@ -1,6 +1,11 @@
 Change log
 ==========
 
+**Version 0.0.11** (April 7, 2025)
+
+ * `db.get_annotations` function can export to RavenPro format
+ * Changes to output format of `db.get_annotations` function when `format=ketos`
+
 **Version 0.0.10** (Dec 12, 2024)
 
  * New `exclude` argument in `db.filter_annotation` function
