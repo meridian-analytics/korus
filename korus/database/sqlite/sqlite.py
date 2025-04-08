@@ -12,11 +12,18 @@ from korus.database.sqlite.interface import (
 
 class SQLiteDatabase(sqlite3.Connection, DatabaseInterface):
     def __init__(self, *args, **kwargs):
+
         # initialize parent classes
         super().__init__(*args, **kwargs)
 
-        # create tables, if they don't already exist
-        tbl.create_file_table(self)
+        # enable foreign keys
+        self.execute("PRAGMA foreign_keys = on")
+
+        # create SQLite tables, if they don't already exist
+        tbl.create_tables(self)
+
+        # commit changes to SQLite database
+        self.commit()
 
         # create interfaces
         self._deployment = SQLiteDeploymentInterface(self)
@@ -24,15 +31,6 @@ class SQLiteDatabase(sqlite3.Connection, DatabaseInterface):
         self._file = SQLiteFileInterface(self)
         self._job = SQLiteJobInterface(self)
         self._storage = SQLiteStorageInterface(self)
-
-        # collect interfaces in a dict for easier access
-        self.interfaces = {
-            "deployment": self.deployment,
-            "annotation": self.annotation,
-            "job": self.job,
-            "file": self.file,
-            "storage": self.storage,
-        }
 
     @property
     def deployment(self) -> SQLiteDeploymentInterface:

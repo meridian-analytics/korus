@@ -62,6 +62,8 @@ class FileInterface(TableInterface):
     def __init__(self):
         super().__init__("file")
 
+        # TODO: could also deduce fields from signature of `add method`? https://stackoverflow.com/a/218709
+
         self._fields = [
             Field("deployment_id", int, None, "Deployment index"),
             Field("storage_id", int, None, "Storage index"),
@@ -73,10 +75,13 @@ class FileInterface(TableInterface):
     @property
     def fields(self) -> list[Field]:
         return self._fields
-
+    
 class JobInterface(TableInterface):
     def __init__(self):
         super().__init__("job")
+
+    def link_file(self, file_id: int):
+        pass
 
 class StorageInterface(TableInterface):
     def __init__(self):
