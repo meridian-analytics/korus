@@ -1,7 +1,7 @@
-import sqlite3
-from korus.database.interface import FileInterface
+import sqlite3 
+from korus.database.interface import AnnotationInterface
 
-class SQLiteFileInterface(FileInterface):
+class SQLiteAnnotationInterface(AnnotationInterface):
     def __init__(self, conn: sqlite3.Connection):
         super().__init__()
         self.conn = conn

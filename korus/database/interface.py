@@ -40,7 +40,7 @@ class TableInterface:
 
         # fields
         field_info = [
-            (c.name, c.type.__name__, c.default, c.description) for c in self.columns
+            (c.name, c.type.__name__, c.default, c.description) for c in self.fields
         ]
         res += "\nFields:\n"
         res += tabulate(
@@ -51,16 +51,12 @@ class TableInterface:
         return res
 
 class DeploymentInterface(TableInterface):
-    pass
+    def __init__(self):
+        super().__init__("deployment")
 
 class AnnotationInterface(TableInterface):
-    pass
-
-class JobInterface(TableInterface):
-    pass
-
-class StorageInterface(TableInterface):
-    pass
+    def __init__(self):
+        super().__init__("annotation")
 
 class FileInterface(TableInterface):
     def __init__(self):
@@ -77,6 +73,14 @@ class FileInterface(TableInterface):
     @property
     def fields(self) -> list[Field]:
         return self._fields
+
+class JobInterface(TableInterface):
+    def __init__(self):
+        super().__init__("job")
+
+class StorageInterface(TableInterface):
+    def __init__(self):
+        super().__init__("storage")
 
 
 class DatabaseInterface:

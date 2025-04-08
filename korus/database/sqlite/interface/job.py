@@ -1,7 +1,7 @@
 import sqlite3
-from korus.database.interface import FileInterface
+from korus.database.interface import JobInterface
 
-class SQLiteFileInterface(FileInterface):
+class SQLiteJobInterface(JobInterface):
     def __init__(self, conn: sqlite3.Connection):
         super().__init__()
         self.conn = conn

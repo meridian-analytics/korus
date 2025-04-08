@@ -19,11 +19,11 @@ class SQLiteDatabase(sqlite3.Connection, DatabaseInterface):
         tbl.create_file_table(self)
 
         # create interfaces
-        self._deployment = None
-        self._annotation = None
-        self._file = SQLiteFileInterface()
-        self._job = None
-        self._storage = None
+        self._deployment = SQLiteDeploymentInterface(self)
+        self._annotation = SQLiteAnnotationInterface(self)
+        self._file = SQLiteFileInterface(self)
+        self._job = SQLiteJobInterface(self)
+        self._storage = SQLiteStorageInterface(self)
 
         # collect interfaces in a dict for easier access
         self.interfaces = {
