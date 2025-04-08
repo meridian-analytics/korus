@@ -14,3 +14,5 @@ def test_create_database():
 
     db = SQLiteDatabase(path)
 
+    print(db.file)
+

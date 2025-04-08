@@ -1,3 +1,4 @@
+import inspect
 from dataclasses import dataclass
 from tabulate import tabulate
 
@@ -9,6 +10,32 @@ class Field:
     default: 'typing.Any'
     description: str
 
+
+def _create_field_definitions(arg_spec: inspect.FullArgSpec, descriptions: list[str]):
+    """ Helper function for creating field definitions for table interfaces.
+    
+    Args:
+        arg_spec: inspect.FullArgSpec
+            Names, types, and default values of the parameters of the table interface's `add` method
+            obtained using the `inspect` package's `fullargspec` function
+        descriptions: list[str]
+            Parameter descriptions. 
+
+    Returns:
+        fields: list[Field]
+            Field definitions
+    """
+    n_fields = len(arg_spec.args)
+    n_defaults = 0 if arg_spec.defaults is None else len(arg_spec.defaults)
+    fields = []
+    for i,name in enumerate(arg_spec.args[1:]):
+        j = n_defaults - n_fields + i
+        default = None if j < 0 else arg_spec.defaults[j]
+        typ = arg_spec.annotations[name]
+        fields.append(Field(name, typ, default, descriptions[i]))
+
+    return fields
+                      
 
 class TableInterface:
     def __init__(self, name: str):
@@ -62,20 +89,32 @@ class FileInterface(TableInterface):
     def __init__(self):
         super().__init__("file")
 
-        # TODO: could also deduce fields from signature of `add method`? https://stackoverflow.com/a/218709
+        arg_spec = inspect.getfullargspec(FileInterface.add)
 
-        self._fields = [
-            Field("deployment_id", int, None, "Deployment index"),
-            Field("storage_id", int, None, "Storage index"),
-            Field("filename", str, None, "Filename"),
-            Field("relative_path", str, None, "Directory path"),
-            Field("sample_rate", int, None, "Sampling rate in Hz"),
+        descriptions = [
+            "Deployment index",
+            "Storage index",
+            "Filename",
+            "Directory path",
+            "Sampling rate in Hz"
         ]
+
+        self._fields = _create_field_definitions(arg_spec, descriptions)
 
     @property
     def fields(self) -> list[Field]:
         return self._fields
     
+    def add(
+        self, 
+        deployment_id: int,
+        storage_id: int,
+        filename: str,
+        relative_path: str,
+        sample_rate: str,
+    ):
+        pass
+
 class JobInterface(TableInterface):
     def __init__(self):
         super().__init__("job")
