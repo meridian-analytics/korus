@@ -1,7 +1,7 @@
 import sqlite3
-from korus.database.interface import DatabaseInterface
+from korus.database import DatabaseInterface
 import korus.database.sqlite.table as tbl
-from korus.database.sqlite.interface import (
+from .interface import (
     SQLiteDeploymentInterface,
     SQLiteAnnotationInterface,
     SQLiteFileInterface,

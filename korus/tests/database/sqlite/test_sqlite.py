@@ -16,3 +16,11 @@ def test_create_database():
 
     print(db.file)
 
+    db.file.add(
+        deployment_id = 1,
+        storage_id = 2,
+        filename = "xyz.wav",
+        relative_path = "a/b/c",
+        sample_rate = 96000,        
+    )
+
