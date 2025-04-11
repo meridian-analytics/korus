@@ -4,6 +4,22 @@ from tabulate import tabulate
 
 @dataclass
 class FieldDefinition:
+    """ Definition of a field in a Korus table interface.
+
+    Fields must have one of the following Python types:
+
+        bool,str,int,float, TODO: OTHERS?
+    
+    Attrs:
+        name: str
+            The name of the field
+        type: type
+            The field Python type. 
+        default: same as type (optional)
+            The field default value
+        description: str
+            Short, human-readable description of the data stored in this field
+    """
     name: str 
     type: type
     default: 'typing.Any'
@@ -11,6 +27,7 @@ class FieldDefinition:
 
 
 def _create_field_definitions(row_type, descriptions):
+    """ Helper function for creating field definitions"""
     definitions = []
     for field in fields(row_type):
         default = None if field.default == MISSING else field.default
@@ -22,30 +39,46 @@ def _create_field_definitions(row_type, descriptions):
 
 
 class TableInterface:
+    """ Base class for all Korus table interfaces.
+    
+    Table interfaces define how users interact with the database, e.g., 
+    adding data to the database or retrieving data from it.
+
+    Args:
+        name: str
+            The table interface name
+    """
     def __init__(self, name: str):
         self.name = name
 
     @property
     def fields(self) -> list[FieldDefinition]:
-        pass
+        """ The definitions of the table's fields"""
+        raise NotImplementedError("Must be implemented in child class")
 
     def filter(self):
-        #search
-        pass
+        """ Search the table"""
+        raise NotImplementedError("Must be implemented in child class")
 
     def get(self):
-        #retrive entries
-        pass
+        """ Retrieve data from the table"""
+        raise NotImplementedError("Must be implemented in child class")
 
     def add(self):
-        #add a new entry
-        pass
+        """ Add data to the table """
+        raise NotImplementedError("Must be implemented in child class")
 
     def __iter__(self):
-        # iterates through the table rows
-        pass
+        """ Iterate through the table """
+        raise NotImplementedError("Must be implemented in child class")
 
     def __str__(self) -> str:
+        """ Nicely formatted summary of the table definition
+
+        Returns:
+            res: str
+                Table summary
+        """
         # table name
         res = f"Table name: {self.name}"
 
@@ -60,3 +93,5 @@ class TableInterface:
         )
         
         return res
+
+

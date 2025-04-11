@@ -3,12 +3,18 @@ from dataclasses import dataclass
 
 @dataclass
 class FileRow:
+    """ Row format of the File Table Interface.
+    
+    Used for passing data between the table interface and the database backend.
+    """
     deployment_id: int
     storage_id: int
     filename: str
     relative_path: str
     sample_rate: int
 
+""" Human-readable, descriptions of the field in the FileRow definition
+"""
 _field_descriptions = {
     "deployment_id": "Deployment index",
     "storage_id": "Storage index",
@@ -18,6 +24,10 @@ _field_descriptions = {
 }
 
 class FileInterface(TableInterface):
+    """ Defines the interface of the File Table.
+    
+    
+    """
     def __init__(self):
         super().__init__("file")
 
@@ -25,6 +35,7 @@ class FileInterface(TableInterface):
 
     @property
     def fields(self) -> list[FieldDefinition]:
+        """ The definitions of the table's fields"""
         return self._fields
     
     def add(
@@ -36,6 +47,7 @@ class FileInterface(TableInterface):
         sample_rate: str,
         **kwargs,
     ) -> int:
+        # collect submitted data in a FileRow 
         row = FileRow(
             deployment_id,
             storage_id,
@@ -43,16 +55,19 @@ class FileInterface(TableInterface):
             relative_path,
             sample_rate,
         )
+        # and pass it to the backend
         return self._add_row(row, **kwargs)
 
     def _add_row(row: FileRow, **kwargs) -> int:
-        pass
+        """ Insert row of data into the database """
+        raise NotImplementedError("Must be implemented in child class")
 
     def get(self, indices=None, fields=None, as_dataframe=False, **kwargs):
         return self._get_rows(indices, fields, **kwargs)
 
     def _get_rows(indices=None, fields=None, **kwargs) -> list[FileRow]:
-        pass
+        """ Retrieve rows of data from the database """
+        raise NotImplementedError("Must be implemented in child class")
 
     def filter(self):
         pass
