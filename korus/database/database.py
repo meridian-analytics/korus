@@ -3,29 +3,24 @@ from .interface.annotation import AnnotationInterface
 from .interface.file import FileInterface
 from .interface.job import JobInterface
 from .interface.storage import StorageInterface
+from .backend.sqlite import SQLiteBackend
 
 
 class DatabaseInterface:
-    @property
-    def deployment(self) -> DeploymentInterface:
-        pass
-
-    @property
-    def annotation(self) -> AnnotationInterface:
-        pass
-
-    @property
-    def file(self) -> FileInterface:
-        pass
-
-    @property
-    def job(self) -> JobInterface:
-        pass
-
-    @property
-    def storage(self) -> StorageInterface:
-        pass
+    def __init__(self):
+        self.deployment = DeploymentInterface()
+        self.annotation = AnnotationInterface()
+        self.file = FileInterface()
+        self.job = JobInterface()
+        self.storage = StorageInterface()
 
     def __str__(self):
-        """Prints a pretty summary of the database structure"""
+        """Prints a pretty schematic of the database interface"""
         pass
+
+
+class SQLiteDatabase(SQLiteBackend, DatabaseInterface):
+    
+    def __init__(self):
+        super().__init__()
+

@@ -28,9 +28,10 @@ class FileInterface(TableInterface):
     
     
     """
-    def __init__(self):
+    def __init__(self, backend):
         super().__init__("file")
 
+        self.backend = backend
         self._fields = _create_field_definitions(FileRow, _field_descriptions)
 
     @property
@@ -56,18 +57,18 @@ class FileInterface(TableInterface):
             sample_rate,
         )
         # and pass it to the backend
-        return self._add_row(row, **kwargs)
+        return self.backend.add(row, **kwargs)
 
-    def _add_row(row: FileRow, **kwargs) -> int:
-        """ Insert row of data into the database """
-        raise NotImplementedError("Must be implemented in child class")
+#    def _add_row(row: FileRow, **kwargs) -> int:
+#        """ Insert row of data into the database """
+#        raise NotImplementedError("Must be implemented in child class")
 
     def get(self, indices=None, fields=None, as_dataframe=False, **kwargs):
-        return self._get_rows(indices, fields, **kwargs)
+        return self.backend.get(indices, fields, **kwargs)
 
-    def _get_rows(indices=None, fields=None, **kwargs) -> list[FileRow]:
-        """ Retrieve rows of data from the database """
-        raise NotImplementedError("Must be implemented in child class")
+#    def _get_rows(indices=None, fields=None, **kwargs) -> list[FileRow]:
+#        """ Retrieve rows of data from the database """
+#        raise NotImplementedError("Must be implemented in child class")
 
     def filter(self):
         pass
