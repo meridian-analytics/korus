@@ -6,6 +6,16 @@ class FileRow:
     """ Row format of the File Table Interface.
     
     Used for passing data between the table interface and the database backend.
+
+    To add fields, create a subclass like so,
+
+    >>> from korus.database.interface import FileRow
+    >>> class MyFileRow(FileRow):
+    >>>     my_new_field: str
+
+    And make sure your backend is able to handle this new field, i.e., knows 
+    how to insert it into the database and retrieve it.
+
     """
     deployment_id: int
     storage_id: int
