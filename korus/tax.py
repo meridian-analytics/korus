@@ -10,6 +10,16 @@ import korus.db as kdb
 import korus.db_util.table as ktb
 
 
+'''
+TODO: refactor as
+ taxonomy/
+    tree
+    taxonomy
+    acoustic
+    versioned/manifold...
+'''
+
+
 class Taxonomy(ktr.KTree):
     """ Class for managing annotation taxonomies with a tree-like 
         structure where every child nodes has precisely one parent 
