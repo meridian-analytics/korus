@@ -1,84 +1,16 @@
-from .interface import FieldDefinition, TableInterface, _create_field_definitions
-from dataclasses import dataclass
+from .interface import TableInterface
 
-@dataclass
-class FileRow:
-    """ Row format of the File Table Interface.
-    
-    Used for passing data between the table interface and the database backend.
-
-    To add fields, create a subclass like so,
-
-    >>> from korus.database.interface import FileRow
-    >>> class MyFileRow(FileRow):
-    >>>     my_new_field: str
-
-    And make sure your backend is able to handle this new field, i.e., knows 
-    how to insert it into the database and retrieve it.
-
-    """
-    deployment_id: int
-    storage_id: int
-    filename: str
-    relative_path: str
-    sample_rate: int
-
-""" Human-readable, descriptions of the field in the FileRow definition
-"""
-_field_descriptions = {
-    "deployment_id": "Deployment index",
-    "storage_id": "Storage index",
-    "filename": "Filename",
-    "relative_path": "Directory path",
-    "sample_rate": "Sampling rate in Hz",
-}
 
 class FileInterface(TableInterface):
     """ Defines the interface of the File Table.
-    
-    
+        
     """
     def __init__(self, backend):
-        super().__init__("file")
+        super().__init__("file", backend)
 
-        self.backend = backend
-        self._fields = _create_field_definitions(FileRow, _field_descriptions)
+        self.add_field("deployment_id", int, "Deployment index")
+        self.add_field("storage_id", int, "Storage index")
+        self.add_field("filename", str, "Filename")
+        self.add_field("relative_path", str, "Directory path")
+        self.add_field("sample_rate", int, "Sampling rate in Hz")
 
-    @property
-    def fields(self) -> list[FieldDefinition]:
-        """ The definitions of the table's fields"""
-        return self._fields
-    
-    def add(
-        self, 
-        deployment_id: int,
-        storage_id: int,
-        filename: str,
-        relative_path: str,
-        sample_rate: str,
-        **kwargs,
-    ) -> int:
-        # collect submitted data in a FileRow 
-        row = FileRow(
-            deployment_id,
-            storage_id,
-            filename,
-            relative_path,
-            sample_rate,
-        )
-        # and pass it to the backend
-        return self.backend.add(row, **kwargs)
-
-#    def _add_row(row: FileRow, **kwargs) -> int:
-#        """ Insert row of data into the database """
-#        raise NotImplementedError("Must be implemented in child class")
-
-    def get(self, indices=None, fields=None, as_dataframe=False, **kwargs):
-        return self.backend.get(indices, fields, **kwargs)
-
-#    def _get_rows(indices=None, fields=None, **kwargs) -> list[FileRow]:
-#        """ Retrieve rows of data from the database """
-#        raise NotImplementedError("Must be implemented in child class")
-
-    def filter(self):
-        pass

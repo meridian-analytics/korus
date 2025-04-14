@@ -1,20 +1,42 @@
-class Backend:
-    @property
-    def deployment_backend(self):
-        pass
+from korus.util import not_impl_err_msg
+
+
+class TableBackend():
+    def get(self):
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "get"))
+
+    def add(self):
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "add"))
+
+    def set(self):
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "set"))
+
+    def filter(self):
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
+
+
+class DatabaseBackend:
 
     @property
-    def annotation_backend(self):
-        pass
+    def deployment(self) -> TableBackend:
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "deployment"))
 
     @property
-    def file_backend(self):
-        pass
+    def annotation(self) -> TableBackend:
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "annotation"))
 
     @property
-    def job_backend(self):
-        pass
+    def file(self) -> TableBackend:
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "file"))
 
     @property
-    def storage_backend(self):
-        pass    
+    def job(self) -> TableBackend:
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "job"))
+
+    @property
+    def storage(self) -> TableBackend:
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "storage"))
+
+    @property
+    def taxonomy(self) -> TableBackend:
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "taxonomy"))

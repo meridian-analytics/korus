@@ -1,1 +1,1 @@
-from .database import DatabaseInterface
+from .database import SQLiteDatabase

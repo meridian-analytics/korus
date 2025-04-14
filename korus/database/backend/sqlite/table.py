@@ -1,3 +1,24 @@
+from .helpers import insert_row, fetch_row, encode_row, decode_row
+
+class SQLiteTableBackend():
+    def __init__(self, conn, name):
+        self.conn = conn
+        self.name = name
+
+    def add(self, row):
+        insert_row(self.conn, self.name, encode_row(row))
+
+    def set(self):
+        pass
+
+    def filter(self):
+        pass
+
+    def get(self, indices=None):
+        fetch_row(self.conn, self.name, indices)        
+
+    
+    
 def table_exists(conn, name):
     c = conn.cursor()
     query = f"""
