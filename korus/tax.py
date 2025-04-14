@@ -16,7 +16,12 @@ TODO: refactor as
     tree
     taxonomy
     acoustic
-    versioned/manifold...
+    versioned
+
+    create new TaxonomyVersions class for handling label crosswalks:
+
+    class TaxonomyVersions:
+        def __init__(self, versions: list[Taxonomy])
 '''
 
 
