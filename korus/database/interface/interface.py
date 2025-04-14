@@ -1,5 +1,6 @@
-from dataclasses import dataclass, fields, MISSING
+from dataclasses import dataclass
 from tabulate import tabulate
+from korus.util import not_impl_err_msg
 
 
 @dataclass
@@ -15,27 +16,15 @@ class FieldDefinition:
             The name of the field
         type: type
             The field Python type. 
-        default: same as type (optional)
-            The field default value
         description: str
             Short, human-readable description of the data stored in this field
+        default: same as type (optional)
+            The field default value
     """
     name: str 
     type: type
-    default: 'typing.Any'
     description: str
-
-
-def _create_field_definitions(row_type, descriptions):
-    """ Helper function for creating field definitions"""
-    definitions = []
-    for field in fields(row_type):
-        default = None if field.default == MISSING else field.default
-        definitions.append(FieldDefinition(
-            field.name, field.type, default, descriptions[field.name]
-        ))
-
-    return definitions
+    default: 'typing.Any'
 
 
 class TableInterface:
@@ -47,30 +36,63 @@ class TableInterface:
     Args:
         name: str
             The table interface name
+        backend: 
     """
-    def __init__(self, name: str):
+    def __init__(self, name: str, backend):
         self.name = name
+        self.backend = backend
+        self._fields = []
 
     @property
     def fields(self) -> list[FieldDefinition]:
         """ The definitions of the table's fields"""
-        raise NotImplementedError("Must be implemented in child class")
+        return self._fields
+    
+    @property
+    def fields_asdict(self) -> dict[str, FieldDefinition]:
+        """ The definitions of the table's fields as a dict"""
+        return {field.name: field for field in self._fields}
+        
+    def add_field(self, name, type, description, default=None):
+        self._fields.append(FieldDefinition(name, type, description, default))
+
+    def _validate_data(self, row):
+        validated = self.fields_asdict.copy()
+        validated.update(row)
+
+        for k,v in validated.items():
+            fields = self.fields_asdict
+            assert k in fields, f"Invalid field name `{k}`"
+
+            f = fields[k]
+            if v is None:
+                assert f.default is None, f"A value must be specified for the field `{k}`"
+
+                validated[k] = f.default
+
+            assert isinstance(v, f.type), f"Field `{k}` expects input of type `{f.type.__name__}`"
+
+        return validated             
+
+    def add(self, row):
+        """ Add data to the table """
+        self.backend.add(self._validate_data(row))
+
+    def set(self, idx, row):
+        """ Modify an existing entry in the table """
+        self.backend.set(idx, self._validate_data(row))
 
     def filter(self):
         """ Search the table"""
-        raise NotImplementedError("Must be implemented in child class")
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
 
-    def get(self):
+    def get(self, indices=None, fields=None):
         """ Retrieve data from the table"""
-        raise NotImplementedError("Must be implemented in child class")
-
-    def add(self):
-        """ Add data to the table """
-        raise NotImplementedError("Must be implemented in child class")
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "get"))
 
     def __iter__(self):
         """ Iterate through the table """
-        raise NotImplementedError("Must be implemented in child class")
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "__iter__"))
 
     def __str__(self) -> str:
         """ Nicely formatted summary of the table definition
