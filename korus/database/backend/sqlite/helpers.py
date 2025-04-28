@@ -1,6 +1,7 @@
 import json
-import datetime
 import numpy as np
+from .table import encoding_rules, decoding_rules
+
 
 def to_str(x):
     """ Transform the input to a string, suitably formatted for forming SQLite queries.
@@ -23,49 +24,51 @@ def to_str(x):
 
     return "(" + ",".join([f"'{v}'" for v in x]) + ")"
 
-def encode_field(v):
-    if v is None:
+
+def encode_field(table_name, col_name, value):
+    if value is None:
+        return None
+    
+    key = (table_name, col_name)
+    if key in encoding_rules:
+        return encoding_rules[key](value)
+
+    if isinstance(value, (int,float)):
+        return f"{value}"
+
+    elif isinstance(value, (tuple,list,dict)):
+        return json.dumps(value)
+    
+    else:
+        return value
+
+
+def decode_field(table_name, col_name, value):
+    if value is None:
         return None
 
-    elif isinstance(v, bool):
-        return 1 if v else 0
-    
-    elif isinstance(v, str):
-        return v
-    
-    elif isinstance(v, (int,float)):
-        return f"{v}"
-    
-    elif isinstance(v, datetime.datetime):
-        return v.strftime("%Y-%m-%d %H:%M:%S.%f")
+    key = (table_name, col_name)
+    if key in decoding_rules:
+        return decoding_rules[key](value)
 
-    elif isinstance(v, (tuple,list,dict)):
-        return json.dumps(v)
+    return value
 
-def encode_row(row):
-    if isinstance(row, dict):
-        return {k: encode_field(v) for k,v in row.items() if v is not None}
-    
-    elif isinstance(row, (tuple,list)):
-        encoded_row = [encode_field(v) for v in row]
-        if isinstance(row, tuple):
-            encoded_row = tuple(encoded_row)
 
-        return encoded_row
+def get_column_names(conn, table_name):
+    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    return [row[1] for row in rows]
 
-def decode_field(v):
-    return v
 
-def decode_row(row):
-    if isinstance(row, dict):
-        return {k: decode_field(v) for k,v in row.items()}
-    
-    elif isinstance(row, (tuple,list)):
-        decoded_row = [decode_field(v) for v in row]
-        if isinstance(row, tuple):
-            decoded_row = tuple(decoded_row)
+def row_asdict(fields, row):
+    return {k: v for k,v in zip(fields, row)}
+                                       
 
-        return decoded_row
+def encode_row(table_name, row):
+    return {k: encode_field(table_name, k, v) for k,v in row.items() if v is not None}
+
+
+def decode_row(table_name, row):
+    return {k: decode_field(table_name, k, v) for k,v in row.items()}
 
 
 def fetch_row(conn, table_name, indices=None, fields=None):
@@ -85,6 +88,12 @@ def fetch_row(conn, table_name, indices=None, fields=None):
         q += f" WHERE id IN {to_str(indices)}"
 
     rows = c.execute(q).fetchall()
+
+    # preserve ordering
+    if indices is not None and np.ndim(indices) > 0:
+        idx = np.argsort(np.argsort(indices))
+        rows = [rows[i] for i in idx]
+
     return rows
 
 def insert_row(conn, table_name, row):

@@ -29,7 +29,7 @@ def test_sqlite_backend(minimal_sqlite_backend):
         relative_path = "h\\i\\j",
         sample_rate = 4000,
         num_samples = 40000,
-        start_utc = datetime(2024, 1, 24, 6, 0, 0)
+        start_utc = datetime(2024, 1, 24, 6, 0, 0, tzinfo=timezone.utc)
     )
 
     db.file.add(row1)
@@ -41,18 +41,28 @@ def test_sqlite_backend(minimal_sqlite_backend):
     # there should be 3 rows (because the database came pre-populated with a single row)
     assert len(rows) == 3
 
+    # we can retrieve data for a single field
     rows = db.file.get(fields="sample_rate")
     assert len(rows) == 3
     assert len(rows[0]) == 1
     assert rows[1][0] == row1["sample_rate"]
     assert rows[2][0] == row2["sample_rate"]
 
+    # we can retrieve data for multiple fields
     rows = db.file.get(fields=["sample_rate", "start_utc"])
-    print(rows)
+    assert len(rows[0]) == 2
+    assert rows[1][1] == row1["start_utc"]
+    assert rows[2][1] == row2["start_utc"]
 
-    rows = db.file.get(indices=1, fields="sample_rate")
-    print(rows)
+    # we can select a single row
+    rows = db.file.get(indices=2, fields=["id", "sample_rate"])
+    assert len(rows) == 1
+    assert rows[0][0] == 2
+    assert rows[0][1] == row1["sample_rate"]
 
-    rows = db.file.get(indices=[2, 1], fields="sample_rate")
-    print(rows)
+    # row ordering is preserved when fetching multiple rows
+    rows = db.file.get(indices=[3, 2], fields=["id", "sample_rate"])
+    assert len(rows) == 2
+    assert rows[0][0] == 3
+    assert rows[0][1] == row2["sample_rate"]
 

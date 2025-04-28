@@ -1,6 +1,36 @@
 import sqlite3
-from korus.database.backend import DatabaseBackend
-from .table import create_tables, SQLiteTableBackend
+from korus.database.backend import DatabaseBackend, TableBackend
+from .table import create_tables
+import korus.database.backend.sqlite.helpers as help
+
+
+class SQLiteTableBackend(TableBackend):
+    def __init__(self, conn, name):
+        self.conn = conn
+        self.name = name
+
+    def add(self, row):
+        help.insert_row(self.conn, self.name, help.encode_row(self.name, row))
+        self.conn.commit()
+
+    def set(self):
+        pass
+
+    def filter(self):
+        pass
+
+    def get(self, indices=None, fields=None):
+        rows = help.fetch_row(self.conn, self.name, indices, fields)
+        if fields is None:
+            fields = help.get_column_names(self.conn, self.name)
+
+        rows = [help.decode_row(self.name, help.row_asdict(fields, row)) for row in rows]
+        return [tuple(list(row.values())) for row in rows]
+
+    def add_field(self, name, type, description, default=None):
+        """ OBS: only works for TEXT/INT/REAL types with default encoding/decoding"""
+        help.add_column(self.conn, self.name, name, type, help.encode_field(default))
+        self.conn.commit()
 
 
 class SQLiteBackend(DatabaseBackend, sqlite3.Connection):

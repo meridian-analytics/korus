@@ -1,31 +1,24 @@
-from korus.database.backend import TableBackend
-import korus.database.backend.sqlite.helpers as help
-
-class SQLiteTableBackend(TableBackend):
-    def __init__(self, conn, name):
-        self.conn = conn
-        self.name = name
-
-    def add(self, row):
-        help.insert_row(self.conn, self.name, help.encode_row(row))
-        self.conn.commit()
-
-    def set(self):
-        pass
-
-    def filter(self):
-        pass
-
-    def get(self, indices=None, fields=None):
-        rows = help.fetch_row(self.conn, self.name, indices, fields)
-        return [help.decode_row(row) for row in rows]
-
-    def add_field(self, name, type, description, default=None):
-        help.add_column(self.conn, self.name, name, type, help.encode_field(default))
-        self.conn.commit()
-
+from datetime import datetime, timezone
     
+encoding_rules = dict()
+decoding_rules = dict()
+
+def add_encoding_rule(table_name, col_name, fcn):
+    encoding_rules[(table_name, col_name)] = fcn
+
+def add_decoding_rule(table_name, col_name, fcn):
+    decoding_rules[(table_name, col_name)] = fcn
+
+
+datetime_fmt = "%Y-%m-%d %H:%M:%S.%f"
+
+def encode_datetime(v):
+    return v.strftime(datetime_fmt)
+
+def decode_datetime(v):
+    return datetime.strptime(v, datetime_fmt).replace(tzinfo=timezone.utc)
     
+
 def table_exists(conn, name):
     c = conn.cursor()
     query = f"""
@@ -42,7 +35,7 @@ def table_exists(conn, name):
     results = c.execute(query).fetchall()
     return len(results) > 0
 
-    
+
 def create_tables(conn):
     """ Create all tables """
     create_annotation_table(conn)
@@ -304,6 +297,10 @@ def create_file_table(conn):
             )
         """
     c.execute(tbl_def)
+
+    # create encoding & decoding rules
+    add_encoding_rule("file", "start_utc", encode_datetime)
+    add_decoding_rule("file", "start_utc", decode_datetime)
 
     # create indices for faster queries
     c.execute("""
