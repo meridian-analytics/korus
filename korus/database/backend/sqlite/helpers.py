@@ -57,10 +57,6 @@ def decode_field(table_name, col_name, value):
 def get_column_names(conn, table_name):
     rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
     return [row[1] for row in rows]
-
-
-def row_asdict(fields, row):
-    return {k: v for k,v in zip(fields, row)}
                                        
 
 def encode_row(table_name, row):
@@ -71,7 +67,7 @@ def decode_row(table_name, row):
     return {k: decode_field(table_name, k, v) for k,v in row.items()}
 
 
-def fetch_row(conn, table_name, indices=None, fields=None):
+def fetch_row(conn, table_name, indices=None, fields=None, as_dict=False):
     c = conn.cursor()
 
     if isinstance(fields, str):
@@ -93,6 +89,12 @@ def fetch_row(conn, table_name, indices=None, fields=None):
     if indices is not None and np.ndim(indices) > 0:
         idx = np.argsort(np.argsort(indices))
         rows = [rows[i] for i in idx]
+
+    if as_dict:
+        if fields is None:
+            fields = get_column_names(conn, table_name)
+
+        rows = [{k: v for k,v in zip(fields, row)} for row in rows]
 
     return rows
 

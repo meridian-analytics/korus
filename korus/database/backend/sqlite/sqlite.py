@@ -20,11 +20,8 @@ class SQLiteTableBackend(TableBackend):
         pass
 
     def get(self, indices=None, fields=None):
-        rows = help.fetch_row(self.conn, self.name, indices, fields)
-        if fields is None:
-            fields = help.get_column_names(self.conn, self.name)
-
-        rows = [help.decode_row(self.name, help.row_asdict(fields, row)) for row in rows]
+        rows = help.fetch_row(self.conn, self.name, indices, fields, as_dict=True)
+        rows = [help.decode_row(self.name, row) for row in rows]
         return [tuple(list(row.values())) for row in rows]
 
     def add_field(self, name, type, description, default=None):
