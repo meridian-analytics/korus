@@ -1,12 +1,14 @@
-from .helpers import insert_row, fetch_row, encode_row, decode_row
+from korus.database.backend import TableBackend
+import korus.database.backend.sqlite.helpers as help
 
-class SQLiteTableBackend():
+class SQLiteTableBackend(TableBackend):
     def __init__(self, conn, name):
         self.conn = conn
         self.name = name
 
     def add(self, row):
-        insert_row(self.conn, self.name, encode_row(row))
+        help.insert_row(self.conn, self.name, help.encode_row(row))
+        self.conn.commit()
 
     def set(self):
         pass
@@ -15,7 +17,12 @@ class SQLiteTableBackend():
         pass
 
     def get(self, indices=None, fields=None):
-        fetch_row(self.conn, self.name, indices, fields)        
+        rows = help.fetch_row(self.conn, self.name, indices, fields)
+        return [help.decode_row(row) for row in rows]
+
+    def add_field(self, name, type, description, default=None):
+        help.add_column(self.conn, self.name, name, type, help.encode_field(default))
+        self.conn.commit()
 
     
     
@@ -282,7 +289,7 @@ def create_file_table(conn):
                 deployment_id INTEGER NOT NULL,
                 storage_id INTEGER NOT NULL,
                 filename TEXT NOT NULL,
-                relative_path TEXT NOT NULL,
+                relative_path TEXT NOT NULL DEFAULT '',
                 sample_rate INTEGER NOT NULL,
                 num_samples INTEGER NOT NULL,
                 downsample TEXT,

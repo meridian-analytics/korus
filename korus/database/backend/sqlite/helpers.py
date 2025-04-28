@@ -24,7 +24,10 @@ def to_str(x):
     return "(" + ",".join([f"'{v}'" for v in x]) + ")"
 
 def encode_field(v):
-    if isinstance(v, bool):
+    if v is None:
+        return None
+
+    elif isinstance(v, bool):
         return 1 if v else 0
     
     elif isinstance(v, str):
@@ -34,24 +37,50 @@ def encode_field(v):
         return f"{v}"
     
     elif isinstance(v, datetime.datetime):
-        return v.strftime("%Y%m%dT%H%M%S.%f")
+        return v.strftime("%Y-%m-%d %H:%M:%S.%f")
 
     elif isinstance(v, (tuple,list,dict)):
         return json.dumps(v)
 
 def encode_row(row):
-    return {k: encode_field(v) for k,v in row.items() if v is not None}
+    if isinstance(row, dict):
+        return {k: encode_field(v) for k,v in row.items() if v is not None}
+    
+    elif isinstance(row, (tuple,list)):
+        encoded_row = [encode_field(v) for v in row]
+        if isinstance(row, tuple):
+            encoded_row = tuple(encoded_row)
+
+        return encoded_row
 
 def decode_field(v):
     return v
 
 def decode_row(row):
-    return {k: decode_field(v) for k,v in row.items()}
+    if isinstance(row, dict):
+        return {k: decode_field(v) for k,v in row.items()}
+    
+    elif isinstance(row, (tuple,list)):
+        decoded_row = [decode_field(v) for v in row]
+        if isinstance(row, tuple):
+            decoded_row = tuple(decoded_row)
+
+        return decoded_row
+
 
 def fetch_row(conn, table_name, indices=None, fields=None):
     c = conn.cursor()
 
-    q = f"SELECT {to_str(fields)} FROM {table_name}"
+    if isinstance(fields, str):
+        fields = [fields]
+
+    if fields is None:
+        fields_str = "*"
+    else:
+        fields_str = ",".join(fields)
+
+    q = f"SELECT {fields_str} FROM {table_name}"
+
     if indices is not None:
         q += f" WHERE id IN {to_str(indices)}"
 
@@ -99,3 +128,10 @@ def insert_row(conn, table_name, row):
     ) 
 
     return c
+
+def add_column(conn, table_name, col_name, col_type, default_value):
+    q = f"ALTER TABLE {table_name} ADD COLUMN {col_name} TEXT"
+    if default_value is not None:
+        q += f" DEFAULT '{default_value}'"
+
+    conn.execute(q)

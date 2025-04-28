@@ -1,1 +1,1 @@
-from .backend import DatabaseBackend
+from .backend import DatabaseBackend, TableBackend

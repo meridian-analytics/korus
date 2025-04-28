@@ -8,17 +8,13 @@ path_to_assets = os.path.join(file_dir, "..", "..", "..", "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
-def test_sqlite_backend():
-    path = os.path.join(path_to_tmp, "test.sqlite")
-    if os.path.exists(path):
-        os.remove(path)
-
-    db = SQLiteBackend(path)
+def test_sqlite_backend(minimal_sqlite_backend):
+    db = minimal_sqlite_backend
 
     # insert two rows of data into the file table
     row1 = dict(
         deployment_id = 1,
-        storage_id = 2,
+        storage_id = 1,
         filename = "xyz.wav",
         relative_path = "a/b/c",
         sample_rate = 96000,
@@ -27,10 +23,10 @@ def test_sqlite_backend():
     )
 
     row2 = dict(
-        deployment_id = 2,
-        storage_id = 3,
+        deployment_id = 1,
+        storage_id = 1,
         filename = "ZYX.FLAC",
-        relative_path = "h\i\j",
+        relative_path = "h\\i\\j",
         sample_rate = 4000,
         num_samples = 40000,
         start_utc = datetime(2024, 1, 24, 6, 0, 0)
@@ -40,20 +36,23 @@ def test_sqlite_backend():
     db.file.add(row2)
 
     # retrieve the data again
-    rows = db.get()
+    rows = db.file.get()
+
+    # there should be 3 rows (because the database came pre-populated with a single row)
+    assert len(rows) == 3
+
+    rows = db.file.get(fields="sample_rate")
+    assert len(rows) == 3
+    assert len(rows[0]) == 1
+    assert rows[1][0] == row1["sample_rate"]
+    assert rows[2][0] == row2["sample_rate"]
+
+    rows = db.file.get(fields=["sample_rate", "start_utc"])
     print(rows)
 
-    rows = db.get(fields="sample_rate")
+    rows = db.file.get(indices=1, fields="sample_rate")
     print(rows)
 
-    rows = db.get(fields=["sample_rate", "start_utc"])
+    rows = db.file.get(indices=[2, 1], fields="sample_rate")
     print(rows)
 
-    rows = db.get(indices=1, fields="sample_rate")
-    print(rows)
-
-    rows = db.get(indices=[2, 1], fields="sample_rate")
-    print(rows)
-
-    # close connection to database
-    db.close()

@@ -12,16 +12,29 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
 @pytest.fixture
-def basic_sqlite_backend():
-    """ Yields an SQLite database backend with every table populated with a single entry"""
+def minimal_sqlite_backend():
+    """ Yields an SQLite database backend with every table populated with a single entry 
+        where only the required fields have non-null values.
+
+        TODO: finish implemeting this fixture
+    """
     path = os.path.join(path_to_tmp, "test.sqlite")
     if os.path.exists(path):
         os.remove(path)
 
     db = SQLiteBackend(path)
 
-    #db.deployment.add()
-    #db.storage.add()
+    db.deployment.add({"name": "MyDeployment"})
+    db.storage.add({"name": "MyFileStorage"})
+    db.file.add({
+        "deployment_id": 1,
+        "storage_id": 1,
+        "filename": "xyz.wav",
+        "sample_rate": 96000,
+        "num_samples": 960000,
+    })
+
+    yield db
 
     db.close()
     if os.path.exists(path):

@@ -13,7 +13,10 @@ class TableBackend():
 
     def filter(self):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
-
+    
+    def add_field(self, name, type, description, default=None):
+        pass
+        
 
 class DatabaseBackend:
 
