@@ -1,39 +1,5 @@
-from datetime import datetime, timezone
-    
-encoding_rules = dict()
-decoding_rules = dict()
-
-def add_encoding_rule(table_name, col_name, fcn):
-    encoding_rules[(table_name, col_name)] = fcn
-
-def add_decoding_rule(table_name, col_name, fcn):
-    decoding_rules[(table_name, col_name)] = fcn
-
-
-datetime_fmt = "%Y-%m-%d %H:%M:%S.%f"
-
-def encode_datetime(v):
-    return v.strftime(datetime_fmt)
-
-def decode_datetime(v):
-    return datetime.strptime(v, datetime_fmt).replace(tzinfo=timezone.utc)
-    
-
-def table_exists(conn, name):
-    c = conn.cursor()
-    query = f"""
-        SELECT 
-            name 
-        FROM 
-            sqlite_master 
-        WHERE 
-            type='table' 
-        AND 
-            name='{name}'
-    
-    """
-    results = c.execute(query).fetchall()
-    return len(results) > 0
+import korus.database.backend.sqlite.encode as enc
+from korus.database.backend.sqlite.helpers import table_exists
 
 
 def create_tables(conn):
@@ -299,8 +265,8 @@ def create_file_table(conn):
     c.execute(tbl_def)
 
     # create encoding & decoding rules
-    add_encoding_rule("file", "start_utc", encode_datetime)
-    add_decoding_rule("file", "start_utc", decode_datetime)
+    enc.add_encoding_rule("file", "start_utc", enc.encode_datetime)
+    enc.add_decoding_rule("file", "start_utc", enc.decode_datetime)
 
     # create indices for faster queries
     c.execute("""

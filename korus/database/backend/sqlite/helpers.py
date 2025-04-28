@@ -1,6 +1,4 @@
-import json
 import numpy as np
-from .table import encoding_rules, decoding_rules
 
 
 def to_str(x):
@@ -25,46 +23,26 @@ def to_str(x):
     return "(" + ",".join([f"'{v}'" for v in x]) + ")"
 
 
-def encode_field(table_name, col_name, value):
-    if value is None:
-        return None
+def table_exists(conn, name):
+    c = conn.cursor()
+    query = f"""
+        SELECT 
+            name 
+        FROM 
+            sqlite_master 
+        WHERE 
+            type='table' 
+        AND 
+            name='{name}'
     
-    key = (table_name, col_name)
-    if key in encoding_rules:
-        return encoding_rules[key](value)
-
-    if isinstance(value, (int,float)):
-        return f"{value}"
-
-    elif isinstance(value, (tuple,list,dict)):
-        return json.dumps(value)
-    
-    else:
-        return value
-
-
-def decode_field(table_name, col_name, value):
-    if value is None:
-        return None
-
-    key = (table_name, col_name)
-    if key in decoding_rules:
-        return decoding_rules[key](value)
-
-    return value
+    """
+    results = c.execute(query).fetchall()
+    return len(results) > 0
 
 
 def get_column_names(conn, table_name):
     rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
     return [row[1] for row in rows]
-                                       
-
-def encode_row(table_name, row):
-    return {k: encode_field(table_name, k, v) for k,v in row.items() if v is not None}
-
-
-def decode_row(table_name, row):
-    return {k: decode_field(table_name, k, v) for k,v in row.items()}
 
 
 def fetch_row(conn, table_name, indices=None, fields=None, as_dict=False):
