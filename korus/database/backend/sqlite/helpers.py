@@ -1,3 +1,28 @@
+import json
+import datetime
+import numpy as np
+
+def to_str(x):
+    """ Transform the input to a string, suitably formatted for forming SQLite queries.
+    
+        Example query: `SELECT * FROM y WHERE z IN {list_to_str(x)}`
+
+        Args:
+            x:
+                The input 
+
+        Returns:
+            : str
+                String
+    """
+    if x is None:
+        return "*"
+    
+    if np.ndim(x) == 0:
+        x = [x]
+
+    return "(" + ",".join([f"'{v}'" for v in x]) + ")"
+
 def encode_field(v):
     if isinstance(v, bool):
         return 1 if v else 0
@@ -8,11 +33,11 @@ def encode_field(v):
     elif isinstance(v, (int,float)):
         return f"{v}"
     
-    #TODO:
-    #-datetime
-    #-list
-    #-dict
-    #-tuple
+    elif isinstance(v, datetime.datetime):
+        return v.strftime("%Y%m%dT%H%M%S.%f")
+
+    elif isinstance(v, (tuple,list,dict)):
+        return json.dumps(v)
 
 def encode_row(row):
     return {k: encode_field(v) for k,v in row.items() if v is not None}
@@ -23,10 +48,15 @@ def decode_field(v):
 def decode_row(row):
     return {k: decode_field(v) for k,v in row.items()}
 
+def fetch_row(conn, table_name, indices=None, fields=None):
+    c = conn.cursor()
 
-def fetch_row(conn, table_name, indices=None):
-    pass
+    q = f"SELECT {to_str(fields)} FROM {table_name}"
+    if indices is not None:
+        q += f" WHERE id IN {to_str(indices)}"
 
+    rows = c.execute(q).fetchall()
+    return rows
 
 def insert_row(conn, table_name, row):
     """ Insert a row of values into a table in the database.
@@ -63,6 +93,7 @@ def insert_row(conn, table_name, row):
     if has_id:
         col_names = "id," + col_names
         val_str = "NULL," + val_str
+
     c.execute(
         f"INSERT INTO {table_name} ({col_names}) VALUES ({val_str})", list(row.values())
     ) 

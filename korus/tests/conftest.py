@@ -5,9 +5,27 @@ import pandas as pd
 from datetime import datetime, timedelta
 import korus.tax as kx
 import korus.db as kdb
+from korus.database.backend.sqlite import SQLiteBackend
 
 path_to_assets = os.path.join(os.path.dirname(__file__), "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
+
+
+@pytest.fixture
+def basic_sqlite_backend():
+    """ Yields an SQLite database backend with every table populated with a single entry"""
+    path = os.path.join(path_to_tmp, "test.sqlite")
+    if os.path.exists(path):
+        os.remove(path)
+
+    db = SQLiteBackend(path)
+
+    #db.deployment.add()
+    #db.storage.add()
+
+    db.close()
+    if os.path.exists(path):
+        os.remove(path)
 
 
 @pytest.fixture

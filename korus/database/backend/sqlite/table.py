@@ -14,8 +14,8 @@ class SQLiteTableBackend():
     def filter(self):
         pass
 
-    def get(self, indices=None):
-        fetch_row(self.conn, self.name, indices)        
+    def get(self, indices=None, fields=None):
+        fetch_row(self.conn, self.name, indices, fields)        
 
     
     
