@@ -1,4 +1,31 @@
 import numpy as np
+from korus.database.backend import TableBackend
+
+
+class SQLiteTableBackend(TableBackend):
+    def __init__(self, conn, name, codec):
+        self.conn = conn
+        self.name = name
+        self.codec = codec
+
+    def add(self, row):
+        insert_row(self.conn, self.name, self.codec.encode(row, self.name))
+        self.conn.commit()
+
+    def set(self):
+        pass
+
+    def filter(self):
+        pass
+
+    def get(self, indices=None, fields=None):
+        rows = fetch_row(self.conn, self.name, indices, fields, as_dict=True)
+        rows = [self.codec.decode(row, self.name) for row in rows]
+        return [tuple(list(row.values())) for row in rows]
+
+    def add_field(self, name, type, description, default=None):
+        add_column(self.conn, self.name, name, type, self.codec.encode(default))
+        self.conn.commit()
 
 
 def to_str(x):
