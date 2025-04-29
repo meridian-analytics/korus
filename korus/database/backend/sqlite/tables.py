@@ -1,4 +1,3 @@
-import korus.database.backend.sqlite.encode as enc
 from korus.database.backend.sqlite.helpers import table_exists
 
 
@@ -263,10 +262,6 @@ def create_file_table(conn):
             )
         """
     c.execute(tbl_def)
-
-    # create encoding & decoding rules
-    enc.add_encoding_rule("file", "start_utc", enc.encode_datetime)
-    enc.add_decoding_rule("file", "start_utc", enc.decode_datetime)
 
     # create indices for faster queries
     c.execute("""
