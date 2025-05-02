@@ -67,3 +67,6 @@ def test_add_get_set_data(in_memory_table_backend):
     # test that we can iterate over the rows
     rows = [row for row in iter(i)]
     assert rows == [(2, t1), (3, t0)]
+
+    # check that we can create a string summary
+    str(i)

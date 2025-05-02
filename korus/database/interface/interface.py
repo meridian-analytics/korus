@@ -198,12 +198,12 @@ class TableInterface:
 
         # fields
         field_info = [
-            (c.name, c.type.__name__, c.default, c.description) for c in self.fields
+            (c.name, c.type.__name__, c.description, c.default, "Y" if c.required else "N") for c in self.fields
         ]
         res += "\nFields:\n"
         res += tabulate(
             field_info,
-            headers = ["Name", "Type", "Default Value", "Description"]
+            headers = ["Name", "Type", "Description", "Default Value", "Required"]
         )
         
         return res
