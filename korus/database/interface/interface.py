@@ -20,11 +20,14 @@ class FieldDefinition:
             Short, human-readable description of the data stored in this field
         default: same as type (optional)
             The field default value
+        required: bool
+            True if the field is required to have a non-null value. False otherwise
     """
     name: str 
     type: type
     description: str
     default: 'typing.Any'
+    required: bool = True
 
 
 class TableInterface:
@@ -43,6 +46,7 @@ class TableInterface:
         self.name = name
         self.backend = backend
         self._fields = []
+        self._index = 0
 
     @property
     def fields(self) -> list[FieldDefinition]:
@@ -60,6 +64,7 @@ class TableInterface:
         type: 'typing.Any', 
         description: str, 
         default: 'typing.Any' = None,
+        required: bool = True,
     ):
         """ Add a field to the table interface
         
@@ -72,9 +77,11 @@ class TableInterface:
                 Short, human-readable description of the data stored in this field
             default: same as type (optional)
                 The field default value
+        required: bool
+            True if the field is required to have a non-null value. False otherwise
         """
-        self._fields.append(FieldDefinition(name, type, description, default))
-        self.backend.add_field(name, type, description, default)
+        self._fields.append(FieldDefinition(name, type, description, default, required))
+        self.backend.add_field(name, type, description, default, required)
 
     def _validate_data(self, row: dict, replace: dict = None):
         """ Helper function for validating input data and replacing missing fields.
@@ -90,21 +97,23 @@ class TableInterface:
             validated: dict
                 The validated data, with missing fields replaced.            
         """
+        # replace missing values with provided replacement values or default values
         validated = {k: v.default for k,v in self.fields_asdict.items()}
         if replace is not None:
             validated.update(replace)
     
         validated.update(row)
 
+        # check for valid field names, valid types, and that required fields have non-null values
         for k,v in validated.items():
             fields = self.fields_asdict
             assert k in fields, f"Invalid field name `{k}`"
 
             f = fields[k]
             if v is None:
-                assert f.default is not None, f"A value must be specified for `{k}`"
+                assert not f.required, f"A value must be specified for `{k}`"
 
-                validated[k] = f.default
+                validated[k] = v
 
             else:
                 assert isinstance(v, f.type), f"Field `{k}` expects input of type `{f.type.__name__}` but input has type `{type(v).__name__}`"
@@ -144,7 +153,9 @@ class TableInterface:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
 
     def get(self, indices: int | list[int] = None, fields: str | list[str] = None):
-        """ Retrieve data from the table
+        """ Retrieve data from the table.
+
+        Note that the method always returns a list, even when only a single index is specified.
         
         Args:
             indices: int | list[int]
@@ -157,10 +168,23 @@ class TableInterface:
                 The data
         """
         return self.backend.get(indices, fields)
+    
+    def __len__(self) -> int:
+        """ Number of rows in the table"""
+        return len(self.backend)
 
     def __iter__(self):
         """ Iterate through the table """
-        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "__iter__"))
+        return self
+    
+    def __next__(self):
+        """ Get the next row from the table """
+        if self._index >= len(self):
+            raise StopIteration
+
+        row = self.get(self._index)[0]
+        self._index += 1
+        return row
 
     def __str__(self) -> str:
         """ Nicely formatted summary of the table definition

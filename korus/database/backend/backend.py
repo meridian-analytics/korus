@@ -2,21 +2,31 @@ from korus.util import not_impl_err_msg
 
 
 class TableBackend():
-    def get(self):
+    def get(self, indices: int | list[int] = None, fields: str | list[str] = None):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "get"))
 
-    def add(self):
+    def add(self, row: dict):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "add"))
 
-    def set(self):
+    def set(self, idx: int, row: dict):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "set"))
 
-    def filter(self):
+    def filter(self, *args, **kwargs):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
     
-    def add_field(self, name, type, description, default=None):
-        pass
-        
+    def add_field(
+        self, 
+        name: str, 
+        type: 'typing.Any', 
+        description: str, 
+        default: 'typing.Any' = None,
+        required: bool = True,
+    ):
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "add_field"))
+
+    def __len__(self):
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "__len__"))
+            
 
 class DatabaseBackend:
 

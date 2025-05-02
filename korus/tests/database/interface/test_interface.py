@@ -23,7 +23,7 @@ def test_add_get_set_data(in_memory_table_backend):
 
     i.add_field("A", int, "a test field", default=None)
 
-    # AssertionError is raised when required field is missing
+    # AssertionError is raised when required field is missing and has null default value
     row = dict()
     with pytest.raises(AssertionError):
         i.add(row)
@@ -40,7 +40,7 @@ def test_add_get_set_data(in_memory_table_backend):
     t0 = datetime(2022, 12, 2)
     i.add_field("B", datetime, "another test field", default=t0)
 
-    # no AssertionError raised when field as default value
+    # no AssertionError raised when field has a non-null default value
     i.add(row)
 
     # retrieve all data
@@ -62,4 +62,8 @@ def test_add_get_set_data(in_memory_table_backend):
 
     # retrieve all data and check that values have been updated
     rows = i.get()
+    assert rows == [(2, t1), (3, t0)]
+
+    # test that we can iterate over the rows
+    rows = [row for row in iter(i)]
     assert rows == [(2, t1), (3, t0)]

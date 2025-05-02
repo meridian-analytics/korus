@@ -21,6 +21,9 @@ def in_memory_table_backend():
             self.rows = []
             self.fields = []
 
+        def __len__(self):
+            return len(self.rows)
+
         def get(self, indices=None, fields=None):
             if len(self.rows) == 0:
                 return []
@@ -48,7 +51,7 @@ def in_memory_table_backend():
         def filter(self, *args, **kwargs):
             pass
         
-        def add_field(self, name, type, description, default):
+        def add_field(self, name, type, description, default=None, required=True):
             self.fields.append(name)
 
     yield InMemoryTableBackend()
