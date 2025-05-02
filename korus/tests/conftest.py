@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import korus.tax as kx
 import korus.db as kdb
+from korus.database.backend import TableBackend
 from korus.database.backend.sqlite import SQLiteBackend
 
 path_to_assets = os.path.join(os.path.dirname(__file__), "assets")
@@ -13,7 +14,8 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 @pytest.fixture
 def dummy_backend():
-    class DummyTableBackend():
+    """ Dummy TableBackend with do-nothing implementation for get/add/set/etc. methods"""
+    class DummyTableBackend(TableBackend):
         def get(self, *args, **kwargs):
             pass
 

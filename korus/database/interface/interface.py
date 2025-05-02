@@ -9,7 +9,7 @@ class FieldDefinition:
 
     Fields must have one of the following Python types:
 
-        bool,str,int,float, TODO: OTHERS?
+        bool,str,int,float,datetime
     
     Attrs:
         name: str
@@ -36,7 +36,8 @@ class TableInterface:
     Args:
         name: str
             The table interface name
-        backend: 
+        backend: korus.database.backend.TableBackend
+            The table backend, connecting the interface to the underlying database
     """
     def __init__(self, name: str, backend):
         self.name = name
@@ -53,11 +54,45 @@ class TableInterface:
         """ The definitions of the table's fields as a dict"""
         return {field.name: field for field in self._fields}
         
-    def add_field(self, name, type, description, default=None):
+    def add_field(
+        self, 
+        name: str, 
+        type: 'typing.Any', 
+        description: str, 
+        default: 'typing.Any' = None,
+    ):
+        """ Add a field to the table interface
+        
+        Args:
+            name: str
+                The field's name
+            type: Any
+                The field's type 
+            description: str
+                Short, human-readable description of the data stored in this field
+            default: same as type (optional)
+                The field default value
+        """
         self._fields.append(FieldDefinition(name, type, description, default))
 
-    def _validate_data(self, row):
+    def _validate_data(self, row: dict, replace: dict = None):
+        """ Helper function for validating input data and replacing missing fields.
+        
+        Args:
+            row: dict
+                The input data to be validated
+            replace: dict
+                Values to replace missing fields. Overwrites the individual fields' 
+                default values.
+
+        Returns:
+            validated: dict
+                The validated data, with missing fields replaced.            
+        """
         validated = {k: v.default for k,v in self.fields_asdict.items()}
+        if replace is not None:
+            validated.update(replace)
+    
         validated.update(row)
 
         for k,v in validated.items():
@@ -75,20 +110,49 @@ class TableInterface:
 
         return validated             
 
-    def add(self, row):
-        """ Add data to the table """
+    def add(self, row: dict):
+        """ Add an entry to the table 
+        
+        Args:
+            row: dict
+                Input data in the form of a dict, where the keys are the field names
+                and the values are the values to be added to the database.
+        """
         self.backend.add(self._validate_data(row))
 
-    def set(self, idx, row):
-        """ Modify an existing entry in the table """
-        self.backend.set(idx, self._validate_data(row))
+    def set(self, idx: int, row: dict):
+        """ Modify an existing entry in the table 
+        
+        Args:
+            idx: int
+                Row index
+            row: dict
+                New data to replace the existing data
+        """
+        self.backend.set(idx, self._validate_data(row), self.get(idx))
 
     def filter(self):
-        """ Search the table"""
+        """ Search the table
+        
+        Returns:
+            indices: list[int]
+                The indices of the rows matching the search criteria
+        """
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
 
-    def get(self, indices=None, fields=None):
-        """ Retrieve data from the table"""
+    def get(self, indices: int | list[int] = None, fields: str | list[str] = None):
+        """ Retrieve data from the table
+        
+        Args:
+            indices: int | list[int]
+                The indices of the entries to be returned. If None, all entries in the table are returned.
+            fields: str | list[str]
+                The fields to be returned. If None, all fields are returned.
+
+        Returns:
+            : list[tuple]
+                The data
+        """
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "get"))
 
     def __iter__(self):
