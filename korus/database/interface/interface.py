@@ -74,6 +74,7 @@ class TableInterface:
                 The field default value
         """
         self._fields.append(FieldDefinition(name, type, description, default))
+        self.backend.add_field(name, type, description, default)
 
     def _validate_data(self, row: dict, replace: dict = None):
         """ Helper function for validating input data and replacing missing fields.
@@ -153,7 +154,7 @@ class TableInterface:
             : list[tuple]
                 The data
         """
-        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "get"))
+        return self.backend.get(indices, fields)
 
     def __iter__(self):
         """ Iterate through the table """

@@ -1,6 +1,7 @@
 import os
 import pytest
 import json
+import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 import korus.tax as kx
@@ -13,25 +14,44 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
 @pytest.fixture
-def dummy_backend():
-    """ Dummy TableBackend with do-nothing implementation for get/add/set/etc. methods"""
-    class DummyTableBackend(TableBackend):
-        def get(self, *args, **kwargs):
-            pass
+def in_memory_table_backend():
+    """ Instance of TableBackend that stores data in memory"""
+    class InMemoryTableBackend(TableBackend):
+        def __init__(self):
+            self.rows = []
+            self.fields = []
 
-        def add(self, *args, **kwargs):
-            pass
+        def get(self, indices=None, fields=None):
+            if len(self.rows) == 0:
+                return []
 
-        def set(self, *args, **kwargs):
-            pass
+            if indices is None:
+                indices = [i for i in range(len(self.rows))]
+
+            if fields is None:
+                fields = self.fields
+
+            if np.ndim(indices) == 0:
+                indices = [indices]
+
+            if np.ndim(fields) == 0:
+                fields = [fields]
+
+            return [tuple([row.get(field,None) for field in fields]) for idx,row in enumerate(self.rows) if idx in indices]
+
+        def add(self, row):
+            self.rows.append(row)
+
+        def set(self, idx, row):
+            self.rows[idx] = row
 
         def filter(self, *args, **kwargs):
             pass
         
-        def add_field(self, *args, **kwargs):
-            pass
+        def add_field(self, name, type, description, default):
+            self.fields.append(name)
 
-    yield DummyTableBackend()
+    yield InMemoryTableBackend()
 
 
 @pytest.fixture

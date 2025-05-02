@@ -17,9 +17,9 @@ def test_create_a_field_definition():
     assert c.default == 0
 
 
-def test_add_data(dummy_backend):
-    """ Check that we can add data to a TableInterface instance"""
-    i = itf.interface.TableInterface("test_interface", dummy_backend)
+def test_add_get_set_data(in_memory_table_backend):
+    """ Check that we can add data to, retrieve data from, and modify data in a TableInterface instance"""
+    i = itf.interface.TableInterface("test_interface", in_memory_table_backend)
 
     i.add_field("A", int, "a test field", default=None)
 
@@ -37,7 +37,20 @@ def test_add_data(dummy_backend):
     row["A"] = 2
     i.add(row)
 
-    i.add_field("B", datetime, "another test field", default=datetime(2022, 12, 2))
+    t0 = datetime(2022, 12, 2)
+    i.add_field("B", datetime, "another test field", default=t0)
 
     # no AssertionError raised when field as default value
     i.add(row)
+
+    # retrieve all data
+    rows = i.get()
+    assert rows == [(2, None), (2, t0)]
+
+    # retrieve only the 2nd entry
+    rows = i.get(indices=1)
+    assert rows == [(2, t0)]
+
+    # retrieve only the 2nd field
+    rows = i.get(fields="B")
+    assert rows == [(None,), (t0,)]
