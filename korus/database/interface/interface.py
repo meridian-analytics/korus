@@ -57,7 +57,7 @@ class TableInterface:
         self._fields.append(FieldDefinition(name, type, description, default))
 
     def _validate_data(self, row):
-        validated = self.fields_asdict.copy()
+        validated = {k: v.default for k,v in self.fields_asdict.items()}
         validated.update(row)
 
         for k,v in validated.items():
@@ -66,11 +66,12 @@ class TableInterface:
 
             f = fields[k]
             if v is None:
-                assert f.default is None, f"A value must be specified for the field `{k}`"
+                assert f.default is not None, f"A value must be specified for `{k}`"
 
                 validated[k] = f.default
 
-            assert isinstance(v, f.type), f"Field `{k}` expects input of type `{f.type.__name__}`"
+            else:
+                assert isinstance(v, f.type), f"Field `{k}` expects input of type `{f.type.__name__}` but input has type `{type(v).__name__}`"
 
         return validated             
 

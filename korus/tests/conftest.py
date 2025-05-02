@@ -12,6 +12,27 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
 @pytest.fixture
+def dummy_backend():
+    class DummyTableBackend():
+        def get(self, *args, **kwargs):
+            pass
+
+        def add(self, *args, **kwargs):
+            pass
+
+        def set(self, *args, **kwargs):
+            pass
+
+        def filter(self, *args, **kwargs):
+            pass
+        
+        def add_field(self, *args, **kwargs):
+            pass
+
+    yield DummyTableBackend()
+
+
+@pytest.fixture
 def minimal_sqlite_backend():
     """ Yields an SQLite database backend with every table populated with a single entry 
         where only the required fields have non-null values.

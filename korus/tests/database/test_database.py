@@ -1,4 +1,6 @@
 import os
+import pytest
+from datetime import datetime
 from korus.database import SQLiteDatabase
 
 
@@ -14,15 +16,13 @@ def test_create_database():
 
     db = SQLiteDatabase(path)
 
-    print(db.file)
-
     row = dict(
         deployment_id = 1,
         storage_id = 2,
         filename = "xyz.wav",
         relative_path = "a/b/c",
-        sample_rate = 96000,        
+        sample_rate = 96000,
     )
 
-    db.file.add(row)
-
+    with pytest.raises(AssertionError):
+        db.file.add(row)
