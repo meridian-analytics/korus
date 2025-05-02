@@ -130,7 +130,9 @@ class TableInterface:
             row: dict
                 New data to replace the existing data
         """
-        self.backend.set(idx, self._validate_data(row), self.get(idx))
+        current_values = self.get(idx)[0]
+        replace = {field.name: value for field,value in zip(self.fields, current_values)}
+        self.backend.set(idx, self._validate_data(row, replace))
 
     def filter(self):
         """ Search the table
