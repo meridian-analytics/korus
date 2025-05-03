@@ -5,17 +5,17 @@ from korus.util import not_impl_err_msg
 
 @dataclass
 class FieldDefinition:
-    """ Definition of a field in a Korus table interface.
+    """Definition of a field in a Korus table interface.
 
     Fields must have one of the following Python types:
 
         bool,str,int,float,datetime
-    
+
     Attrs:
         name: str
             The name of the field
         type: type
-            The field Python type. 
+            The field Python type.
         description: str
             Short, human-readable description of the data stored in this field
         default: same as type (optional)
@@ -23,17 +23,18 @@ class FieldDefinition:
         required: bool
             True if the field is required to have a non-null value. False otherwise
     """
-    name: str 
+
+    name: str
     type: type
     description: str
-    default: 'typing.Any'
+    default: "typing.Any"
     required: bool = True
 
 
 class TableInterface:
-    """ Base class for all Korus table interfaces.
-    
-    Table interfaces define how users interact with the database, e.g., 
+    """Base class for all Korus table interfaces.
+
+    Table interfaces define how users interact with the database, e.g.,
     adding data to the database or retrieving data from it.
 
     Args:
@@ -42,6 +43,7 @@ class TableInterface:
         backend: korus.database.backend.TableBackend
             The table backend, connecting the interface to the underlying database
     """
+
     def __init__(self, name: str, backend):
         self.name = name
         self.backend = backend
@@ -50,62 +52,62 @@ class TableInterface:
 
     @property
     def fields(self) -> list[FieldDefinition]:
-        """ The definitions of the table's fields"""
+        """The definitions of the table's fields"""
         return self._fields
-    
+
     @property
     def fields_asdict(self) -> dict[str, FieldDefinition]:
-        """ The definitions of the table's fields as a dict"""
+        """The definitions of the table's fields as a dict"""
         return {field.name: field for field in self._fields}
-        
+
     def add_field(
-        self, 
-        name: str, 
-        type: 'typing.Any', 
-        description: str, 
-        default: 'typing.Any' = None,
+        self,
+        name: str,
+        type: "typing.Any",
+        description: str,
+        default: "typing.Any" = None,
         required: bool = True,
     ):
-        """ Add a field to the table interface
-        
+        """Add a field to the table interface.
+
         Args:
             name: str
                 The field's name
             type: Any
-                The field's type 
+                The field's type
             description: str
                 Short, human-readable description of the data stored in this field
             default: same as type (optional)
                 The field default value
-        required: bool
-            True if the field is required to have a non-null value. False otherwise
+            required: bool
+                True if the field is required to have a non-null value. False otherwise
         """
         self._fields.append(FieldDefinition(name, type, description, default, required))
         self.backend.add_field(name, type, description, default, required)
 
     def _validate_data(self, row: dict, replace: dict = None):
-        """ Helper function for validating input data and replacing missing fields.
-        
+        """Helper function for validating input data and replacing missing fields.
+
         Args:
             row: dict
                 The input data to be validated
             replace: dict
-                Values to replace missing fields. Overwrites the individual fields' 
+                Values to replace missing fields. Overwrites the individual fields'
                 default values.
 
         Returns:
             validated: dict
-                The validated data, with missing fields replaced.            
+                The validated data, with missing fields replaced.
         """
         # replace missing values with provided replacement values or default values
-        validated = {k: v.default for k,v in self.fields_asdict.items()}
+        validated = {k: v.default for k, v in self.fields_asdict.items()}
         if replace is not None:
             validated.update(replace)
-    
+
         validated.update(row)
 
         # check for valid field names, valid types, and that required fields have non-null values
-        for k,v in validated.items():
+        for k, v in validated.items():
             fields = self.fields_asdict
             assert k in fields, f"Invalid field name `{k}`"
 
@@ -116,13 +118,15 @@ class TableInterface:
                 validated[k] = v
 
             else:
-                assert isinstance(v, f.type), f"Field `{k}` expects input of type `{f.type.__name__}` but input has type `{type(v).__name__}`"
+                assert isinstance(
+                    v, f.type
+                ), f"Field `{k}` expects input of type `{f.type.__name__}` but input has type `{type(v).__name__}`"
 
-        return validated             
+        return validated
 
     def add(self, row: dict):
-        """ Add an entry to the table 
-        
+        """Add an entry to the table
+
         Args:
             row: dict
                 Input data in the form of a dict, where the keys are the field names
@@ -131,8 +135,8 @@ class TableInterface:
         self.backend.add(self._validate_data(row))
 
     def set(self, idx: int, row: dict):
-        """ Modify an existing entry in the table 
-        
+        """Modify an existing entry in the table
+
         Args:
             idx: int
                 Row index
@@ -140,12 +144,14 @@ class TableInterface:
                 New data to replace the existing data
         """
         current_values = self.get(idx)[0]
-        replace = {field.name: value for field,value in zip(self.fields, current_values)}
+        replace = {
+            field.name: value for field, value in zip(self.fields, current_values)
+        }
         self.backend.set(idx, self._validate_data(row, replace))
 
     def filter(self):
-        """ Search the table
-        
+        """Search the table
+
         Returns:
             indices: list[int]
                 The indices of the rows matching the search criteria
@@ -153,10 +159,10 @@ class TableInterface:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
 
     def get(self, indices: int | list[int] = None, fields: str | list[str] = None):
-        """ Retrieve data from the table.
+        """Retrieve data from the table.
 
         Note that the method always returns a list, even when only a single index is specified.
-        
+
         Args:
             indices: int | list[int]
                 The indices of the entries to be returned. If None, all entries in the table are returned.
@@ -168,17 +174,17 @@ class TableInterface:
                 The data
         """
         return self.backend.get(indices, fields)
-    
+
     def __len__(self) -> int:
-        """ Number of rows in the table"""
+        """Number of rows in the table"""
         return len(self.backend)
 
     def __iter__(self):
-        """ Iterate through the table """
+        """Iterate through the table"""
         return self
-    
+
     def __next__(self):
-        """ Get the next row from the table """
+        """Get the next row from the table"""
         if self._index >= len(self):
             raise StopIteration
 
@@ -187,7 +193,7 @@ class TableInterface:
         return row
 
     def __str__(self) -> str:
-        """ Nicely formatted summary of the table definition
+        """Nicely formatted summary of the table definition
 
         Returns:
             res: str
@@ -198,14 +204,19 @@ class TableInterface:
 
         # fields
         field_info = [
-            (c.name, c.type.__name__, c.description, c.default, "Y" if c.required else "N") for c in self.fields
+            (
+                c.name,
+                c.type.__name__,
+                c.description,
+                c.default,
+                "Y" if c.required else "N",
+            )
+            for c in self.fields
         ]
         res += "\nFields:\n"
         res += tabulate(
             field_info,
-            headers = ["Name", "Type", "Description", "Default Value", "Required"]
+            headers=["Name", "Type", "Description", "Default Value", "Required"],
         )
-        
+
         return res
-
-

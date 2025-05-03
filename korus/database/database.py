@@ -7,7 +7,7 @@ from .backend import DatabaseBackend
 from .backend.sqlite import SQLiteBackend
 
 
-class Database():
+class Database:
 
     def __init__(self, backend: DatabaseBackend):
         self.backend = backend
@@ -19,8 +19,7 @@ class Database():
         self.storage = StorageInterface(self.backend.storage)
 
 
-
 class SQLiteDatabase(Database):
-    
+
     def __init__(self, path: str):
         super().__init__(SQLiteBackend(path))

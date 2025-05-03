@@ -1,49 +1,81 @@
 import numpy as np
+import sqlite3
 from korus.database.backend import TableBackend
+from korus.database.backend.sqlite.encode import Codec, get_sqlite_type
 
 
 class SQLiteTableBackend(TableBackend):
-    def __init__(self, conn, name, codec):
+    """Generic SQLite table backend.
+
+    Args:
+        conn: sqlite3.Connection
+            The database connection
+        name: str
+            The table name
+        codec: korus.database.backend.sqlite.encode.Codec
+            Encoder-decoder for inserting and retrieving data from the database
+    """
+
+    def __init__(self, conn: sqlite3.Connection, name: str, codec: Codec):
         self.conn = conn
         self.name = name
         self.codec = codec
 
-    def add(self, row):
+    def add(self, row: dict):
         insert_row(self.conn, self.name, self.codec.encode(row, self.name))
         self.conn.commit()
 
-    def set(self):
-        pass
+    def set(self, idx: int, row: dict):
+        raise NotImplementedError()
+        # TODO: implement this method
 
-    def filter(self):
-        pass
-
-    def get(self, indices=None, fields=None):
+    def get(self, indices: int | list[int] = None, fields: str | list[str] = None):
         rows = fetch_row(self.conn, self.name, indices, fields, as_dict=True)
         rows = [self.codec.decode(row, self.name) for row in rows]
         return [tuple(list(row.values())) for row in rows]
 
-    def add_field(self, name, type, description, default=None):
-        add_column(self.conn, self.name, name, type, self.codec.encode(default))
+    def add_field(
+        self,
+        name: str,
+        type: "typing.Any",
+        description: str,
+        default: "typing.Any" = None,
+        required: bool = True,
+    ):
+        sqlite_type = get_sqlite_type(type)
+        sqlite_default = self.codec.encode(default, self.name, name)
+
+        # if column already exists, and has correct attributes, do nothing
+        if has_column(self.conn, self.name, name, sqlite_type, sqlite_default):
+            return
+
+        add_column(
+            self.conn,
+            self.name,
+            name,
+            sqlite_type,
+            sqlite_default,
+        )
+
         self.conn.commit()
 
 
 def to_str(x):
-    """ Transform the input to a string, suitably formatted for forming SQLite queries.
-    
-        Example query: `SELECT * FROM y WHERE z IN {list_to_str(x)}`
+    """Transform the input to a string, suitably formatted for forming SQLite queries.
 
-        Args:
-            x:
-                The input 
+    Example query: `SELECT * FROM y WHERE z IN {list_to_str(x)}`
 
-        Returns:
-            : str
-                String
+    Args:
+        x:
+            The input
+
+    Returns:
+        : str
+            String
     """
     if x is None:
         return "*"
-    
+
     if np.ndim(x) == 0:
         x = [x]
 
@@ -51,6 +83,18 @@ def to_str(x):
 
 
 def table_exists(conn, name):
+    """Check if the database already has a table with a given name
+
+    Args:
+        conn: sqlite3.Connection
+            Database connection
+        name: str
+            Table name
+
+    Returns:
+        : bool
+            True, if table exists. False, otherwise.
+    """
     c = conn.cursor()
     query = f"""
         SELECT 
@@ -70,6 +114,17 @@ def table_exists(conn, name):
 def get_column_names(conn, table_name):
     rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
     return [row[1] for row in rows]
+
+
+def has_column(conn, table_name, col_name, type, default):
+    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    for row in rows:
+        n, t, d = row[1], row[2], row[4]
+        if t == "TEXT" and isinstance(d, str):
+            d = d.replace("'", "")
+
+        if n == col_name and t == type and d == default:
+            return True
 
 
 def fetch_row(conn, table_name, indices=None, fields=None, as_dict=False):
@@ -99,28 +154,29 @@ def fetch_row(conn, table_name, indices=None, fields=None, as_dict=False):
         if fields is None:
             fields = get_column_names(conn, table_name)
 
-        rows = [{k: v for k,v in zip(fields, row)} for row in rows]
+        rows = [{k: v for k, v in zip(fields, row)} for row in rows]
 
     return rows
 
+
 def insert_row(conn, table_name, row):
-    """ Insert a row of values into a table in the database.
-        
-        Args:
-            conn: sqlite3.Connection
-                Database connection
-            table_name: str
-                Table name
-            row: dict
-                row to be inserted
-        
-        Returns:    
-            c: sqlite3.Cursor
-                Database cursor
-                
-        Raises:
-            sqlite3.IntegrityError: if the table already contains an entry with these data,
-                or a required value is missing, or some other requirement is not fulfilled.
+    """Insert a row of values into a table in the database.
+
+    Args:
+        conn: sqlite3.Connection
+            Database connection
+        table_name: str
+            Table name
+        row: dict
+            row to be inserted
+
+    Returns:
+        c: sqlite3.Cursor
+            Database cursor
+
+    Raises:
+        sqlite3.IntegrityError: if the table already contains an entry with these data,
+            or a required value is missing, or some other requirement is not fulfilled.
     """
     c = conn.cursor()
 
@@ -141,12 +197,13 @@ def insert_row(conn, table_name, row):
 
     c.execute(
         f"INSERT INTO {table_name} ({col_names}) VALUES ({val_str})", list(row.values())
-    ) 
+    )
 
     return c
 
-def add_column(conn, table_name, col_name, col_type, default_value):
-    q = f"ALTER TABLE {table_name} ADD COLUMN {col_name} TEXT"
+
+def add_column(conn, table_name, col_name, col_type, default_value=None):
+    q = f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"
     if default_value is not None:
         q += f" DEFAULT '{default_value}'"
 

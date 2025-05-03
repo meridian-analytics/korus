@@ -1,5 +1,6 @@
 from .interface import TableInterface
 
+
 class AnnotationInterface(TableInterface):
     def __init__(self, backend):
         super().__init__("annotation", backend)

@@ -1,5 +1,6 @@
 from .interface import TableInterface
 
+
 class JobInterface(TableInterface):
     def __init__(self, backend):
         super().__init__("job", backend)

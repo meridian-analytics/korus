@@ -43,15 +43,15 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
     @property
     def annotation(self) -> SQLiteTableBackend:
         return self._annotation
-    
+
     @property
     def file(self) -> SQLiteTableBackend:
         return self._file
-    
+
     @property
     def job(self) -> SQLiteTableBackend:
         return self._job
-    
+
     @property
     def storage(self) -> SQLiteTableBackend:
         return self._storage
