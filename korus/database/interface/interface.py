@@ -83,7 +83,6 @@ class TableInterface:
                 True if the field is required to have a non-null value. False otherwise
         """
         self._fields.append(FieldDefinition(name, type, description, default, required))
-        self.backend.add_field(name, type, description, default, required)
 
     def _validate_data(self, row: dict, replace: dict = None):
         """Helper function for validating input data and replacing missing fields.

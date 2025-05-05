@@ -43,6 +43,7 @@ def in_memory_table_backend():
             return [tuple([row.get(field,None) for field in fields]) for idx,row in enumerate(self.rows) if idx in indices]
 
         def add(self, row):
+            self.fields += [k for k in row.keys() if k not in self.fields]
             self.rows.append(row)
 
         def set(self, idx, row):
@@ -51,9 +52,6 @@ def in_memory_table_backend():
         def filter(self, *args, **kwargs):
             pass
         
-        def add_field(self, name, type, description, default=None, required=True):
-            self.fields.append(name)
-
     yield InMemoryTableBackend()
 
 

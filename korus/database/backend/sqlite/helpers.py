@@ -38,22 +38,18 @@ class SQLiteTableBackend(TableBackend):
         self,
         name: str,
         type: "typing.Any",
-        description: str,
         default: "typing.Any" = None,
         required: bool = True,
     ):
         sqlite_type = get_sqlite_type(type)
         sqlite_default = self.codec.encode(default, self.name, name)
 
-        # if column already exists, and has correct attributes, do nothing
-        if has_column(self.conn, self.name, name, sqlite_type, sqlite_default):
-            return
-
         add_column(
             self.conn,
             self.name,
             name,
             sqlite_type,
+            required,
             sqlite_default,
         )
 
@@ -114,17 +110,6 @@ def table_exists(conn, name):
 def get_column_names(conn, table_name):
     rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
     return [row[1] for row in rows]
-
-
-def has_column(conn, table_name, col_name, type, default):
-    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
-    for row in rows:
-        n, t, d = row[1], row[2], row[4]
-        if t == "TEXT" and isinstance(d, str):
-            d = d.replace("'", "")
-
-        if n == col_name and t == type and d == default:
-            return True
 
 
 def fetch_row(conn, table_name, indices=None, fields=None, as_dict=False):
@@ -202,8 +187,12 @@ def insert_row(conn, table_name, row):
     return c
 
 
-def add_column(conn, table_name, col_name, col_type, default_value=None):
+def add_column(conn, table_name, col_name, col_type, required=False, default_value=None):
     q = f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"
+
+    if required:
+        q += " NOT NULL"
+
     if default_value is not None:
         q += f" DEFAULT '{default_value}'"
 
