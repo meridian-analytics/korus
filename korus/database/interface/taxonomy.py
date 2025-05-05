@@ -1,6 +1,19 @@
 from .interface import TableInterface
-from korus.taxonomy import VersionedAcousticTaxonomy
+from korus.taxonomy import AcousticTaxonomy, VersionedAcousticTaxonomy
 from datetime import datetime
+
+
+def _taxonomy_from_row(row) -> AcousticTaxonomy:
+    #TODO: implement this
+    pass
+
+def _row_from_taxonomy(tax, version, comment=None) -> dict:
+    #TODO: implement this
+    return {
+        "version": version,
+        "comment": comment,
+        #etc.
+    }
 
 
 class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
@@ -20,10 +33,7 @@ class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
         self.load()
 
     def load(self):
-        versions = []
-        for row in self:
-            pass
-            #TODO: convert row -> AcousticTaxonomy;  then versions.append(tax)
+        versions = [_taxonomy_from_row(row) for row in self]
 
         if len(versions) > 1:       
             self.releases = versions[:-1]
@@ -32,14 +42,23 @@ class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
             self.draft = versions[-1]
 
     def save(self):
-        pass
-        #TODO: save draft to database
-        #row = {...}
-        #self.set(idx, row)
+        row = _row_from_taxonomy(self.draft)
+
+        if len(self) == 0:
+            self.add(row)
+        
+        else:
+            idx = len(self) - 1
+            self.set(idx, row)
 
     def release(self, comment=None):
         super().release()
-        self.save()
-        #TODO: save new released version to database
-        #row = {...}
-        #self.add(row)
+
+        # add new release to table (overwrite current draft)
+        idx = len(self)-1
+        row = _row_from_taxonomy(self.current, comment=comment)
+        self.set(idx, row)
+
+        # add new `draft` entry in table
+        row = _row_from_taxonomy(self.draft)
+        self.add(row)
