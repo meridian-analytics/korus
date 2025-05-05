@@ -5,6 +5,7 @@ from .annotation import AnnotationBackend
 from .file import FileBackend
 from .job import JobBackend
 from .storage import StorageBackend
+from .taxonomy import TaxonomyBackend
 from .tables import create_tables
 from korus.database.backend.sqlite.helpers import SQLiteTableBackend
 import korus.database.backend.sqlite.encode as enc
@@ -35,47 +36,52 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
         self._file = FileBackend(self, self.codec)
         self._job = JobBackend(self, self.codec)
         self._storage = StorageBackend(self, self.codec)
+        self._taxonomy = TaxonomyBackend(self, self.codec)
 
     @property
-    def deployment(self) -> SQLiteTableBackend:
+    def deployment(self) -> DeploymentBackend:
         return self._deployment
 
     @property
-    def annotation(self) -> SQLiteTableBackend:
+    def annotation(self) -> AnnotationBackend:
         return self._annotation
 
     @property
-    def file(self) -> SQLiteTableBackend:
+    def file(self) -> FileBackend:
         return self._file
 
     @property
-    def job(self) -> SQLiteTableBackend:
+    def job(self) -> JobBackend:
         return self._job
 
     @property
-    def storage(self) -> SQLiteTableBackend:
+    def storage(self) -> StorageBackend:
         return self._storage
+
+    @property
+    def taxonomy(self) -> TaxonomyBackend:
+        return self._taxonomy
 
     def add_tag(self, name: str, description: str):
         """Add an annotation tag.
-        
+
         Args:
             name: str
                 The tag name
             description: str
                 A short description of the tag's intended use
         """
-        help.insert_row(self, "tag", {"name":name, "description":description})
+        help.insert_row(self, "tag", {"name": name, "description": description})
         self.commit()
 
     def add_granularity(self, name: str, description: str):
         """Add an annotation granularity level.
-        
+
         Args:
             name: str
                 The granularity level's name
             description: str
                 A short definition of the granularity level
         """
-        help.insert_row(self, "granularity", {"name":name, "description":description})
+        help.insert_row(self, "granularity", {"name": name, "description": description})
         self.commit()

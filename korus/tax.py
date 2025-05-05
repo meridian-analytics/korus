@@ -6,11 +6,11 @@ import sqlite3
 from datetime import datetime
 from treelib import Tree
 import korus.tree as ktr
-import korus.db as kdb 
+import korus.db as kdb
 import korus.db_util.table as ktb
 
 
-'''
+"""
 TODO: refactor as
  taxonomy/
     tree
@@ -22,34 +22,35 @@ TODO: refactor as
 
     class TaxonomyVersions:
         def __init__(self, versions: list[Taxonomy])
-'''
+"""
 
 
 class Taxonomy(ktr.KTree):
-    """ Class for managing annotation taxonomies with a tree-like 
-        structure where every child nodes has precisely one parent 
-        node.
+    """Class for managing annotation taxonomies with a tree-like
+    structure where every child nodes has precisely one parent
+    node.
 
-        The Taxonomy class is derived from korus.tax.KTree, 
-        adding the following functionalities,
+    The Taxonomy class is derived from korus.tax.KTree,
+    adding the following functionalities,
 
-         * SQLite database storage
-         * version tracking, including node ancestry       
+     * SQLite database storage
+     * version tracking, including node ancestry
 
-        TODO: add assertion to check if there is an open connection to the sqlite database
-        
-        Args:
-            name: str
-                Short, descriptive name for the taxonomy.
-            root_tag: str
-                Tag for the root node. If specified, the root node will be 
-                automatically created at initialisation.
-            path: str
-                Path to a SQLite database file for storing the taxonomy. 
-                If None, the path will be set to ./{@name}.sqlite.
-            overwrite: bool
-                Whether to overwrite the file if it already exists.
+    TODO: add assertion to check if there is an open connection to the sqlite database
+
+    Args:
+        name: str
+            Short, descriptive name for the taxonomy.
+        root_tag: str
+            Tag for the root node. If specified, the root node will be
+            automatically created at initialisation.
+        path: str
+            Path to a SQLite database file for storing the taxonomy.
+            If None, the path will be set to ./{@name}.sqlite.
+        overwrite: bool
+            Whether to overwrite the file if it already exists.
     """
+
     def __init__(self, name="taxonomy", root_tag="root", path=None, overwrite=False):
         self.name = name
         self.version = None
@@ -61,81 +62,85 @@ class Taxonomy(ktr.KTree):
 
     @classmethod
     def from_dict(cls, input_dict, data_transform=None, path=None):
-        """ Load a taxonomy from a dictionary.
+        """Load a taxonomy from a dictionary.
 
-            Expects the dictionary to have the keys 'name', 'version', 'tree'.
+        Expects the dictionary to have the keys 'name', 'version', 'tree'.
 
-            Within the dictionary, the key 'children' is used to designate branching 
-            points, and the key 'data' is used to designate any data associated with a 
-            node.
+        Within the dictionary, the key 'children' is used to designate branching
+        points, and the key 'data' is used to designate any data associated with a
+        node.
 
-            Args:
-                input_dict: dict()
-                    Input dictionary.
-                data_transform: callable
-                    This function gets applied to all entries in the dictionary with the key 'data'.
-                path: str
-                    Path to a SQLite database file for storing the taxonomy. 
-            
-            Returns:
-                tax: korus.tax.Taxonomy
-                    The taxonomy
+        Args:
+            input_dict: dict()
+                Input dictionary.
+            data_transform: callable
+                This function gets applied to all entries in the dictionary with the key 'data'.
+            path: str
+                Path to a SQLite database file for storing the taxonomy.
+
+        Returns:
+            tax: korus.tax.Taxonomy
+                The taxonomy
         """
         tree_dict = input_dict.pop("tree")
         version = input_dict.pop("version")
-        tax = ktr.tree_from_dict(cls(**input_dict, root_tag=None, path=path), recipe=tree_dict, data_transform=data_transform)
+        tax = ktr.tree_from_dict(
+            cls(**input_dict, root_tag=None, path=path),
+            recipe=tree_dict,
+            data_transform=data_transform,
+        )
         tax.version = version
         return tax
 
     @classmethod
     def load(cls, path, name="taxonomy", version=None):
-        """ Load an existing taxonomy from an SQLite database.
+        """Load an existing taxonomy from an SQLite database.
 
-            The method expects to find the table,
-            
-                taxonomy(
-                    id INTEGER NOT NULL,
-                    name TEXT NOT NULL,
-                    version TEXT,
-                    tree JSON NOT NULL,
-                    timestamp TEXT,
-                    comment TEXT,
-                    PRIMARY KEY (id),
-                    UNIQUE (name, version)
-                )
-        
-            Args:
-                path: str
-                    Path to the database file (.sqlite)
-                name: str
-                    Taxonomy name.
-                version: int
-                    Taxonomy version. If not specified, the latest version will be loaded.
-                
-            Returns:
-                : korus.tax.Taxonomy
-                    The taxonomy
+        The method expects to find the table,
+
+            taxonomy(
+                id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                version TEXT,
+                tree JSON NOT NULL,
+                timestamp TEXT,
+                comment TEXT,
+                PRIMARY KEY (id),
+                UNIQUE (name, version)
+            )
+
+        Args:
+            path: str
+                Path to the database file (.sqlite)
+            name: str
+                Taxonomy name.
+            version: int
+                Taxonomy version. If not specified, the latest version will be loaded.
+
+        Returns:
+            : korus.tax.Taxonomy
+                The taxonomy
         """
         conn = sqlite3.connect(path)
-        
+
         query = f"SELECT name,version,tree FROM taxonomy WHERE name = '{name}'"
         if version is not None:
             query += f" AND version = '{version}'"
-        
+
         c = conn.cursor()
         rows = c.execute(query).fetchall()
 
         conn.close()
 
-        rows = sorted(rows, key=lambda x: x[1]) #sort according to version no.
+        rows = sorted(rows, key=lambda x: x[1])  # sort according to version no.
 
-        (name,version,data) = rows[-1]
+        (name, version, data) = rows[-1]
 
-        tax_dict = {"name":name, "version":version, "tree":json.loads(data)}
+        tax_dict = {"name": name, "version": version, "tree": json.loads(data)}
         return cls.from_dict(tax_dict, path=path)
-    
+
     def latest_version(self):
-        """ Get the latest version number"""
+        """Get the latest version number"""
         if os.path.exists(self.path):
             conn = sqlite3.connect(self.path)
             c = conn.cursor()
@@ -152,33 +157,37 @@ class Taxonomy(ktr.KTree):
             return None
 
     def to_dict(self):
-        """ Transform the taxonomy to a dictionary.
-    
-            Returns:
-                : dict()
-                    The taxonomy in the form of a dictionary.
+        """Transform the taxonomy to a dictionary.
+
+        Returns:
+            : dict()
+                The taxonomy in the form of a dictionary.
         """
-        return {"name":self.name, "version":self.version, "tree":ktr.tree_to_dict(self)}
+        return {
+            "name": self.name,
+            "version": self.version,
+            "tree": ktr.tree_to_dict(self),
+        }
 
     def save(self, comment=None, overwrite=False):
-        """ Save the taxonomy.
+        """Save the taxonomy.
 
-            The version number is automatically incremented by +1 when this method is 
-            called, unless @overwrite is set to True in which case the currently loaded 
-            version is overwritten.
+        The version number is automatically incremented by +1 when this method is
+        called, unless @overwrite is set to True in which case the currently loaded
+        version is overwritten.
 
-            Args:
-                comment: str
-                    Optional field. Typically used for describing the main changes made 
-                    to the taxonomy since the last version.
-                overwrite: bool
-                    If True, the version no. is not incremented and instead the currently 
-                    loaded version is overwritten.
+        Args:
+            comment: str
+                Optional field. Typically used for describing the main changes made
+                to the taxonomy since the last version.
+            overwrite: bool
+                If True, the version no. is not incremented and instead the currently
+                loaded version is overwritten.
         """
         v = self.latest_version()
 
         if v is None:
-            self.version = 1 
+            self.version = 1
         else:
             if not overwrite:
                 self.version = v + 1
@@ -187,54 +196,54 @@ class Taxonomy(ktr.KTree):
         self.clear_history()
 
     def _to_sqlite(self, path, comment, overwrite=False):
-        """ Save the taxonomy to an SQLite database.
+        """Save the taxonomy to an SQLite database.
 
-            TODO: Implement @overwrite
+        TODO: Implement @overwrite
 
-            The database must contain the tables,
+        The database must contain the tables,
 
-                taxonomy(
-                    id INTEGER NOT NULL,
-                    name TEXT NOT NULL,
-                    version TEXT NOT NULL,
-                    tree JSON NOT NULL,
-                    timestamp TEXT,
-                    comment TEXT,
-                    PRIMARY KEY (id),
-                    UNIQUE (name, version)
-                )
+            taxonomy(
+                id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                version TEXT NOT NULL,
+                tree JSON NOT NULL,
+                timestamp TEXT,
+                comment TEXT,
+                PRIMARY KEY (id),
+                UNIQUE (name, version)
+            )
 
-                taxonomy_created_node(
-                    id TEXT NOT NULL,
-                    precursor_id JSON NOT NULL,
-                    is_equivalent INTEGER NOT NULL,
-                    taxonomy_id INTEGER NOT NULL,
-                    PRIMARY KEY (id),
-                    FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id)
-                )
+            taxonomy_created_node(
+                id TEXT NOT NULL,
+                precursor_id JSON NOT NULL,
+                is_equivalent INTEGER NOT NULL,
+                taxonomy_id INTEGER NOT NULL,
+                PRIMARY KEY (id),
+                FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id)
+            )
 
-                taxonomy_removed_node(
-                    id TEXT NOT NULL,
-                    inheritor_id JSON NOT NULL,
-                    is_equivalent INTEGER NOT NULL,
-                    taxonomy_id INTEGER NOT NULL,
-                    PRIMARY KEY (id),
-                    FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id)
-                )
-                
-            If the database does not already exist or it does not 
-            contain the required table, they will be automatically 
-            created.
+            taxonomy_removed_node(
+                id TEXT NOT NULL,
+                inheritor_id JSON NOT NULL,
+                is_equivalent INTEGER NOT NULL,
+                taxonomy_id INTEGER NOT NULL,
+                PRIMARY KEY (id),
+                FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id)
+            )
 
-            Args:
-                path: str
-                    Path to the SQLite database file (*.sqlite)
-                comment: str
-                    Optional field. Typically used for describing the main changes made 
-                    to the taxonomy since the last version.
-                overwrite: bool
-                    Set to True to allow existing entries in the taxonomy table with the 
-                    same name and version no. to be overwritten.
+        If the database does not already exist or it does not
+        contain the required table, they will be automatically
+        created.
+
+        Args:
+            path: str
+                Path to the SQLite database file (*.sqlite)
+            comment: str
+                Optional field. Typically used for describing the main changes made
+                to the taxonomy since the last version.
+            overwrite: bool
+                Set to True to allow existing entries in the taxonomy table with the
+                same name and version no. to be overwritten.
         """
         db_exists = os.path.exists(path)
 
@@ -243,7 +252,9 @@ class Taxonomy(ktr.KTree):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
-        conn = sqlite3.connect(path) #will create the *.sqlite file if it does not already exist
+        conn = sqlite3.connect(
+            path
+        )  # will create the *.sqlite file if it does not already exist
         c = conn.cursor()
 
         # create the tables if they do not already exist
@@ -259,7 +270,9 @@ class Taxonomy(ktr.KTree):
         # check if taxonomy already exists
         name = tax_dict["name"]
         version = tax_dict["version"]
-        rows = c.execute(f"SELECT id FROM taxonomy WHERE name = '{name}' AND version = {version}").fetchall()
+        rows = c.execute(
+            f"SELECT id FROM taxonomy WHERE name = '{name}' AND version = {version}"
+        ).fetchall()
         if len(rows) == 1:
             tax_exists = True
             tax_id = rows[0][0]
@@ -269,15 +282,19 @@ class Taxonomy(ktr.KTree):
             prev_comment = None
 
         if tax_exists and not overwrite:
-            err_msg = f"Failed to save taxonomy."\
-                + f" Database already contains a taxonomy named {name} with version no. {version}."\
+            err_msg = (
+                f"Failed to save taxonomy."
+                + f" Database already contains a taxonomy named {name} with version no. {version}."
                 + f" Set @overwrite to True if you wish to overwrite the existing entry."
+            )
             logging.error(err_msg)
             return c
 
         elif tax_exists and overwrite:
             # retrieve comment
-            (prev_comment,) = c.execute(f"SELECT comment FROM taxonomy WHERE id = {tax_id}").fetchall()[0]
+            (prev_comment,) = c.execute(
+                f"SELECT comment FROM taxonomy WHERE id = {tax_id}"
+            ).fetchall()[0]
             # delete existing entry
             c.execute(f"DELETE FROM taxonomy WHERE id = {tax_id}")
 
@@ -288,76 +305,91 @@ class Taxonomy(ktr.KTree):
         # save taxonomy
         c.execute(
             "INSERT INTO taxonomy VALUES (?, ?, ?, ?, ?, ?)",
-            [tax_id, tax_dict["name"], tax_dict["version"], json.dumps(tax_dict["tree"]), timestamp, comment]
-        ) 
+            [
+                tax_id,
+                tax_dict["name"],
+                tax_dict["version"],
+                json.dumps(tax_dict["tree"]),
+                timestamp,
+                comment,
+            ],
+        )
 
         if tax_id is None:
-            tax_id = c.lastrowid 
+            tax_id = c.lastrowid
 
         # save precursors of created nodes
         for created_id, (precursor_id, is_equivalent) in self.created_nodes.items():
-            c.execute("INSERT INTO taxonomy_created_node VALUES (?, ?, ?, ?)", [created_id, json.dumps(precursor_id), int(is_equivalent), tax_id])
+            c.execute(
+                "INSERT INTO taxonomy_created_node VALUES (?, ?, ?, ?)",
+                [created_id, json.dumps(precursor_id), int(is_equivalent), tax_id],
+            )
 
         # save inheritors of removed nodes
         for removed_id, (inheritor_id, is_equivalent) in self.removed_nodes.items():
-            c.execute("INSERT INTO taxonomy_removed_node VALUES (?, ?, ?, ?)", [removed_id, json.dumps(inheritor_id), int(is_equivalent), tax_id])
+            c.execute(
+                "INSERT INTO taxonomy_removed_node VALUES (?, ?, ?, ?)",
+                [removed_id, json.dumps(inheritor_id), int(is_equivalent), tax_id],
+            )
 
         conn.commit()
         conn.close()
 
 
 class AcousticTaxonomy(Taxonomy):
-    """ Class for managing annotation acoustic taxonomies with a nested, 
-        tree-like structure.
-        
-        When annotating acoustic data, it is customary to describe sounds
-        by their source (e.g. a killer whale) as well as their type, i.e, 
-        their aural and spectral characteristics (e.g. a tonal call). 
-        
-        In the AcousticTaxonomy class, the nodes of the (primary) tree are 
-        the sound sources, and nested within each of these node is a 
-        (secondary) tree of sound types.
+    """Class for managing annotation acoustic taxonomies with a nested,
+    tree-like structure.
 
-        Args:
-            name: str
-                Descriptive, short name for the taxonomy.
-            root_tag: str
-                Tag for the root node. If specified, the root node will be 
-                automatically created at initialisation.
-            version: int
-                Version number.
-            overwrite: bool
-                Whether to overwrite the file if it already exists.
+    When annotating acoustic data, it is customary to describe sounds
+    by their source (e.g. a killer whale) as well as their type, i.e,
+    their aural and spectral characteristics (e.g. a tonal call).
+
+    In the AcousticTaxonomy class, the nodes of the (primary) tree are
+    the sound sources, and nested within each of these node is a
+    (secondary) tree of sound types.
+
+    Args:
+        name: str
+            Descriptive, short name for the taxonomy.
+        root_tag: str
+            Tag for the root node. If specified, the root node will be
+            automatically created at initialisation.
+        version: int
+            Version number.
+        overwrite: bool
+            Whether to overwrite the file if it already exists.
     """
+
     def __init__(
-            self, 
-            name="acoustic_taxonomy", 
-            root_tag="Unknown", 
-            path=None,
-            overwrite=False,
-        ):
+        self,
+        name="acoustic_taxonomy",
+        root_tag="Unknown",
+        path=None,
+        overwrite=False,
+    ):
         self._type_root_tag = root_tag
         super().__init__(name=name, root_tag=root_tag, path=path, overwrite=overwrite)
 
     @classmethod
     def from_dict(cls, input_dict, path=None):
-        """ Load an acoustic taxonomy from a dictionary.
+        """Load an acoustic taxonomy from a dictionary.
 
-            Overwrites Taxonomy.from_dict
+        Overwrites Taxonomy.from_dict
 
-            Expects the dictionary to have the keys 'name', 'version', 'tree'.
+        Expects the dictionary to have the keys 'name', 'version', 'tree'.
 
-            Within the dictionary, the key 'children' is used to designate branching 
-            points, and the key 'data' is used to designate any data associated with a 
-            node. The key 'types' is used to designate a sub-tree of sound types 
-            associated with a particular node. 
+        Within the dictionary, the key 'children' is used to designate branching
+        points, and the key 'data' is used to designate any data associated with a
+        node. The key 'types' is used to designate a sub-tree of sound types
+        associated with a particular node.
 
-            Args:
-                input_dict: dict()
-                    Input dictionary.
-                path: str
-                    Path to a SQLite database file for storing the taxonomy. 
+        Args:
+            input_dict: dict()
+                Input dictionary.
+            path: str
+                Path to a SQLite database file for storing the taxonomy.
         """
+
         def data_transform(x):
             if x is not None:
                 types_dict = x.pop("sound_types", None)
@@ -371,70 +403,72 @@ class AcousticTaxonomy(Taxonomy):
         return super().from_dict(input_dict, data_transform, path=path)
 
     def _to_sqlite(self, path, comment=None, overwrite=False):
-        """ Save the taxonomy to an SQLite database.
+        """Save the taxonomy to an SQLite database.
 
-            Overwrites Taxonomy._to_sqlite
+        Overwrites Taxonomy._to_sqlite
 
-            The database must contain the tables,
+        The database must contain the tables,
 
-                taxonomy(
-                    id INTEGER NOT NULL,
-                    name TEXT NOT NULL,
-                    version TEXT,
-                    tree JSON NOT NULL,
-                    timestamp TEXT,
-                    comment TEXT,
-                    PRIMARY KEY (id),
-                    UNIQUE (name, version)
-                )
+            taxonomy(
+                id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                version TEXT,
+                tree JSON NOT NULL,
+                timestamp TEXT,
+                comment TEXT,
+                PRIMARY KEY (id),
+                UNIQUE (name, version)
+            )
 
-                taxonomy_created_node(
-                    id TEXT NOT NULL,
-                    precursor_id JSON NOT NULL,
-                    is_equivalent INTEGER NOT NULL,
-                    taxonomy_id INTEGER NOT NULL,
-                    PRIMARY KEY (id),
-                    FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id)
-                )
+            taxonomy_created_node(
+                id TEXT NOT NULL,
+                precursor_id JSON NOT NULL,
+                is_equivalent INTEGER NOT NULL,
+                taxonomy_id INTEGER NOT NULL,
+                PRIMARY KEY (id),
+                FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id)
+            )
 
-                taxonomy_removed_node(
-                    id TEXT NOT NULL,
-                    inheritor_id JSON NOT NULL,
-                    is_equivalent INTEGER NOT NULL,
-                    taxonomy_id INTEGER NOT NULL,
-                    PRIMARY KEY (id),
-                    FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id)
-                )
-                
-                label(
-                    id INTEGER NOT NULL,
-                    taxonomy_id INTEGER NOT NULL,
-                    sound_source_tag TEXT,
-                    sound_source_id TEXT,
-                    sound_type_tag TEXT,
-                    sound_type_id TEXT,
-                    PRIMARY KEY (id),
-                    FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id),
-                    UNIQUE (taxonomy_id, sound_source_uuid, sound_type_uuid)
-                )
+            taxonomy_removed_node(
+                id TEXT NOT NULL,
+                inheritor_id JSON NOT NULL,
+                is_equivalent INTEGER NOT NULL,
+                taxonomy_id INTEGER NOT NULL,
+                PRIMARY KEY (id),
+                FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id)
+            )
 
-            If the database does not already exist or it does not 
-            contain the required tables, they will be automatically 
-            created.
+            label(
+                id INTEGER NOT NULL,
+                taxonomy_id INTEGER NOT NULL,
+                sound_source_tag TEXT,
+                sound_source_id TEXT,
+                sound_type_tag TEXT,
+                sound_type_id TEXT,
+                PRIMARY KEY (id),
+                FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id),
+                UNIQUE (taxonomy_id, sound_source_uuid, sound_type_uuid)
+            )
 
-            Args:
-                path: str
-                    Path to the SQLite database file (*.sqlite)
-                comment: str
-                    Optional field. Typically used for describing the main changes made 
-                    to the taxonomy since the last version.
-                overwrite: bool
-                    Set to True to allow existing entries in the taxonomy table with the 
-                    same name and version no. to be overwritten.
+        If the database does not already exist or it does not
+        contain the required tables, they will be automatically
+        created.
+
+        Args:
+            path: str
+                Path to the SQLite database file (*.sqlite)
+            comment: str
+                Optional field. Typically used for describing the main changes made
+                to the taxonomy since the last version.
+            overwrite: bool
+                Set to True to allow existing entries in the taxonomy table with the
+                same name and version no. to be overwritten.
         """
         db_exists = os.path.exists(path)
 
-        conn = sqlite3.connect(path) #will create the *.sqlite file if it does not already exist
+        conn = sqlite3.connect(
+            path
+        )  # will create the *.sqlite file if it does not already exist
 
         # create the tables if they do not already exist
         if not db_exists:
@@ -449,36 +483,44 @@ class AcousticTaxonomy(Taxonomy):
         conn.commit()
         conn.close()
 
-    def create_node(self, tag, identifier=None, parent=None, precursor=None, inherit_types=True, **kwargs):
-        """ Add a sound source to the taxonomy.
+    def create_node(
+        self,
+        tag,
+        identifier=None,
+        parent=None,
+        precursor=None,
+        inherit_types=True,
+        **kwargs,
+    ):
+        """Add a sound source to the taxonomy.
 
-            Overwrites KTree.create_node.
+        Overwrites KTree.create_node.
 
-            Sound source attributes can be specified using keyword arguments.
+        Sound source attributes can be specified using keyword arguments.
 
-            It is recommended to include the following attributes:
+        It is recommended to include the following attributes:
 
-                * name
-                * description
-                * scientific_name
-                * tsn
+            * name
+            * description
+            * scientific_name
+            * tsn
 
-            Args:
-                tag: str
-                    Tag for the sound source.
-                parent: str
-                    Parent sound source identifier or tag. The default value is None, implying 'root' as parent.
-                precursor: str, list(str)
-                    Used for tracking the ancestry of the child node. If None, the parent identifier will be used.
-                inherit_types: bool
-                    Inherit sound types from parent source. Default is True.
+        Args:
+            tag: str
+                Tag for the sound source.
+            parent: str
+                Parent sound source identifier or tag. The default value is None, implying 'root' as parent.
+            precursor: str, list(str)
+                Used for tracking the ancestry of the child node. If None, the parent identifier will be used.
+            inherit_types: bool
+                Inherit sound types from parent source. Default is True.
 
-            Returns: 
-                node: treelib.node.Node
-                    The new node object
-                    
-            Raises:
-                AssertionError: if the taxonomy already contains a sound source with the specified tag
+        Returns:
+            node: treelib.node.Node
+                The new node object
+
+        Raises:
+            AssertionError: if the taxonomy already contains a sound source with the specified tag
         """
         if parent is None:
             parent = self.root
@@ -487,40 +529,56 @@ class AcousticTaxonomy(Taxonomy):
             kwargs = dict()
 
         if "sound_types" not in kwargs:
-            if inherit_types and self.root is not None: # inherit sound-type tree from parent            
-                kwargs["sound_types"] = self.get_node(parent).data["sound_types"].deepcopy()
-            
-            else: # create empty sound-type tree            
+            if (
+                inherit_types and self.root is not None
+            ):  # inherit sound-type tree from parent
+                kwargs["sound_types"] = (
+                    self.get_node(parent).data["sound_types"].deepcopy()
+                )
+
+            else:  # create empty sound-type tree
                 kwargs["sound_types"] = ktr.KTree(root_tag=self._type_root_tag)
 
-        return super().create_node(tag=tag, identifier=identifier, parent=parent, precursor=precursor, **kwargs)
+        return super().create_node(
+            tag=tag, identifier=identifier, parent=parent, precursor=precursor, **kwargs
+        )
 
-    def create_sound_source(self, tag, parent=None, precursor=None, inherit_types=True, **kwargs):
-        """ Merely a wrapper for :meth:`create_node`"""
-        return self.create_node(tag, parent=parent, precursor=precursor, inherit_types=inherit_types, **kwargs)
-    
-    def create_sound_type(self, tag, source_tag=None, parent=None, recursive=True, **kwargs):
-        """ Add a sound type to the taxonomy.
+    def create_sound_source(
+        self, tag, parent=None, precursor=None, inherit_types=True, **kwargs
+    ):
+        """Merely a wrapper for :meth:`create_node`"""
+        return self.create_node(
+            tag,
+            parent=parent,
+            precursor=precursor,
+            inherit_types=inherit_types,
+            **kwargs,
+        )
 
-            Note that the sound type must be associated with a particular sound source, i.e., 
-            a particular node in the primary tree (which can be the root node). 
-            
-            Also, note that if @recursive is set to true, all child nodes (sound sources) 
-            will inherit the sound type.
+    def create_sound_type(
+        self, tag, source_tag=None, parent=None, recursive=True, **kwargs
+    ):
+        """Add a sound type to the taxonomy.
 
-            Keyword arguments can be used to specify additional data to be associated 
-            with the sound type, e.g., a wordy description of its acoustic characteristics.
+        Note that the sound type must be associated with a particular sound source, i.e.,
+        a particular node in the primary tree (which can be the root node).
 
-            Args:
-                tag: str
-                    Tag for the sound type. Must be unique within the sound source.
-                source_tag: str
-                    Tag of the sound source that the sound type is to be associated with.
-                parent: str
-                    Tag or identifier of the parent sound type. Use this to create a hierarchy 
-                    of sound types.
-                recursive: bool
-                    Also add this sound type to all descendant sound sources. Default is True.
+        Also, note that if @recursive is set to true, all child nodes (sound sources)
+        will inherit the sound type.
+
+        Keyword arguments can be used to specify additional data to be associated
+        with the sound type, e.g., a wordy description of its acoustic characteristics.
+
+        Args:
+            tag: str
+                Tag for the sound type. Must be unique within the sound source.
+            source_tag: str
+                Tag of the sound source that the sound type is to be associated with.
+            parent: str
+                Tag or identifier of the parent sound type. Use this to create a hierarchy
+                of sound types.
+            recursive: bool
+                Also add this sound type to all descendant sound sources. Default is True.
         """
         source_id = self.get_id(source_tag)
 
@@ -543,17 +601,40 @@ class AcousticTaxonomy(Taxonomy):
 
             if kwargs is None or len(kwargs) == 0:
                 kwargs = dict()
-            
+
             # add the new sound type to the KTree
             types.create_node(tag=tag, parent=parent_id, **kwargs)
 
-    def merge_sound_sources(self, tag, children=None, remove=False, data_merge_fcn=None, inherit_types=True, **kwargs):
-        """ Merge sound sources """
-        return self.merge_nodes(tag, children=children, remove=remove, data_merge_fcn=data_merge_fcn, inherit_types=inherit_types, **kwargs)
-    
-    def merge_sound_types(self, tag, source_tag=None, children=None, remove=False, 
-                          data_merge_fcn=None, recursive=True, **kwargs):
-        """ Merge sound types """
+    def merge_sound_sources(
+        self,
+        tag,
+        children=None,
+        remove=False,
+        data_merge_fcn=None,
+        inherit_types=True,
+        **kwargs,
+    ):
+        """Merge sound sources"""
+        return self.merge_nodes(
+            tag,
+            children=children,
+            remove=remove,
+            data_merge_fcn=data_merge_fcn,
+            inherit_types=inherit_types,
+            **kwargs,
+        )
+
+    def merge_sound_types(
+        self,
+        tag,
+        source_tag=None,
+        children=None,
+        remove=False,
+        data_merge_fcn=None,
+        recursive=True,
+        **kwargs,
+    ):
+        """Merge sound types"""
         source_id = self.get_id(source_tag)
 
         if recursive:
@@ -563,11 +644,12 @@ class AcousticTaxonomy(Taxonomy):
 
         for source_id in source_ids:
             types = self.get_node(source_id).data["sound_types"]
-            types.merge_nodes(tag, children=children, remove=remove, data_merge_fcn=data_merge_fcn)
+            types.merge_nodes(
+                tag, children=children, remove=remove, data_merge_fcn=data_merge_fcn
+            )
 
     def clear_history(self):
-        """ Overwrites Taxonomy.clear_history
-        """
+        """Overwrites Taxonomy.clear_history"""
         # commit changes for sound sources
         super().clear_history()
 
@@ -576,8 +658,8 @@ class AcousticTaxonomy(Taxonomy):
             self.get_node(source_id).data["sound_types"].clear_history()
 
     def sound_types(self, source_tag):
-        """ Returns the KTree of sound types associated with a given sound source
-        
+        """Returns the KTree of sound types associated with a given sound source
+
         Args:
             source_tag: str
                 Sound source tag
@@ -596,8 +678,10 @@ class AcousticTaxonomy(Taxonomy):
         """Overwrites KTree.created_nodes"""
         created_nodes = super().created_nodes
         for source_id in self.expand_tree(mode=Tree.DEPTH):
-            created_nodes.update(self.get_node(source_id).data["sound_types"].created_nodes)
-        
+            created_nodes.update(
+                self.get_node(source_id).data["sound_types"].created_nodes
+            )
+
         return created_nodes
 
     @property
@@ -605,41 +689,43 @@ class AcousticTaxonomy(Taxonomy):
         """Overwrites KTree.removed_nodes"""
         removed_nodes = super().removed_nodes
         for source_id in self.expand_tree(mode=Tree.DEPTH):
-            removed_nodes.update(self.get_node(source_id).data["sound_types"].removed_nodes)
-        
+            removed_nodes.update(
+                self.get_node(source_id).data["sound_types"].removed_nodes
+            )
+
         return removed_nodes
 
     def ascend(self, source_tag, type_tag=None, include_start_node=True):
-        """ Returns a python generator for ascending the taxonomy starting 
-            at @source_tag, @type_tag.
+        """Returns a python generator for ascending the taxonomy starting
+        at @source_tag, @type_tag.
 
-            Args:
-                source_tag: str
-                    Sound source tag or identifier of starting node.        
-                type_tag: str
-                    Sound type tag of starting node. If None or '%', the 
-                    generator will only iterate through the sound-source nodes.
-                include_start_node: bool
-                    Whether to include the starting node. Default is True.
+        Args:
+            source_tag: str
+                Sound source tag or identifier of starting node.
+            type_tag: str
+                Sound type tag of starting node. If None or '%', the
+                generator will only iterate through the sound-source nodes.
+            include_start_node: bool
+                Whether to include the starting node. Default is True.
 
-            Yields:
-                source_tag, type_tag: str, str
+        Yields:
+            source_tag, type_tag: str, str
         """
         debug_msg = f"[{self.__class__.__name__}] Ascending {self.name} v{self.version} starting from ({source_tag},{type_tag})"
         logging.debug(debug_msg)
 
-        types = self.get_node(source_tag).data["sound_types"]  #sound-type tree
-        source_gen = self.rsearch(source_tag)  #ascending source-id generator
+        types = self.get_node(source_tag).data["sound_types"]  # sound-type tree
+        source_gen = self.rsearch(source_tag)  # ascending source-id generator
 
         counter = 0
-        for sid in source_gen: #ascend up through sound sources
+        for sid in source_gen:  # ascend up through sound sources
             source_i = self.get_node(sid)
             types_i = source_i.data["sound_types"]
 
             if type_tag is None or type_tag == "%":
                 if include_start_node or counter > 0:
                     yield source_i.tag, type_tag
-                
+
                 counter += 1
 
             else:
@@ -652,24 +738,24 @@ class AcousticTaxonomy(Taxonomy):
                     type_i = types_i.get_node(tid)
                     if include_start_node or counter > 0:
                         yield source_i.tag, type_i.tag
-                    
+
                     counter += 1
 
     def descend(self, source_tag, type_tag=None, include_start_node=True):
-        """ Returns a python generator for descending the taxonomy starting 
-            at @source_tag, @type_tag.
+        """Returns a python generator for descending the taxonomy starting
+        at @source_tag, @type_tag.
 
-            Args:
-                source_tag: str
-                    Sound source tag or identifier of starting node.        
-                type_tag: str
-                    Sound type tag of starting node. If None or '%', the 
-                    generator will only iterate through the sound-source nodes.
-                include_start_node: bool
-                    Whether to include the starting node. Default is True.
+        Args:
+            source_tag: str
+                Sound source tag or identifier of starting node.
+            type_tag: str
+                Sound type tag of starting node. If None or '%', the
+                generator will only iterate through the sound-source nodes.
+            include_start_node: bool
+                Whether to include the starting node. Default is True.
 
-            Yields:
-                source_tag, type_tag: str, str
+        Yields:
+            source_tag, type_tag: str, str
         """
         debug_msg = f"[{self.__class__.__name__}] Descending {self.name} v{self.version} starting from ({source_tag},{type_tag})"
         logging.debug(debug_msg)
@@ -684,7 +770,7 @@ class AcousticTaxonomy(Taxonomy):
             if type_tag is None or type_tag == "%":
                 if include_start_node or counter > 0:
                     yield source_i.tag, type_tag
-                
+
                 counter += 1
 
             else:
@@ -693,10 +779,12 @@ class AcousticTaxonomy(Taxonomy):
                     logging.debug(debug_msg)
                     continue
 
-                type_gen = types_i.expand_tree(types_i.get_id(type_tag), mode=Tree.DEPTH)
+                type_gen = types_i.expand_tree(
+                    types_i.get_id(type_tag), mode=Tree.DEPTH
+                )
                 for tid in type_gen:
                     type_i = types_i.get_node(tid)
                     if include_start_node or counter > 0:
                         yield source_i.tag, type_i.tag
-                    
+
                     counter += 1

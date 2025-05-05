@@ -34,20 +34,20 @@ class FieldDefinition:
     options: list = None
 
     def options_as_str(self) -> str:
-        """ Returns:
-                : str
-                    Allowed values as a single, comma-separated string.
+        """Returns:
+        : str
+            Allowed values as a single, comma-separated string.
         """
         if self.options is None:
             return None
-        
+
         else:
             return ", ".join([str(v) for v in self.options])
-        
+
     def as_tuple_str(self) -> tuple:
-        """ Returns:
-                : tuple
-                    The field definition in a tuple of strings. 
+        """Returns:
+        : tuple
+            The field definition in a tuple of strings.
         """
         return (
             self.name,
@@ -55,7 +55,7 @@ class FieldDefinition:
             self.description,
             "Y" if self.required else "N",
             str(self.default),
-            self.options_as_str()
+            self.options_as_str(),
         )
 
 
@@ -113,7 +113,9 @@ class TableInterface:
             options: list (optional)
                 Allowed values
         """
-        self._fields.append(FieldDefinition(name, type, description, required, default, options))
+        self._fields.append(
+            FieldDefinition(name, type, description, required, default, options)
+        )
 
     def _validate_data(self, row: dict, replace: dict = None):
         """Helper function for validating input data and replacing missing fields.
@@ -241,7 +243,14 @@ class TableInterface:
         res += "\nFields:\n"
         res += tabulate(
             [f.as_tuple_str() for f in self.fields],
-            headers=["Name", "Type", "Description", "Required", "Default Value", "Allowed Values"],
+            headers=[
+                "Name",
+                "Type",
+                "Description",
+                "Required",
+                "Default Value",
+                "Allowed Values",
+            ],
         )
 
         return res

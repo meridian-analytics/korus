@@ -21,17 +21,30 @@ def test_find_files_dir():
     assert f == ["a.txt", "b.wav"]
     f = ku.find_files(path, subdirs=True)
     f.sort()
-    assert f == ["a.txt", "b.wav", "more-files/c.flac", "more-files/d.wav", "more-files/e.txt"]
+    assert f == [
+        "a.txt",
+        "b.wav",
+        "more-files/c.flac",
+        "more-files/d.wav",
+        "more-files/e.txt",
+    ]
     f = ku.find_files(path, substr="wav", subdirs=True)
     f.sort()
     assert f == ["b.wav", "more-files/d.wav"]
+
 
 def test_find_files_tar():
     """Check that we can find files in a zipped tar archive"""
     path = os.path.join(path_to_assets, "zipped-files.tar.gz")
     f = ku.find_files(path, subdirs=True)
     f.sort()
-    assert f == ["a.txt", "b.wav", "more-files/c.flac", "more-files/d.wav", "more-files/e.txt"]
+    assert f == [
+        "a.txt",
+        "b.wav",
+        "more-files/c.flac",
+        "more-files/d.wav",
+        "more-files/e.txt",
+    ]
     f = ku.find_files(path, substr="wav")
     f.sort()
     assert f == ["b.wav"]
@@ -45,13 +58,17 @@ def test_find_files_tar():
     f.sort()
     assert f == []
 
-@pytest.mark.parametrize("rel_path", ["timestamped-audiofiles", "zipped-timestamped-audiofiles.tar.gz"])
+
+@pytest.mark.parametrize(
+    "rel_path", ["timestamped-audiofiles", "zipped-timestamped-audiofiles.tar.gz"]
+)
 def test_collect_audiofile_metadata(rel_path):
-    """Check that we can extract metadata from audio files both stored 
-        within a regular directory and within a zipped tar archive"""
+    """Check that we can extract metadata from audio files both stored
+    within a regular directory and within a zipped tar archive"""
+
     def timestamp_parser(x):
         return datetime.strptime(x[9:28], "%Y%m%dT%H%M%S.%f")
-        
+
     path = os.path.join(path_to_assets, rel_path)
 
     # by default, only search for WAV files
@@ -61,25 +78,29 @@ def test_collect_audiofile_metadata(rel_path):
     # search for FLAC files
     df = ku.collect_audiofile_metadata(path, ext="FLAC")
     # compare to expected result
-    answ_path = os.path.join(path_to_assets, "timestamped-audiofiles/df-no-timestamps.csv")
+    answ_path = os.path.join(
+        path_to_assets, "timestamped-audiofiles/df-no-timestamps.csv"
+    )
     answ = pd.read_csv(answ_path).astype({"relative_path": "str"})
     pd.testing.assert_frame_equal(df, answ)
 
     # search for FLAC files with timestamp parser
-    df = ku.collect_audiofile_metadata(path, ext="FLAC", timestamp_parser=timestamp_parser)
+    df = ku.collect_audiofile_metadata(
+        path, ext="FLAC", timestamp_parser=timestamp_parser
+    )
     # compare to expected result
     answ_path = os.path.join(path_to_assets, "timestamped-audiofiles/df-timestamps.csv")
     answ = pd.read_csv(answ_path).astype({"relative_path": "str"})
     pd.testing.assert_frame_equal(df, answ)
 
     # search with time constraints and date_subfolder=True
-    earliest_start_utc = datetime(2024,6,30,12,0,0)
+    earliest_start_utc = datetime(2024, 6, 30, 12, 0, 0)
     df = ku.collect_audiofile_metadata(
-        path, 
-        ext="FLAC", 
+        path,
+        ext="FLAC",
         timestamp_parser=timestamp_parser,
         earliest_start_utc=earliest_start_utc,
-        date_subfolder=True,    
+        date_subfolder=True,
     )
     # compare to expected result
     answ_2024 = answ[answ.start_utc.apply(lambda x: "2024" in x)].reset_index(drop=True)

@@ -187,7 +187,9 @@ def insert_row(conn, table_name, row):
     return c
 
 
-def add_column(conn, table_name, col_name, col_type, required=False, default_value=None):
+def add_column(
+    conn, table_name, col_name, col_type, required=False, default_value=None
+):
     q = f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"
 
     if required:

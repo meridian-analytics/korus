@@ -4,7 +4,7 @@ import korus.database.interface as itf
 
 
 def test_create_a_field_definition():
-    """ Check that FieldDefinition class behaves as it should"""
+    """Check that FieldDefinition class behaves as it should"""
     # without default value
     f = itf.FieldDefinition("deployment_id", int, "Deployment identifier", False, None)
     assert f.name == "deployment_id"
@@ -19,7 +19,7 @@ def test_create_a_field_definition():
 
 
 def test_add_get_set_data(in_memory_table_backend):
-    """ Check that we can add data to, retrieve data from, and modify data in a TableInterface instance"""
+    """Check that we can add data to, retrieve data from, and modify data in a TableInterface instance"""
     i = itf.interface.TableInterface("test_interface", in_memory_table_backend)
 
     i.add_field("A", int, "a test field", default=None)
@@ -73,7 +73,7 @@ def test_add_get_set_data(in_memory_table_backend):
     str(i)
 
     # create a row with restricted set of allowed values
-    i.add_field("C", int, "yet another test field", options=[1,3])
+    i.add_field("C", int, "yet another test field", options=[1, 3])
 
     # attempt to add illegal value fails
     row["C"] = 4
@@ -83,4 +83,3 @@ def test_add_get_set_data(in_memory_table_backend):
     # legal value is accepted
     row["C"] = 3
     i.add(row)
-

@@ -13,23 +13,23 @@ def test_sqlite_backend(minimal_sqlite_backend):
 
     # insert two rows of data into the file table
     row1 = dict(
-        deployment_id = 1,
-        storage_id = 1,
-        filename = "xyz.wav",
-        relative_path = "a/b/c",
-        sample_rate = 96000,
-        num_samples = 960000,
-        start_utc = datetime(2022, 12, 2, 2, 0, 0, 123456, tzinfo=timezone.utc)
+        deployment_id=1,
+        storage_id=1,
+        filename="xyz.wav",
+        relative_path="a/b/c",
+        sample_rate=96000,
+        num_samples=960000,
+        start_utc=datetime(2022, 12, 2, 2, 0, 0, 123456, tzinfo=timezone.utc),
     )
 
     row2 = dict(
-        deployment_id = 1,
-        storage_id = 1,
-        filename = "ZYX.FLAC",
-        relative_path = "h\\i\\j",
-        sample_rate = 4000,
-        num_samples = 40000,
-        start_utc = datetime(2024, 1, 24, 6, 0, 0, tzinfo=timezone.utc)
+        deployment_id=1,
+        storage_id=1,
+        filename="ZYX.FLAC",
+        relative_path="h\\i\\j",
+        sample_rate=4000,
+        num_samples=40000,
+        start_utc=datetime(2024, 1, 24, 6, 0, 0, tzinfo=timezone.utc),
     )
 
     db.file.add(row1)
@@ -67,4 +67,3 @@ def test_sqlite_backend(minimal_sqlite_backend):
     assert rows[0][1] == row2["sample_rate"]
     assert rows[1][0] == 1
     assert rows[2][0] == 2
-
