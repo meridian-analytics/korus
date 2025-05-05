@@ -1,9 +1,11 @@
 import os
-from korus.database.sqlite import SQLiteDatabase
+import pytest
+from datetime import datetime
+from korus.database import SQLiteDatabase
 
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
-path_to_assets = os.path.join(file_dir, "..", "..", "assets")
+path_to_assets = os.path.join(file_dir, "..", "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
@@ -14,13 +16,13 @@ def test_create_database():
 
     db = SQLiteDatabase(path)
 
-    print(db.file)
-
-    db.file.add(
+    row = dict(
         deployment_id = 1,
         storage_id = 2,
         filename = "xyz.wav",
         relative_path = "a/b/c",
-        sample_rate = 96000,        
+        sample_rate = 96000,
     )
 
+    with pytest.raises(AssertionError):
+        db.file.add(row)
