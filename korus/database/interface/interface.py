@@ -18,17 +18,45 @@ class FieldDefinition:
             The field Python type.
         description: str
             Short, human-readable description of the data stored in this field
-        default: same as type (optional)
-            The field default value
         required: bool
             True if the field is required to have a non-null value. False otherwise
+        default: same as type (optional)
+            The field default value
+        options: list (optional)
+            Allowed values
     """
 
     name: str
     type: type
     description: str
-    default: "typing.Any"
     required: bool = True
+    default: "typing.Any" = None
+    options: list = None
+
+    def options_as_str(self) -> str:
+        """ Returns:
+                : str
+                    Allowed values as a single, comma-separated string.
+        """
+        if self.options is None:
+            return None
+        
+        else:
+            return ", ".join([str(v) for v in self.options])
+        
+    def as_tuple_str(self) -> tuple:
+        """ Returns:
+                : tuple
+                    The field definition in a tuple of strings. 
+        """
+        return (
+            self.name,
+            self.type.__name__,
+            self.description,
+            "Y" if self.required else "N",
+            str(self.default),
+            self.options_as_str()
+        )
 
 
 class TableInterface:
@@ -65,8 +93,9 @@ class TableInterface:
         name: str,
         type: "typing.Any",
         description: str,
-        default: "typing.Any" = None,
         required: bool = True,
+        default: "typing.Any" = None,
+        options: list = None,
     ):
         """Add a field to the table interface.
 
@@ -77,12 +106,14 @@ class TableInterface:
                 The field's type
             description: str
                 Short, human-readable description of the data stored in this field
-            default: same as type (optional)
-                The field default value
             required: bool
                 True if the field is required to have a non-null value. False otherwise
+            default: same as type (optional)
+                The field default value
+            options: list (optional)
+                Allowed values
         """
-        self._fields.append(FieldDefinition(name, type, description, default, required))
+        self._fields.append(FieldDefinition(name, type, description, required, default, options))
 
     def _validate_data(self, row: dict, replace: dict = None):
         """Helper function for validating input data and replacing missing fields.
@@ -105,7 +136,7 @@ class TableInterface:
 
         validated.update(row)
 
-        # check for valid field names, valid types, and that required fields have non-null values
+        # check for valid field names, valid types, valid values, and that required fields have non-null values
         for k, v in validated.items():
             fields = self.fields_asdict
             assert k in fields, f"Invalid field name `{k}`"
@@ -117,9 +148,14 @@ class TableInterface:
                 validated[k] = v
 
             else:
-                assert isinstance(
-                    v, f.type
-                ), f"Field `{k}` expects input of type `{f.type.__name__}` but input has type `{type(v).__name__}`"
+                # check value
+                if f.options is not None:
+                    assert_msg = f"Invalid value `{v}` for field `{k}`. The only allowed values are: {f.options_as_str()}"
+                    assert v in f.options, assert_msg
+
+                # check type
+                assert_msg = f"Field `{k}` expects input of type `{f.type.__name__}` but input has type `{type(v).__name__}`"
+                assert isinstance(v, f.type), assert_msg
 
         return validated
 
@@ -198,24 +234,14 @@ class TableInterface:
             res: str
                 Table summary
         """
-        # table name
-        res = f"Table name: {self.name}"
+        # table name and no. entries
+        res = f"Name: {self.name}\nEntries: {len(self)}"
 
         # fields
-        field_info = [
-            (
-                c.name,
-                c.type.__name__,
-                c.description,
-                c.default,
-                "Y" if c.required else "N",
-            )
-            for c in self.fields
-        ]
         res += "\nFields:\n"
         res += tabulate(
-            field_info,
-            headers=["Name", "Type", "Description", "Default Value", "Required"],
+            [f.as_tuple_str() for f in self.fields],
+            headers=["Name", "Type", "Description", "Required", "Default Value", "Allowed Values"],
         )
 
         return res
