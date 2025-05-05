@@ -6,22 +6,22 @@ class VersionedTaxonomy:
 
     def __init__(self, tax: Taxonomy):
         self.draft = tax
-        self.published = []
+        self.releases = []
 
     @property
     def version(self):
-        return len(self.published)
+        return len(self.releases)
 
     @property
     def current(self):
-        if len(self.published) == 0:
+        if len(self.releases) == 0:
             return None
 
         else:
-            return self.published[-1]
+            return self.releases[-1]
 
-    def publish(self):
-        self.published.append(self.draft)
+    def release(self):
+        self.releases.append(self.draft)
 
 
 class VersionedAcousticTaxonomy(VersionedTaxonomy):

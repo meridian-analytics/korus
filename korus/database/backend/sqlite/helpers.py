@@ -21,6 +21,9 @@ class SQLiteTableBackend(TableBackend):
         self.name = name
         self.codec = codec
 
+    def __len__(self):
+        return get_row_count(self.conn, self.name)
+
     def add(self, row: dict):
         insert_row(self.conn, self.name, self.codec.encode(row, self.name))
         self.conn.commit()
@@ -110,6 +113,13 @@ def table_exists(conn, name):
 def get_column_names(conn, table_name):
     rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
     return [row[1] for row in rows]
+
+
+def get_row_count(conn, table_name):
+    col_name = get_column_names(conn, table_name)[0]
+    q = f"SELECT count({col_name}) FROM {table_name}"
+    n = conn.execute(q).fetchall()[0][0]
+    return n
 
 
 def fetch_row(conn, table_name, indices=None, fields=None, as_dict=False):
