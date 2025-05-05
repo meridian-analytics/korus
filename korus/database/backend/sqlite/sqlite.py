@@ -55,3 +55,27 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
     @property
     def storage(self) -> SQLiteTableBackend:
         return self._storage
+
+    def add_tag(self, name: str, description: str):
+        """Add an annotation tag.
+        
+        Args:
+            name: str
+                The tag name
+            description: str
+                A short description of the tag's intended use
+        """
+        help.insert_row(self, "tag", {"name":name, "description":description})
+        self.commit()
+
+    def add_granularity(self, name: str, description: str):
+        """Add an annotation granularity level.
+        
+        Args:
+            name: str
+                The granularity level's name
+            description: str
+                A short definition of the granularity level
+        """
+        help.insert_row(self, "granularity", {"name":name, "description":description})
+        self.commit()
