@@ -3,11 +3,11 @@ from korus.taxonomy import AcousticTaxonomy, VersionedAcousticTaxonomy
 from datetime import datetime
 
 
-def _taxonomy_from_row(row) -> AcousticTaxonomy:
+def _tax_from_row(row) -> AcousticTaxonomy:
     #TODO: implement this
     pass
 
-def _row_from_taxonomy(tax, version, comment=None) -> dict:
+def _row_from_tax(tax, version, comment=None) -> dict:
     #TODO: implement this
     return {
         "version": version,
@@ -33,32 +33,17 @@ class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
         self.load()
 
     def load(self):
-        versions = [_taxonomy_from_row(row) for row in self]
-
-        if len(versions) > 1:       
-            self.releases = versions[:-1]
-        
+        versions = [_tax_from_row(row) for row in self]
+        self.releases = versions[1:]
         if len(versions) > 0:
-            self.draft = versions[-1]
+            self.draft = versions[0]
 
     def save(self):
-        row = _row_from_taxonomy(self.draft)
-
-        if len(self) == 0:
-            self.add(row)
-        
-        else:
-            idx = len(self) - 1
-            self.set(idx, row)
+        row = _row_from_tax(self.draft)
+        self.set(0, row)
 
     def release(self, comment=None):
         super().release()
-
-        # add new release to table (overwrite current draft)
-        idx = len(self)-1
-        row = _row_from_taxonomy(self.current, comment=comment)
-        self.set(idx, row)
-
-        # add new `draft` entry in table
-        row = _row_from_taxonomy(self.draft)
+        row = _row_from_tax(self.current, version=self.version, comment=comment)
         self.add(row)
+        self.save()
