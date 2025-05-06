@@ -37,3 +37,10 @@ def test_taxonomy_interface(in_memory_table_backend):
     assert ti.version == 2
     assert len(ti) == 3
     assert ti.current.comment == "abc"
+
+    # save draft with comment
+    ti.save("xyz")    
+    assert ti.version == 2
+    assert len(ti) == 3
+    assert ti.current.comment == "abc"
+    assert ti.draft.comment == "xyz"
