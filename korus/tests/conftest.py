@@ -13,50 +13,50 @@ path_to_assets = os.path.join(os.path.dirname(__file__), "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
+class InMemoryTableBackend(TableBackend):
+    def __init__(self):
+        self.rows = []
+        self.fields = []
+
+    def __len__(self):
+        return len(self.rows)
+
+    def get(self, indices=None, fields=None):
+        if len(self.rows) == 0:
+            return []
+
+        if indices is None:
+            indices = [i for i in range(len(self.rows))]
+
+        if fields is None:
+            fields = self.fields
+
+        if np.ndim(indices) == 0:
+            indices = [indices]
+
+        if np.ndim(fields) == 0:
+            fields = [fields]
+
+        return [
+            tuple([row.get(field, None) for field in fields])
+            for idx, row in enumerate(self.rows)
+            if idx in indices
+        ]
+
+    def add(self, row):
+        self.fields += [k for k in row.keys() if k not in self.fields]
+        self.rows.append(row)
+
+    def set(self, idx, row):
+        self.rows[idx] = row
+
+    def filter(self, *args, **kwargs):
+        pass
+
+
 @pytest.fixture
 def in_memory_table_backend():
     """Instance of TableBackend that stores data in memory"""
-
-    class InMemoryTableBackend(TableBackend):
-        def __init__(self):
-            self.rows = []
-            self.fields = []
-
-        def __len__(self):
-            return len(self.rows)
-
-        def get(self, indices=None, fields=None):
-            if len(self.rows) == 0:
-                return []
-
-            if indices is None:
-                indices = [i for i in range(len(self.rows))]
-
-            if fields is None:
-                fields = self.fields
-
-            if np.ndim(indices) == 0:
-                indices = [indices]
-
-            if np.ndim(fields) == 0:
-                fields = [fields]
-
-            return [
-                tuple([row.get(field, None) for field in fields])
-                for idx, row in enumerate(self.rows)
-                if idx in indices
-            ]
-
-        def add(self, row):
-            self.fields += [k for k in row.keys() if k not in self.fields]
-            self.rows.append(row)
-
-        def set(self, idx, row):
-            self.rows[idx] = row
-
-        def filter(self, *args, **kwargs):
-            pass
-
     yield InMemoryTableBackend()
 
 

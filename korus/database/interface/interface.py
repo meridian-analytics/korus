@@ -73,6 +73,7 @@ class TableInterface:
     """
 
     def __init__(self, name: str, backend):
+        super().__init__()
         self.name = name
         self.backend = backend
         self._fields = []
@@ -84,9 +85,18 @@ class TableInterface:
         return self._fields
 
     @property
+    def names(self) -> list[str]:
+        """The names of the fields in the table"""
+        return [field.name for field in self._fields]
+
+    @property
     def fields_asdict(self) -> dict[str, FieldDefinition]:
         """The definitions of the table's fields as a dict"""
         return {field.name: field for field in self._fields}
+
+    def values_asdict(self, values: tuple) -> dict:
+        """A tuple of field values as a dict"""
+        return {name: value for name, value in zip(self.names, values)}
 
     def add_field(
         self,
