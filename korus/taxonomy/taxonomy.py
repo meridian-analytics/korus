@@ -250,8 +250,8 @@ class Taxonomy(Tree):
 
     def clear_history(self):
         """Clear the history of created and removed nodes."""
-        self.created_nodes = {}
-        self.removed_nodes = {}
+        self._created_nodes = {}
+        self._removed_nodes = {}
 
     def show(self, append_name=False, **kwargs):
         """Overwrites treelib.tree.Tree.show.
@@ -374,7 +374,7 @@ class Taxonomy(Tree):
             tag=tag, identifier=identifier, parent=parent, data=kwargs
         )
 
-        self.created_nodes[node.identifier] = (
+        self._created_nodes[node.identifier] = (
             ([self.get_id(parent)], False) if precursor is None else precursor
         )
         self._tag_to_id[tag] = node.identifier
@@ -470,7 +470,7 @@ class Taxonomy(Tree):
         parent_id = self.parent(n).identifier
         node_gen = self.expand_tree(n, mode=Tree.DEPTH)
         for nid in node_gen:
-            self.removed_nodes[nid] = ([parent_id], False)  # (IDs, is_equivalent)
+            self._removed_nodes[nid] = ([parent_id], False)  # (IDs, is_equivalent)
 
         return super().remove_node(n)  # remove node and all nodes below it
 
@@ -501,7 +501,7 @@ class Taxonomy(Tree):
         n = self.get_id(n)  # tag -> identifier
 
         # set inheritors of removed nodes
-        self.removed_nodes[n] = (
+        self._removed_nodes[n] = (
             [child.identifier for child in self.children(n)],
             True,
         )  # (IDs, is_equivalent)

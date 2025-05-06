@@ -8,11 +8,14 @@ class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
     
     Row 0 is used for storing the draft version.
     The first release is stored in row 1, the second release in row 2, etc.
+
+    TODO: consider removing the `name` field
     """
 
     def __init__(self, backend):
         super().__init__(name="taxonomy", backend=backend)
 
+        self.add_field("name", str, "Name")
         self.add_field("version", int, "Version", required=False)
         self.add_field("timestamp", datetime, "Time of release (UTC)")
         self.add_field("changes", list, "Changes since previous version")
