@@ -51,6 +51,8 @@ class VersionedTaxonomy:
         release.comment = comment
         release.timestamp = datetime.now(timezone.utc)
         self.releases.append(release)
+        self.draft.clear_history()
+
 
 
 class VersionedAcousticTaxonomy(VersionedTaxonomy):

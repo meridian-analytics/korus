@@ -250,6 +250,10 @@ class Taxonomy(Tree):
 
     def clear_history(self):
         """Clear the history of created and removed nodes."""
+        self.version = None
+        self.timestamp = None
+        self.comment = None
+        self._changes = []
         self._created_nodes = {}
         self._removed_nodes = {}
 
