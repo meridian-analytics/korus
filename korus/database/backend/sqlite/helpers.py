@@ -190,18 +190,9 @@ def insert_row(conn, table_name, row):
     """
     c = conn.cursor()
 
-    # check if table has its own 'id' column
-    has_id = False
-    columns = conn.execute(f"PRAGMA table_info({table_name})")
-    for col in columns:
-        if col[1] == "id":
-            has_id = True
-            break
-
-    # SQL query
     col_names = ",".join(row.keys())
     val_str = ",".join(["?" for _ in row.keys()])
-    if has_id:
+    if has_id(conn, table_name):
         col_names = "id," + col_names
         val_str = "NULL," + val_str
 

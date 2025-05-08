@@ -80,13 +80,19 @@ def decode_field(value, fcn=None):
         return value
 
 
-def encode_row(row, fcns):
+def encode_row(row, fcns=None):
+    if fcns is None:
+        fcns = {}
+
     return {
         k: encode_field(v, fcns.get(k, None)) for k, v in row.items() if v is not None
     }
 
 
-def decode_row(row, fcns):
+def decode_row(row, fcns=None):
+    if fcns is None:
+        fcns = {}
+
     return {k: decode_field(v, fcns.get(k, None)) for k, v in row.items()}
 
 
