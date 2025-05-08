@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
     """Defines the interface of the Taxonomy Table.
-    
+
     Row 0 is used for storing the draft version.
     The first release is stored in row 1, the second release in row 2, etc.
 
@@ -31,8 +31,7 @@ class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
         self.load()
 
     def load(self):
-        """Load all taxonomy releases including draft version from the database into memory.
-        """
+        """Load all taxonomy releases including draft version from the database into memory."""
         versions = [
             AcousticTaxonomy.from_dict(self.values_asdict(values)) for values in self
         ]
@@ -59,7 +58,7 @@ class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
 
     def release(self, comment: str = None):
         """Release a new version of the taxonomy and save it to the database
-        
+
         Args:
             comment: str (optional)
                 An explanatory note

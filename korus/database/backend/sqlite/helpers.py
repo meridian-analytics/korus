@@ -29,11 +29,15 @@ class SQLiteTableBackend(TableBackend):
         self.conn.commit()
 
     def set(self, idx: int, row: dict):
-        raise NotImplementedError()
-        # TODO: implement this method
+        update_row(
+            self.conn, self.name, sqlite_index(idx), self.codec.encode(row, self.name)
+        )
+        self.conn.commit()
 
     def get(self, indices: int | list[int] = None, fields: str | list[str] = None):
-        rows = fetch_row(self.conn, self.name, indices, fields, as_dict=True)
+        rows = fetch_row(
+            self.conn, self.name, sqlite_index(indices), fields, as_dict=True
+        )
         rows = [self.codec.decode(row, self.name) for row in rows]
         return [tuple(list(row.values())) for row in rows]
 
@@ -57,6 +61,17 @@ class SQLiteTableBackend(TableBackend):
         )
 
         self.conn.commit()
+
+
+def sqlite_index(indices):
+    if indices is None:
+        return None
+
+    elif isinstance(indices, int):
+        return indices + 1
+
+    else:
+        return [idx + 1 for idx in indices]
 
 
 def to_str(x):
@@ -195,6 +210,46 @@ def insert_row(conn, table_name, row):
     )
 
     return c
+
+
+def update_row(conn, table_name, idx, row):
+    """Update a row in a table in the database.
+
+    Note: Expects the table to have an `id` index column
+
+    Args:
+        conn: sqlite3.Connection
+            Database connection
+        table_name: str
+            Table name
+        idx: int
+            Identifier of the row to be replaced
+        row: dict
+            row to be inserted
+
+    Returns:
+        c: sqlite3.Cursor
+            Database cursor
+    """
+    assert_msg = (
+        f"Unable to update table {table_name} because it does not have an `id` column"
+    )
+    assert has_id(conn, table_name), assert_msg
+
+    c = conn.cursor()
+    values = ", ".join([f"{k} = {v}" for k, v in row.items()])
+    q = f"UPDATE {table_name} SET {values} WHERE id = {idx}"
+    c.execute(q)
+    return c
+
+
+def has_id(conn, table_name):
+    columns = conn.execute(f"PRAGMA table_info({table_name})")
+    for col in columns:
+        if col[1] == "id":
+            return True
+
+    return False
 
 
 def add_column(
