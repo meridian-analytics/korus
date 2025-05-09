@@ -147,8 +147,10 @@ def fetch_row(
 
     if fields is None:
         fields_str = "*"
+
     else:
-        fields_str = ",".join(["id"] + fields)
+        fields = ["id"] + fields
+        fields_str = ",".join(fields)
 
     q = f"SELECT {fields_str} FROM {table_name}"
 
@@ -157,7 +159,7 @@ def fetch_row(
 
     rows = c.execute(q).fetchall()
 
-    # remove index if not requested
+    # remove index, if not requested
     if not return_indices:
         rows = [row[1:] for row in rows]
 
@@ -169,6 +171,9 @@ def fetch_row(
     if as_dict:
         if fields is None:
             fields = get_column_names(conn, table_name)
+
+        if not return_indices:
+            fields.remove("id")
 
         rows = [{k: v for k, v in zip(fields, row)} for row in rows]
 
