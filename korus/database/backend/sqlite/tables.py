@@ -9,7 +9,6 @@ def create_tables(conn):
     create_deployment_table(conn)
     create_storage_table(conn)
     create_taxonomy_table(conn)
-    create_label_table(conn)
     create_model_table(conn)
     create_tag_table(conn)
     create_granularity_table(conn)
@@ -56,7 +55,6 @@ def create_annotation_table(conn):
                 valid INTEGER NOT NULL DEFAULT 1,
                 comments TEXT,
                 PRIMARY KEY (id),
-                FOREIGN KEY (label_id) REFERENCES label (id),
                 FOREIGN KEY (tentative_label_id) REFERENCES label (id),
                 FOREIGN KEY (job_id) REFERENCES job (id),
                 FOREIGN KEY (file_id) REFERENCES file (id),
@@ -431,37 +429,3 @@ def create_taxonomy_table(conn):
     c.execute(tbl_def)
 
 
-def create_label_table(conn):
-    """Create label table according to Korus schema.
-
-    Also creates an index on (taxonomy_id, sound_source_tag, sound_type_tag) for faster querying.
-
-    Args:
-        conn: sqlite3.Connection
-            Database connection
-    """
-    if table_exists(conn, "label"):
-        return
-
-    c = conn.cursor()
-    tbl_def = """
-        CREATE TABLE
-            label(
-                id INTEGER NOT NULL,
-                sound_source TEXT,
-                sound_type TEXT,
-                PRIMARY KEY (id),
-                UNIQUE (sound_source, sound_type)
-            )
-        """
-    c.execute(tbl_def)
-
-    # create index for faster queries
-    c.execute(
-        """
-        CREATE INDEX
-            source_type_index
-        ON
-            label(sound_source, sound_type)
-    """
-    )
