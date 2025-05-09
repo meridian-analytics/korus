@@ -9,10 +9,8 @@ def create_tables(conn):
     create_deployment_table(conn)
     create_storage_table(conn)
     create_taxonomy_table(conn)
-    create_taxonomy_created_node_table(conn)
-    create_taxonomy_removed_node_table(conn)
-    create_model_table(conn)
     create_label_table(conn)
+    create_model_table(conn)
     create_tag_table(conn)
     create_granularity_table(conn)
     create_file_job_relation_table(conn)
@@ -47,7 +45,7 @@ def create_annotation_table(conn):
                 tag_id JSON, 
                 granularity_id INTEGER NOT NULL DEFAULT 2,
                 num_files INTEGER NOT NULL DEFAULT 1,
-                file_id_list JSON NOT NULL,
+                file_id_list JSON,
                 start_utc TEXT,
                 duration_ms INTEGER,
                 start_ms INTEGER DEFAULT 0,
@@ -423,58 +421,11 @@ def create_taxonomy_table(conn):
                 tree JSON NOT NULL,
                 timestamp TEXT,
                 comment TEXT,
+                changes JSON,
+                created_nodes JSON,
+                removed_nodes JSON,
                 PRIMARY KEY (id),
                 UNIQUE (name, version)
-            )
-        """
-    c.execute(tbl_def)
-
-
-def create_taxonomy_created_node_table(conn):
-    """Create taxonomy_created_node table according to Korus schema.
-
-    Args:
-        conn: sqlite3.Connection
-            Database connection
-    """
-    if table_exists(conn, "taxonomy_created_node"):
-        return
-
-    c = conn.cursor()
-    tbl_def = """
-        CREATE TABLE
-            taxonomy_created_node(
-                id TEXT NOT NULL,
-                precursor_id JSON NOT NULL,
-                is_equivalent INTEGER NOT NULL,
-                taxonomy_id INTEGER NOT NULL,
-                PRIMARY KEY (id),
-                FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id)
-            )
-        """
-    c.execute(tbl_def)
-
-
-def create_taxonomy_removed_node_table(conn):
-    """Create taxonomy_removed_node table according to Korus schema.
-
-    Args:
-        conn: sqlite3.Connection
-            Database connection
-    """
-    if table_exists(conn, "taxonomy_removed_node"):
-        return
-
-    c = conn.cursor()
-    tbl_def = """
-        CREATE TABLE
-            taxonomy_removed_node(
-                id TEXT NOT NULL,
-                inheritor_id JSON NOT NULL,
-                is_equivalent INTEGER NOT NULL,
-                taxonomy_id INTEGER NOT NULL,
-                PRIMARY KEY (id),
-                FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id)
             )
         """
     c.execute(tbl_def)
@@ -493,20 +444,14 @@ def create_label_table(conn):
         return
 
     c = conn.cursor()
-
-    # create table
     tbl_def = """
         CREATE TABLE
             label(
                 id INTEGER NOT NULL,
-                taxonomy_id INTEGER NOT NULL,
-                sound_source_tag TEXT,
-                sound_source_id TEXT,
-                sound_type_tag TEXT,
-                sound_type_id TEXT,
+                sound_source TEXT,
+                sound_type TEXT,
                 PRIMARY KEY (id),
-                FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id),
-                UNIQUE (taxonomy_id, sound_source_id, sound_type_id)
+                UNIQUE (sound_source, sound_type)
             )
         """
     c.execute(tbl_def)
@@ -517,8 +462,6 @@ def create_label_table(conn):
         CREATE INDEX
             source_type_index
         ON
-            label(taxonomy_id, sound_source_tag, sound_type_tag)
+            label(sound_source, sound_type)
     """
     )
-
-    # c.execute("INSERT INTO label VALUES (NULL, NULL, NULL)")

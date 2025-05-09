@@ -30,13 +30,13 @@ class SQLiteTableBackend(TableBackend):
 
     def set(self, idx: int, row: dict):
         update_row(
-            self.conn, self.name, sqlite_index(idx), self.codec.encode(row, self.name)
+            self.conn, self.name, sqlite_key(idx), self.codec.encode(row, self.name)
         )
         self.conn.commit()
 
     def get(self, indices: int | list[int] = None, fields: str | list[str] = None):
         rows = fetch_row(
-            self.conn, self.name, sqlite_index(indices), fields, as_dict=True
+            self.conn, self.name, sqlite_key(indices), fields, as_dict=True
         )
         rows = [self.codec.decode(row, self.name) for row in rows]
         return [tuple(list(row.values())) for row in rows]
@@ -63,7 +63,7 @@ class SQLiteTableBackend(TableBackend):
         self.conn.commit()
 
 
-def sqlite_index(indices):
+def sqlite_key(indices):
     if indices is None:
         return None
 

@@ -8,11 +8,12 @@ path_to_assets = os.path.join(file_dir, "..", "..", "..", "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
-def test_sqlite_backend(minimal_sqlite_backend):
-    # OBS: note that the fixture already has 1 row of data
+def test_sqlite_backend_file(minimal_sqlite_backend):
+    """Test add/get/set methods for the File backend"""
     db = minimal_sqlite_backend
 
     # insert two rows of data into the file table
+    # (note that the fixture already has 1 row of data)
     row1 = dict(
         deployment_id=1,
         storage_id=1,
@@ -73,3 +74,10 @@ def test_sqlite_backend(minimal_sqlite_backend):
     rows = db.file.set(idx=2, row={"sample_rate": 8000})
     rows = db.file.get(indices=2, fields="sample_rate")
     assert rows[0][0] == 8000
+
+
+def test_sqlite_backend_taxonomy(minimal_sqlite_backend):
+    """Test add/get/set methods for the Taxonomy backend"""
+    db = minimal_sqlite_backend
+
+    # 

@@ -84,6 +84,9 @@ def minimal_sqlite_backend():
             "num_samples": 960000,
         }
     )
+    db.taxonomy.add({"name": "MyTaxonomy", "tree": dict()})
+    db.job.add({"taxonomy_id": 1})
+    db.annotation.add({"deployment_id": 1, "job_id": 1})
 
     yield db
 
