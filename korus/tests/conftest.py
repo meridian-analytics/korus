@@ -15,13 +15,14 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 class InMemoryTableBackend(TableBackend):
     def __init__(self):
+        super().__init__("in_memory")
         self.rows = []
         self.fields = []
 
     def __len__(self):
         return len(self.rows)
 
-    def get(self, indices=None, fields=None):
+    def get(self, indices=None, fields=None, return_indices=False):
         if len(self.rows) == 0:
             return []
 
@@ -37,9 +38,17 @@ class InMemoryTableBackend(TableBackend):
         if np.ndim(fields) == 0:
             fields = [fields]
 
+        if return_indices:
+            fields = ["id"] + fields
+            rows = self.rows.copy()
+            for i in range(len(rows)):
+                rows[i]["id"] = i 
+        else:
+            rows = self.rows
+
         return [
             tuple([row.get(field, None) for field in fields])
-            for idx, row in enumerate(self.rows)
+            for idx, row in enumerate(rows)
             if idx in indices
         ]
 
@@ -49,9 +58,6 @@ class InMemoryTableBackend(TableBackend):
 
     def set(self, idx, row):
         self.rows[idx] = row
-
-    def filter(self, *args, **kwargs):
-        pass
 
 
 @pytest.fixture
@@ -77,16 +83,16 @@ def minimal_sqlite_backend():
     db.storage.add({"name": "MyFileStorage"})
     db.file.add(
         {
-            "deployment_id": 1,
-            "storage_id": 1,
+            "deployment_id": 0,
+            "storage_id": 0,
             "filename": "xyz.wav",
             "sample_rate": 96000,
             "num_samples": 960000,
         }
     )
-    db.taxonomy.add({"name": "MyTaxonomy", "tree": dict()})
-    db.job.add({"taxonomy_id": 1})
-    db.annotation.add({"deployment_id": 1, "job_id": 1})
+    db.taxonomy.add({"name": "MyTaxonomy", "tree": dict(), "labels": list()})
+    db.job.add({"taxonomy_id": 0})
+    db.annotation.add({"deployment_id": 0, "job_id": 0})
 
     yield db
 

@@ -26,9 +26,26 @@ class AcousticTaxonomy(Taxonomy):
         self,
         name="acoustic_taxonomy",
         root_tag="Unknown",
+        **kwargs,
     ):
         self._type_root_tag = root_tag
-        super().__init__(name=name, root_tag=root_tag)
+        super().__init__(name=name, root_tag=root_tag, **kwargs)
+
+    @property
+    def all_labels(self):
+        _labels = []
+        for sound_source in self.all_nodes_itr():
+            for sound_type in sound_source.data["sound_types"].all_nodes_itr():
+                _labels.append(
+                    (
+                        sound_source.tag,
+                        sound_source.identifier,
+                        sound_type.tag,
+                        sound_type.identifier,
+                    )
+                )
+
+        return _labels
 
     @classmethod
     def from_dict(cls, input_dict):
@@ -118,7 +135,9 @@ class AcousticTaxonomy(Taxonomy):
                 kwargs["sound_types"] = tax
 
             else:  # create empty sound-type tree
-                kwargs["sound_types"] = Taxonomy(name=f"{tag}_sound_types", root_tag=self._type_root_tag)
+                kwargs["sound_types"] = Taxonomy(
+                    name=f"{tag}_sound_types", root_tag=self._type_root_tag
+                )
 
         return super().create_node(
             tag=tag, identifier=identifier, parent=parent, precursor=precursor, **kwargs
@@ -301,8 +320,8 @@ class AcousticTaxonomy(Taxonomy):
         Yields:
             source_tag, type_tag: str, str
         """
-        #debug_msg = f"[{self.__class__.__name__}] Ascending {self.name} v{self.version} starting from ({source_tag},{type_tag})"
-        #logging.debug(debug_msg)
+        # debug_msg = f"[{self.__class__.__name__}] Ascending {self.name} v{self.version} starting from ({source_tag},{type_tag})"
+        # logging.debug(debug_msg)
 
         types = self.get_node(source_tag).data["sound_types"]  # sound-type tree
         source_gen = self.rsearch(source_tag)  # ascending source-id generator
@@ -347,8 +366,8 @@ class AcousticTaxonomy(Taxonomy):
         Yields:
             source_tag, type_tag: str, str
         """
-        #debug_msg = f"[{self.__class__.__name__}] Descending {self.name} v{self.version} starting from ({source_tag},{type_tag})"
-        #logging.debug(debug_msg)
+        # debug_msg = f"[{self.__class__.__name__}] Descending {self.name} v{self.version} starting from ({source_tag},{type_tag})"
+        # logging.debug(debug_msg)
 
         source_gen = self.expand_tree(self.get_id(source_tag), mode=Tree.DEPTH)
 
@@ -365,8 +384,8 @@ class AcousticTaxonomy(Taxonomy):
 
             else:
                 if types_i.get_node(type_tag) is None:
-                    #debug_msg = f"[{self.__class__.__name__}] Sound source '{source_i.tag}' does not have sound type '{type_tag}'. Skipping ..."
-                    #logging.debug(debug_msg)
+                    # debug_msg = f"[{self.__class__.__name__}] Sound source '{source_i.tag}' does not have sound type '{type_tag}'. Skipping ..."
+                    # logging.debug(debug_msg)
                     continue
 
                 type_gen = types_i.expand_tree(

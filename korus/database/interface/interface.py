@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from tabulate import tabulate
-from korus.util import not_impl_err_msg
+from korus.database.backend import TableBackend
 
 
 @dataclass
@@ -72,7 +72,7 @@ class TableInterface:
             The table backend, connecting the interface to the underlying database
     """
 
-    def __init__(self, name: str, backend):
+    def __init__(self, name: str, backend: TableBackend):
         super().__init__()
         self.name = name
         self.backend = backend
@@ -196,16 +196,12 @@ class TableInterface:
         }
         self.backend.set(idx, self._validate_data(row, replace))
 
-    def filter(self):
-        """Search the table
-
-        Returns:
-            indices: list[int]
-                The indices of the rows matching the search criteria
-        """
-        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
-
-    def get(self, indices: int | list[int] = None, fields: str | list[str] = None):
+    def get(
+        self,
+        indices: int | list[int] = None,
+        fields: str | list[str] = None,
+        return_indices: bool = False,
+    ):
         """Retrieve data from the table.
 
         Note that the method always returns a list, even when only a single index is specified.
@@ -220,7 +216,7 @@ class TableInterface:
             : list[tuple]
                 The data
         """
-        return self.backend.get(indices, fields)
+        return self.backend.get(indices, fields, return_indices)
 
     def __len__(self) -> int:
         """Number of rows in the table"""

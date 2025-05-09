@@ -20,7 +20,7 @@ def test_create_a_field_definition():
 
 def test_add_get_set_data(in_memory_table_backend):
     """Check that we can add data to, retrieve data from, and modify data in a TableInterface instance"""
-    i = itf.interface.TableInterface("test_interface", in_memory_table_backend)
+    i = itf.interface.TableInterface("test", in_memory_table_backend)
 
     i.add_field("A", int, "a test field", default=None)
 

@@ -1,12 +1,20 @@
 import pytest
+import pandas.testing
+from copy import copy
 from datetime import datetime, timezone
-from korus.database.interface import TaxonomyInterface
+from korus.database.interface import TaxonomyInterface, LabelInterface
 from korus.taxonomy import AcousticTaxonomy
+from korus.tests.conftest import InMemoryTableBackend
 
 
-def test_taxonomy_interface(in_memory_table_backend):
+
+def test_taxonomy_interface():
     """Check that TaxonomyInterface behaves as it should"""
-    ti = TaxonomyInterface(in_memory_table_backend)
+    taxonomy_backend = InMemoryTableBackend()
+    label_backend = InMemoryTableBackend()
+
+    li = LabelInterface(label_backend)
+    ti = TaxonomyInterface(taxonomy_backend, li)
 
     assert ti.version == 0
     assert len(ti) == 0
@@ -44,3 +52,8 @@ def test_taxonomy_interface(in_memory_table_backend):
     assert len(ti) == 3
     assert ti.current.comment == "abc"
     assert ti.draft.comment == "xyz"
+
+    # check that we can reload the realeses and saved draft and that labels are correct
+    labels = ti.labels.copy()
+    ti.load()
+    assert pandas.testing.assert_frame_equal(labels, ti.labels) is None

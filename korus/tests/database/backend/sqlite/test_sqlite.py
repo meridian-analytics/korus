@@ -15,8 +15,8 @@ def test_sqlite_backend_file(minimal_sqlite_backend):
     # insert two rows of data into the file table
     # (note that the fixture already has 1 row of data)
     row1 = dict(
-        deployment_id=1,
-        storage_id=1,
+        deployment_id=0,
+        storage_id=0,
         filename="xyz.wav",
         relative_path="a/b/c",
         sample_rate=96000,
@@ -25,8 +25,8 @@ def test_sqlite_backend_file(minimal_sqlite_backend):
     )
 
     row2 = dict(
-        deployment_id=1,
-        storage_id=1,
+        deployment_id=0,
+        storage_id=0,
         filename="ZYX.FLAC",
         relative_path="h\\i\\j",
         sample_rate=4000,
@@ -59,16 +59,16 @@ def test_sqlite_backend_file(minimal_sqlite_backend):
     # we can select a single row
     rows = db.file.get(indices=2, fields=["id", "sample_rate"])
     assert len(rows) == 1
-    assert rows[0][0] == 3  #SQLite starts indexing at 1!
+    assert rows[0][0] == 2
     assert rows[0][1] == row2["sample_rate"]
 
     # row ordering is preserved when fetching multiple rows
     rows = db.file.get(indices=[2, 0, 1], fields=["id", "sample_rate"])
     assert len(rows) == 3
-    assert rows[0][0] == 3  
+    assert rows[0][0] == 2
     assert rows[0][1] == row2["sample_rate"]
-    assert rows[1][0] == 1
-    assert rows[2][0] == 2
+    assert rows[1][0] == 0
+    assert rows[2][0] == 1
 
     # we can update a single row
     rows = db.file.set(idx=2, row={"sample_rate": 8000})

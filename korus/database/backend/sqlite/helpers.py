@@ -1,7 +1,7 @@
 import numpy as np
 import sqlite3
 from korus.database.backend import TableBackend
-from korus.database.backend.sqlite.encode import Codec, get_sqlite_type
+from korus.database.backend.sqlite.encode import Codec, get_sqlite_type, encode_key
 
 
 class SQLiteTableBackend(TableBackend):
@@ -17,8 +17,8 @@ class SQLiteTableBackend(TableBackend):
     """
 
     def __init__(self, conn: sqlite3.Connection, name: str, codec: Codec):
+        super().__init__(name)
         self.conn = conn
-        self.name = name
         self.codec = codec
 
     def __len__(self):
@@ -30,13 +30,23 @@ class SQLiteTableBackend(TableBackend):
 
     def set(self, idx: int, row: dict):
         update_row(
-            self.conn, self.name, sqlite_key(idx), self.codec.encode(row, self.name)
+            self.conn, self.name, encode_key(idx), self.codec.encode(row, self.name)
         )
         self.conn.commit()
 
-    def get(self, indices: int | list[int] = None, fields: str | list[str] = None):
+    def get(
+        self,
+        indices: int | list[int] = None,
+        fields: str | list[str] = None,
+        return_indices: bool = False,
+    ):
         rows = fetch_row(
-            self.conn, self.name, sqlite_key(indices), fields, as_dict=True
+            self.conn,
+            self.name,
+            encode_key(indices),
+            fields,
+            as_dict=True,
+            return_indices=return_indices,
         )
         rows = [self.codec.decode(row, self.name) for row in rows]
         return [tuple(list(row.values())) for row in rows]
@@ -61,17 +71,6 @@ class SQLiteTableBackend(TableBackend):
         )
 
         self.conn.commit()
-
-
-def sqlite_key(indices):
-    if indices is None:
-        return None
-
-    elif isinstance(indices, int):
-        return indices + 1
-
-    else:
-        return [idx + 1 for idx in indices]
 
 
 def to_str(x):
@@ -109,6 +108,10 @@ def table_exists(conn, name):
         : bool
             True, if table exists. False, otherwise.
     """
+    return name in get_table_names(conn)
+
+
+def get_table_names(conn):
     c = conn.cursor()
     query = f"""
         SELECT 
@@ -117,12 +120,9 @@ def table_exists(conn, name):
             sqlite_master 
         WHERE 
             type='table' 
-        AND 
-            name='{name}'
-    
     """
-    results = c.execute(query).fetchall()
-    return len(results) > 0
+    rows = c.execute(query).fetchall()
+    return [row[0] for row in rows]
 
 
 def get_column_names(conn, table_name):
@@ -137,7 +137,9 @@ def get_row_count(conn, table_name):
     return n
 
 
-def fetch_row(conn, table_name, indices=None, fields=None, as_dict=False):
+def fetch_row(
+    conn, table_name, indices=None, fields=None, as_dict=False, return_indices=False
+):
     c = conn.cursor()
 
     if isinstance(fields, str):
@@ -146,7 +148,7 @@ def fetch_row(conn, table_name, indices=None, fields=None, as_dict=False):
     if fields is None:
         fields_str = "*"
     else:
-        fields_str = ",".join(fields)
+        fields_str = ",".join(["id"] + fields)
 
     q = f"SELECT {fields_str} FROM {table_name}"
 
@@ -154,6 +156,10 @@ def fetch_row(conn, table_name, indices=None, fields=None, as_dict=False):
         q += f" WHERE id IN {to_str(indices)}"
 
     rows = c.execute(q).fetchall()
+
+    # remove index if not requested
+    if not return_indices:
+        rows = [row[1:] for row in rows]
 
     # preserve ordering
     if indices is not None and np.ndim(indices) > 0:

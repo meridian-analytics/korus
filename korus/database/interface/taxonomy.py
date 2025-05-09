@@ -1,6 +1,8 @@
 from .interface import TableInterface
 from korus.taxonomy import AcousticTaxonomy, VersionedAcousticTaxonomy
+from korus.database.backend import TableBackend
 from datetime import datetime, timezone
+import pandas as pd
 
 
 class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
@@ -12,8 +14,10 @@ class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
     TODO: consider removing the `name` field
     """
 
-    def __init__(self, backend):
+    def __init__(self, backend: TableBackend, label_interface: TableInterface):
         super().__init__(name="taxonomy", backend=backend)
+
+        self.label_interface = label_interface
 
         self.add_field("name", str, "Name")
         self.add_field("version", int, "Version", required=False)
@@ -31,13 +35,23 @@ class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
         self.load()
 
     def load(self):
-        """Load all taxonomy releases including draft version from the database into memory."""
+        """Load all taxonomy releases including draft version from the database into memory.
+
+        Also load the label mapping.
+        """
         versions = [
             AcousticTaxonomy.from_dict(self.values_asdict(values)) for values in self
         ]
         self.releases = versions[1:]
         if len(versions) > 0:
             self.draft = versions[0]
+
+        # load label data
+        fields = self.label_interface.names
+        data = self.label_interface.get(fields=fields, return_indices=True)
+        df = pd.DataFrame(data, columns=["id"] + fields)
+        df = df.rename(columns={"taxonomy_id": "version"})
+        self.labels = df.set_index("id")
 
     def save(self, comment: str = None):
         """Save the current draft to the database.
@@ -66,3 +80,9 @@ class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
         super().release(comment)
         self.save()
         self.add(self.current.to_dict())
+
+        # also save the labels
+        df = self.labels[self.labels.version == self.version]
+        for idx, row in df.iterrows():
+            row["taxonomy_id"] = row.pop("version")
+            self.label_interface.add(row)

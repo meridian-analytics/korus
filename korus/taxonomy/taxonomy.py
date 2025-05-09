@@ -1,5 +1,6 @@
 import copy
 from treelib import Tree
+from datetime import datetime
 
 
 def tree_from_dict(tree, recipe, parent=None, data_transform=None):
@@ -107,10 +108,10 @@ def tree_to_dict(tree, nid=None, key=None, sort=True, reverse=False):
 
 
 class Taxonomy(Tree):
-    """Class for managing annotation taxonomies with a tree-like structure 
+    """Class for managing annotation taxonomies with a tree-like structure
     where every child nodes has precisely one parent node.
 
-    Derived from the treelib.tree.Tree class. It adds a few new features 
+    Derived from the treelib.tree.Tree class. It adds a few new features
     and makes a few changes:
 
      * tags are required to be unique.
@@ -139,17 +140,27 @@ class Taxonomy(Tree):
             maps removed_node_uuid -> (inheritor_node_uuid(s), is_equivalent)
     """
 
-    def __init__(self, name: str = "taxonomy", root_tag: str = "root"):
+    def __init__(
+        self,
+        name: str = "taxonomy",
+        root_tag: str = "root",
+        version: int = None,
+        timestamp: datetime = None,
+        changes: list[str] = None,
+        comment: str = None,
+        created_nodes: dict = None,
+        removed_nodes: dict = None,
+    ):
         super().__init__()
 
         self.name = name
 
-        self.version = None
-        self.timestamp = None
-        self.comment = None
-        self._changes = []
-        self._created_nodes = {}
-        self._removed_nodes = {}
+        self.version = version
+        self.timestamp = timestamp
+        self.comment = comment
+        self._changes = [] if changes is None else changes
+        self._created_nodes = {} if created_nodes is None else created_nodes
+        self._removed_nodes = {} if removed_nodes is None else removed_nodes
 
         self._tag_to_id = {}
         self._data_merge_fcn = lambda x: dict()
@@ -168,7 +179,7 @@ class Taxonomy(Tree):
     @property
     def created_nodes(self):
         return self._created_nodes
-    
+
     @created_nodes.setter
     def created_nodes(self, x):
         self._created_nodes = x
@@ -176,17 +187,21 @@ class Taxonomy(Tree):
     @property
     def removed_nodes(self):
         return self._removed_nodes
-    
+
     @removed_nodes.setter
     def removed_nodes(self, x):
         self._removed_nodes = x
+
+    @property
+    def all_labels(self):
+        return [(node.tag, node.identifier) for node in self.all_nodes_itr()]
 
     @classmethod
     def from_dict(cls, input_dict, data_transform=None):
         """Load a taxonomy from a dictionary.
 
         Expects the dictionary to have the keys,
-         
+
             tree, name, version, changes, timestamp, comment, created_nodes, removed_nodes
 
         Within the 'tree' dictionary, the key 'children' is used to designate branching
@@ -204,24 +219,11 @@ class Taxonomy(Tree):
                 The taxonomy
         """
         recipe = input_dict.pop("tree")
-        version = input_dict.pop("version", None)
-        changes = input_dict.pop("changes", [])
-        timestamp = input_dict.pop("timestamp", None)
-        created_nodes = input_dict.pop("created_nodes", {})
-        removed_nodes = input_dict.pop("removed_nodes", {})
-
         tax = tree_from_dict(
             cls(**input_dict, root_tag=None),
             recipe=recipe,
             data_transform=data_transform,
         )
-
-        tax.version = version
-        tax.changes = changes
-        tax.timestamp = timestamp
-        tax.created_nodes = created_nodes
-        tax.removed_nodes = removed_nodes
-
         return tax
 
     def to_dict(self) -> dict:
@@ -241,7 +243,7 @@ class Taxonomy(Tree):
             "created_nodes": self.created_nodes,
             "removed_nodes": self.removed_nodes,
         }
-    
+
     def deepcopy(self):
         """Make a deep copy of the present instance
         See https://docs.python.org/2/library/copy.html
@@ -513,7 +515,6 @@ class Taxonomy(Tree):
         msg = f"{self.name}: Linked past {self.get_node(n).tag}"
         self._changes.append(msg)
 
-
         return super().link_past_node(n)
 
     def is_ancestor(self, ancestor, grandchild):
@@ -580,4 +581,3 @@ class Taxonomy(Tree):
 
             if is_lca:
                 return self.get_node(nid_lca).tag
-

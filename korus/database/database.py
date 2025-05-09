@@ -5,6 +5,7 @@ from .interface import (
     JobInterface,
     StorageInterface,
     TaxonomyInterface,
+    LabelInterface,
 )
 from .backend import DatabaseBackend
 from .backend.sqlite import SQLiteBackend
@@ -20,7 +21,8 @@ class Database:
         self.file = FileInterface(self.backend.file)
         self.job = JobInterface(self.backend.job)
         self.storage = StorageInterface(self.backend.storage)
-        self.taxonomy = TaxonomyInterface(self.backend.taxonomy)
+        self._label = LabelInterface(self.backend.label)
+        self.taxonomy = TaxonomyInterface(self.backend.taxonomy, self._label)
 
 
 class SQLiteDatabase(Database):

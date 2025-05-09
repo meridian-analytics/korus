@@ -5,3 +5,4 @@ from .file import FileInterface
 from .job import JobInterface
 from .storage import StorageInterface
 from .taxonomy import TaxonomyInterface
+from .label import LabelInterface

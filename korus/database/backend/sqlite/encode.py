@@ -19,6 +19,21 @@ def get_sqlite_type(x: "typing.Any"):
         return "TEXT"
 
 
+def encode_key(v: int | list[int]):
+    if v is None:
+        return None
+
+    elif isinstance(v, int):
+        return v + 1
+
+    else:
+        return [x + 1 for x in v]
+
+
+def decode_key(v: int) -> int:
+    return v - 1
+
+
 def decode_datetime(v: str) -> datetime:
     """Decoder for datetime values.
 

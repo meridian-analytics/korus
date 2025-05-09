@@ -2,7 +2,16 @@ from korus.util import not_impl_err_msg
 
 
 class TableBackend:
-    def get(self, indices: int | list[int] = None, fields: str | list[str] = None):
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def get(
+        self,
+        indices: int | list[int] = None,
+        fields: str | list[str] = None,
+        return_indices: bool = False,
+    ):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "get"))
 
     def add(self, row: dict):
@@ -10,9 +19,6 @@ class TableBackend:
 
     def set(self, idx: int, row: dict):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "set"))
-
-    def filter(self, *args, **kwargs):
-        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
 
     def __len__(self):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "__len__"))
@@ -47,3 +53,7 @@ class DatabaseBackend:
     @property
     def taxonomy(self) -> TableBackend:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "taxonomy"))
+
+    @property
+    def label(self) -> TableBackend:
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "label"))

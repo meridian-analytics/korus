@@ -6,9 +6,32 @@ from .file import FileBackend
 from .job import JobBackend
 from .storage import StorageBackend
 from .taxonomy import TaxonomyBackend
+from .label import LabelBackend
 from .tables import create_tables
-from korus.database.backend.sqlite.helpers import SQLiteTableBackend
+from korus.database.backend.sqlite.helpers import get_table_names
 import korus.database.backend.sqlite.encode as enc
+
+
+def create_codec(conn):
+    codec = enc.Codec()
+
+    # decode timestamps
+    codec.decoder.add_rule("file", "start_utc", enc.decode_datetime)
+
+    # encode & decode table keys
+    table_names = get_table_names(conn)
+    for table_name in table_names:
+        # primary keys
+        codec.encoder.add_rule(table_name, "id", enc.encode_key)
+        codec.decoder.add_rule(table_name, "id", enc.decode_key)
+
+        for key_name in table_names:
+            # foreign keys
+            key_name += "_id"
+            codec.encoder.add_rule(table_name, key_name, enc.encode_key)
+            codec.decoder.add_rule(table_name, key_name, enc.decode_key)
+
+    return codec
 
 
 class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
@@ -26,9 +49,8 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
         # commit changes to SQLite database
         self.commit()
 
-        # add decoding rules
-        self.codec = enc.Codec()
-        self.codec.decoder.add_rule("file", "start_utc", enc.decode_datetime)
+        # add field-specific encoding and decoding rules
+        self.codec = create_codec(self)
 
         # table backends
         self._deployment = DeploymentBackend(self, self.codec)
@@ -37,6 +59,7 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
         self._job = JobBackend(self, self.codec)
         self._storage = StorageBackend(self, self.codec)
         self._taxonomy = TaxonomyBackend(self, self.codec)
+        self._label = LabelBackend(self, self.codec)
 
     @property
     def deployment(self) -> DeploymentBackend:
@@ -61,6 +84,10 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
     @property
     def taxonomy(self) -> TaxonomyBackend:
         return self._taxonomy
+
+    @property
+    def label(self) -> LabelBackend:
+        return self._label
 
     def add_tag(self, name: str, description: str):
         """Add an annotation tag.
