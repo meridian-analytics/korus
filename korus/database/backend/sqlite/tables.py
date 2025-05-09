@@ -55,7 +55,6 @@ def create_annotation_table(conn):
                 valid INTEGER NOT NULL DEFAULT 1,
                 comments TEXT,
                 PRIMARY KEY (id),
-                FOREIGN KEY (tentative_label_id) REFERENCES label (id),
                 FOREIGN KEY (job_id) REFERENCES job (id),
                 FOREIGN KEY (file_id) REFERENCES file (id),
                 FOREIGN KEY (deployment_id) REFERENCES deployment (id),
