@@ -1,14 +1,8 @@
 import sqlite3
 from korus.database.backend import DatabaseBackend
-from .deployment import DeploymentBackend
 from .annotation import AnnotationBackend
-from .file import FileBackend
-from .job import JobBackend
-from .storage import StorageBackend
-from .taxonomy import TaxonomyBackend
-from .label import LabelBackend
 from .tables import create_tables
-from korus.database.backend.sqlite.helpers import get_table_names
+from korus.database.backend.sqlite.helpers import get_table_names, SQLiteTableBackend
 import korus.database.backend.sqlite.encode as enc
 
 
@@ -53,16 +47,16 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
         self.codec = create_codec(self)
 
         # table backends
-        self._deployment = DeploymentBackend(self, self.codec)
         self._annotation = AnnotationBackend(self, self.codec)
-        self._file = FileBackend(self, self.codec)
-        self._job = JobBackend(self, self.codec)
-        self._storage = StorageBackend(self, self.codec)
-        self._taxonomy = TaxonomyBackend(self, self.codec)
-        self._label = LabelBackend(self, self.codec)
+        self._deployment = SQLiteTableBackend(self, "deployment", self.codec)
+        self._file = SQLiteTableBackend(self, "file", self.codec)
+        self._job = SQLiteTableBackend(self, "job", self.codec)
+        self._storage = SQLiteTableBackend(self, "storage", self.codec)
+        self._taxonomy = SQLiteTableBackend(self, "taxonomy", self.codec)
+        self._label = SQLiteTableBackend(self, "label", self.codec)
 
     @property
-    def deployment(self) -> DeploymentBackend:
+    def deployment(self) -> SQLiteTableBackend:
         return self._deployment
 
     @property
@@ -70,23 +64,23 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
         return self._annotation
 
     @property
-    def file(self) -> FileBackend:
+    def file(self) -> SQLiteTableBackend:
         return self._file
 
     @property
-    def job(self) -> JobBackend:
+    def job(self) -> SQLiteTableBackend:
         return self._job
 
     @property
-    def storage(self) -> StorageBackend:
+    def storage(self) -> SQLiteTableBackend:
         return self._storage
 
     @property
-    def taxonomy(self) -> TaxonomyBackend:
+    def taxonomy(self) -> SQLiteTableBackend:
         return self._taxonomy
 
     @property
-    def label(self) -> LabelBackend:
+    def label(self) -> SQLiteTableBackend:
         return self._label
 
     def add_tag(self, name: str, description: str):
