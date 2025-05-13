@@ -10,7 +10,10 @@ def create_codec(conn):
     codec = enc.Codec()
 
     # decode timestamps
+    codec.decoder.add_rule("deployment", "start_utc", enc.decode_datetime)
+    codec.decoder.add_rule("deployment", "end_utc", enc.decode_datetime)
     codec.decoder.add_rule("file", "start_utc", enc.decode_datetime)
+    
 
     # encode & decode table keys
     table_names = get_table_names(conn)
