@@ -13,7 +13,16 @@ def create_codec(conn):
     codec.decoder.add_rule("deployment", "start_utc", enc.decode_datetime)
     codec.decoder.add_rule("deployment", "end_utc", enc.decode_datetime)
     codec.decoder.add_rule("file", "start_utc", enc.decode_datetime)
-    
+
+    # millisecod fields in annotation table
+    codec.encoder.add_rule("annotation", "duration_ms", enc.encode_ms)
+    codec.decoder.add_rule("annotation", "duration_ms", enc.decode_ms)
+    codec.encoder.add_rule("annotation", "start_ms", enc.encode_ms)
+    codec.decoder.add_rule("annotation", "start_ms", enc.decode_ms)
+
+    # file_id_list field in annotation table
+    codec.encoder.add_rule("annotation", "file_id_list", enc.encode_key)
+    codec.decoder.add_rule("annotation", "file_id_list", enc.decode_key)
 
     # encode & decode table keys
     table_names = get_table_names(conn)

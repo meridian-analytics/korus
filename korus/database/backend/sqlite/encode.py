@@ -1,4 +1,5 @@
 import json
+import numpy as np
 from datetime import datetime, timezone
 
 
@@ -19,6 +20,18 @@ def get_sqlite_type(x: "typing.Any"):
         return "TEXT"
 
 
+def encode_ms(v: float):
+    if v is None:
+        return None
+
+    else:
+        return int(np.round(v * 1e3))
+
+
+def decode_ms(v: int):
+    return float(v) / 1e3
+
+
 def encode_key(v: int | list[int]):
     if v is None:
         return None
@@ -30,8 +43,12 @@ def encode_key(v: int | list[int]):
         return [x + 1 for x in v]
 
 
-def decode_key(v: int) -> int:
-    return v - 1
+def decode_key(v: int | list[int]):
+    if isinstance(v, int):
+        return v - 1
+
+    else:
+        return [x - 1 for x in v]
 
 
 def decode_datetime(v: str) -> datetime:
