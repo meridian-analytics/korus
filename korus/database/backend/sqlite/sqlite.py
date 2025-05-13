@@ -2,42 +2,8 @@ import sqlite3
 from korus.database.backend import DatabaseBackend
 from .annotation import AnnotationBackend
 from .tables import create_tables
-from korus.database.backend.sqlite.helpers import get_table_names, SQLiteTableBackend
-import korus.database.backend.sqlite.encode as enc
-
-
-def create_codec(conn):
-    codec = enc.Codec()
-
-    # decode timestamps
-    codec.decoder.add_rule("deployment", "start_utc", enc.decode_datetime)
-    codec.decoder.add_rule("deployment", "end_utc", enc.decode_datetime)
-    codec.decoder.add_rule("file", "start_utc", enc.decode_datetime)
-
-    # millisecod fields in annotation table
-    codec.encoder.add_rule("annotation", "duration_ms", enc.encode_ms)
-    codec.decoder.add_rule("annotation", "duration_ms", enc.decode_ms)
-    codec.encoder.add_rule("annotation", "start_ms", enc.encode_ms)
-    codec.decoder.add_rule("annotation", "start_ms", enc.decode_ms)
-
-    # file_id_list field in annotation table
-    codec.encoder.add_rule("annotation", "file_id_list", enc.encode_key)
-    codec.decoder.add_rule("annotation", "file_id_list", enc.decode_key)
-
-    # encode & decode table keys
-    table_names = get_table_names(conn)
-    for table_name in table_names:
-        # primary keys
-        codec.encoder.add_rule(table_name, "id", enc.encode_key)
-        codec.decoder.add_rule(table_name, "id", enc.decode_key)
-
-        for key_name in table_names:
-            # foreign keys
-            key_name += "_id"
-            codec.encoder.add_rule(table_name, key_name, enc.encode_key)
-            codec.decoder.add_rule(table_name, key_name, enc.decode_key)
-
-    return codec
+from korus.database.backend.sqlite.helpers import SQLiteTableBackend
+from korus.database.backend.sqlite.encode import create_codec
 
 
 class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
