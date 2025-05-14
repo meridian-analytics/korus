@@ -42,7 +42,7 @@ class InMemoryTableBackend(TableBackend):
             fields = ["id"] + fields
             rows = self.rows.copy()
             for i in range(len(rows)):
-                rows[i]["id"] = i 
+                rows[i]["id"] = i
         else:
             rows = self.rows
 

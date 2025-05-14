@@ -80,4 +80,4 @@ def test_sqlite_backend_taxonomy(minimal_sqlite_backend):
     """Test add/get/set methods for the Taxonomy backend"""
     db = minimal_sqlite_backend
 
-    # 
+    #
