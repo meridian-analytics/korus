@@ -581,3 +581,37 @@ class Taxonomy(Tree):
 
             if is_lca:
                 return self.get_node(nid_lca).tag
+
+    def ascend(self, n, include_start_node=True):
+        """Returns a python generator for ascending the taxonomy starting at a given node.
+
+        Args:
+            n: str
+                Node tag or identifier
+            include_start_node: bool
+                Whether to include the starting node. Default is True.
+
+        Yields:
+            tag: str
+        """
+        if not include_start_node:
+            n = self.parent(self.get_id(n)).identifier
+
+        return self.rsearch(n)
+
+    def descend(self, n, include_start_node=True):
+        """Returns a python generator for descending the taxonomy starting at a given node.
+
+        Args:
+            n: str
+                Node tag or identifier
+            include_start_node: bool
+                Whether to include the starting node. Default is True.
+
+        Yields:
+            tag: str
+        """
+        if not include_start_node:
+            n = self.parent(self.get_id(n)).identifier
+
+        return self.expand_tree(self.get_id(n), mode=Tree.DEPTH)
