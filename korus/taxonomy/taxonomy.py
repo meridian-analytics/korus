@@ -595,6 +595,9 @@ class Taxonomy(Tree):
             tag: str
         """
         if not include_start_node:
+            if self.get_node(n).is_root():
+                return
+
             n = self.parent(self.get_id(n)).identifier
 
         return self.rsearch(n)
@@ -612,6 +615,9 @@ class Taxonomy(Tree):
             tag: str
         """
         if not include_start_node:
+            if self.get_node(n).is_leaf():
+                return
+
             n = self.parent(self.get_id(n)).identifier
 
         return self.expand_tree(self.get_id(n), mode=Tree.DEPTH)
