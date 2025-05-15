@@ -142,6 +142,25 @@ class TaxonomyManager:
         self.labels.update(release.version, release.all_labels)
         self.draft.clear_history()
 
+    def get_label_id(
+        self,
+        label: tuple[str, str] | list[tuple[str, str]],
+        version: int = None,
+        ascend: bool = False,
+        descend: bool = False,
+        always_list: bool = False,
+    ):
+        tax = self.current if version is None else self.releases[version]
+
+        return get_label_id(
+            label,
+            tax,
+            self.labels,
+            ascend,
+            descend,
+            always_list,
+        )
+
 
 class AcousticTaxonomyManager(TaxonomyManager):
     def __init__(self):
@@ -157,6 +176,9 @@ def get_label_id(
     always_list: bool = False,
 ):
     """Returns the label IDs of one or several (sound-source, sound-type) labels.
+
+    TODO: generalize to also work for Taxonomy class (involves adding ascend/descend methods)
+    TODO: update ascend/descend methods in AcousticTaxonomy to handle * wildcard
 
     If @ascend is set to True, the function will also return the label IDs of all the
     ancestral nodes in the taxonomy tree. For example, if the sound source is specified as
