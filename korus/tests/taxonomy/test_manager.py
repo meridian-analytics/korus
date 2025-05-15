@@ -9,6 +9,7 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
 def test_label_manager():
+    """Basic tests for LabelManager class"""
     m = LabelManager()
 
     # add two labels
@@ -36,3 +37,9 @@ def test_label_manager():
     # we can use wildcards
     id = m.get_label_id((1, "*"))
     assert id == [0, 1, 2]
+
+    # add another label
+    rows += [("C", 103)]
+    m.update(2, rows)
+    id = m.get_label_id(("*", "A"))
+    assert id == [1, 4]

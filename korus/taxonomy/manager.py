@@ -144,7 +144,7 @@ class TaxonomyManager:
 
     def get_label_id(
         self,
-        label: tuple[str, str] | list[tuple[str, str]],
+        label: str | tuple | list,
         version: int = None,
         ascend: bool = False,
         descend: bool = False,
@@ -168,14 +168,14 @@ class AcousticTaxonomyManager(TaxonomyManager):
 
 
 def get_label_id(
-    label: tuple[str, str] | list[tuple[str, str]],
-    taxonomy: AcousticTaxonomy,
+    label: str | tuple | list,
+    taxonomy: Taxonomy,
     label_manager: LabelManager,
     ascend: bool = False,
     descend: bool = False,
     always_list: bool = False,
 ):
-    """Returns the label IDs of one or several (sound-source, sound-type) labels.
+    """Returns the IDs of one or several labels.
 
     TODO: generalize to also work for Taxonomy class (involves adding ascend/descend methods)
     TODO: update ascend/descend methods in AcousticTaxonomy to handle * wildcard
@@ -196,7 +196,7 @@ def get_label_id(
             source 'SRKW', irrespective of sound type. Multiple source-type pairs can be
             specified as a list of tuples.
         taxonomy: AcousticTaxonomy
-            The acoustic taxonomy the `label` argument refers to.
+            The acoustic taxonomy
         label_manager: AcousticLabelManager
             The label manager
         ascend: bool
@@ -213,31 +213,30 @@ def get_label_id(
     Raises:
         ValueError: if the (sound-source, sound-type) label does not exist in the taxonomy
     """
-    if label == None:
-        label = (None, None)
+    # recast the `label` argument as list[tuple]
+    labels = [label] if not isinstance(label, list) else label
+    labels = [l if isinstance(l, tuple) else (l,) for l in labels]
 
-    labels = [label] if isinstance(label, tuple) else label
-
+    # taxonomy version
     v = taxonomy.version
 
+    # loop over labels and get ID of each
     ids = []
-    for s0, t0 in labels:
-        id = label_manager.get_label_id[(v, s0, t0)]
+    for l0 in labels:
+        id = label_manager.get_label_id[(v, *l0)]
         ids.append(id)
 
-        if s0 == "*":
+        if "*" in l0:
             continue
 
         if ascend:
-            g = taxonomy.ascend(s0, t0, include_start_node=False)
-            for s, t in g:
-                id = label_manager.get_label_id[(v, s, t)]
+            for l in taxonomy.ascend(*l0, include_start_node=False):
+                id = label_manager.get_label_id[(v, *l)]
                 ids.append(id)
 
         if descend:
-            g = taxonomy.descend(s0, t0, include_start_node=False)
-            for s, t in g:
-                id = label_manager.get_label_id[(v, s, t)]
+            for l in taxonomy.descend(*l0, include_start_node=False):
+                id = label_manager.get_label_id[(v, *l)]
                 ids.append(id)
 
     if not always_list and len(ids) == 1:
