@@ -1,6 +1,7 @@
 import os
 import pytest
-from korus.taxonomy.manager import LabelManager
+from korus.taxonomy.manager import LabelManager, get_label_id
+from korus.taxonomy.taxonomy import Taxonomy
 
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
@@ -43,3 +44,18 @@ def test_label_manager():
     m.update(2, rows)
     id = m.get_label_id(("*", "A"))
     assert id == [1, 4]
+
+
+def test_get_label_id():
+    """Test `get_label_id` function"""
+    tax = Taxonomy(version=1)
+    tax.create_node("A", parent="root")
+    tax.create_node("AA", parent="A")
+    tax.create_node("AB", parent="A")
+    tax.create_node("ABA", parent="AB")
+
+    m = LabelManager()
+    m.update(1, tax.all_labels)
+
+    id = get_label_id("AA", tax, m)
+    assert id == 3

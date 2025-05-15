@@ -223,7 +223,7 @@ def get_label_id(
     # loop over labels and get ID of each
     ids = []
     for l0 in labels:
-        id = label_manager.get_label_id[(v, *l0)]
+        id = label_manager.get_label_id((v, *l0))
         ids.append(id)
 
         if "*" in l0:
@@ -231,12 +231,12 @@ def get_label_id(
 
         if ascend:
             for l in taxonomy.ascend(*l0, include_start_node=False):
-                id = label_manager.get_label_id[(v, *l)]
+                id = label_manager.get_label_id((v, *l))
                 ids.append(id)
 
         if descend:
             for l in taxonomy.descend(*l0, include_start_node=False):
-                id = label_manager.get_label_id[(v, *l)]
+                id = label_manager.get_label_id((v, *l))
                 ids.append(id)
 
     if not always_list and len(ids) == 1:
