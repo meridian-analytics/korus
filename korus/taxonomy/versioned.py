@@ -23,6 +23,7 @@ class VersionedTaxonomy:
         self.draft = tax
         self.releases = []
         self.labels = None
+        self._label_columns = ["tag", "identifier"]
 
     @property
     def version(self) -> int:
@@ -57,14 +58,9 @@ class VersionedTaxonomy:
         self.draft.clear_history()
 
     def _update_labels(self, release: Taxonomy):
-        data = [(None, None, None, None)] + release.all_labels
-        columns = [
-            "sound_source_tag",
-            "sound_source_id",
-            "sound_type_tag",
-            "sound_type_id",
-        ]
-        new_labels = pd.DataFrame(data, columns=columns, dtype=object)
+        null_row = tuple([None for _ in self._label_columns])
+        data = [null_row] + release.all_labels
+        new_labels = pd.DataFrame(data, columns=self._label_columns, dtype=object)
         new_labels["version"] = release.version
         if self.labels is None:
             self.labels = new_labels
@@ -78,3 +74,9 @@ class VersionedTaxonomy:
 class VersionedAcousticTaxonomy(VersionedTaxonomy):
     def __init__(self):
         super().__init__(AcousticTaxonomy())
+        self._label_columns = [
+            "sound_source_tag",
+            "sound_source_id",
+            "sound_type_tag",
+            "sound_type_id",
+        ]
