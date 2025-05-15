@@ -1,2 +1,2 @@
-from .versioned import VersionedAcousticTaxonomy
+from .manager import AcousticTaxonomyManager
 from .acoustic import AcousticTaxonomy

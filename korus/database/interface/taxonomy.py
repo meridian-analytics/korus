@@ -1,11 +1,11 @@
 from .interface import TableInterface
-from korus.taxonomy import AcousticTaxonomy, VersionedAcousticTaxonomy
+from korus.taxonomy import AcousticTaxonomy, AcousticTaxonomyManager
 from korus.database.backend import TableBackend
 from datetime import datetime, timezone
 import pandas as pd
 
 
-class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
+class TaxonomyInterface(TableInterface, AcousticTaxonomyManager):
     """Defines the interface of the Taxonomy Table.
 
     Row 0 is used for storing the draft version.
@@ -51,7 +51,7 @@ class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
         data = self.label_interface.get(fields=fields, return_indices=True)
         df = pd.DataFrame(data, columns=["id"] + fields)
         df = df.rename(columns={"taxonomy_id": "version"})
-        self.labels = df.set_index("id")
+        self.labels.df = df.set_index("id")
 
     def save(self, comment: str = None):
         """Save the current draft to the database.
@@ -82,7 +82,7 @@ class TaxonomyInterface(TableInterface, VersionedAcousticTaxonomy):
         self.add(self.current.to_dict())
 
         # also save the labels
-        df = self.labels[self.labels.version == self.version]
+        df = self.labels.df[self.labels.df.version == self.version]
         for idx, row in df.iterrows():
             row["taxonomy_id"] = row.pop("version")
             self.label_interface.add(row)

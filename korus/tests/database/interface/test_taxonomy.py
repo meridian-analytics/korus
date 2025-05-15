@@ -63,7 +63,7 @@ def test_taxonomy_interface():
     assert ti.current.comment == "abc"
 
     # capture current label ID map
-    labels = ti.labels.copy()
+    labels = ti.labels.df.copy()
 
     # add another node to the draft
     ti.draft.create_sound_type("c", "AA")
@@ -80,7 +80,7 @@ def test_taxonomy_interface():
 
     # check that label ID map is unchanged and doesn't include the
     # last node added to the draft, but not yet released
-    assert pandas.testing.assert_frame_equal(labels, ti.labels) is None
+    assert pandas.testing.assert_frame_equal(labels, ti.labels.df) is None
 
     # check that the labels of the first release are correct
     first_release_labels_upon_load = set(
