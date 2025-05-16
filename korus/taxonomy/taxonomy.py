@@ -608,18 +608,19 @@ class Taxonomy(Tree):
 
         Args:
             n: str
-                Node tag or identifier
+                Node tag or identifier.
             include_start_node: bool
                 Whether to include the starting node. Default is True.
 
         Yields:
             tag: str
         """
-        if not include_start_node:
-            if self.get_node(n).is_leaf():
-                return iter(())
+        if not include_start_node and self.get_node(n).is_leaf():
+            return iter(())
 
-            n = self.parent(self.get_id(n)).identifier
-
+        counter = 0
         for n in self.expand_tree(self.get_id(n), mode=Tree.DEPTH):
-            yield self.get_node(n).tag
+            if counter > 0:
+                yield self.get_node(n).tag
+
+            counter += 1

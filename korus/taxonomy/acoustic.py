@@ -307,12 +307,17 @@ class AcousticTaxonomy(Taxonomy):
     def ascend(self, source_tag, type_tag=None, include_start_node=True):
         """Returns a python generator for ascending the taxonomy starting at the specified node.
 
+        If the algorithm encounters an ancestral sound source the sound-type tree of which
+        does not contain the specified sound type, it will ascend the sound-type tree of the
+        starting node until it finds a common sound type from where it can start iterating.
+
         Args:
             source_tag: str
-                Sound-source tag or identifier of starting node.
+                Sound-source tag or identifier of starting node. If None or '*', an empty
+                iterator is returned.
             type_tag: str
                 Sound-type tag or identifier of starting node. If None or '*', the
-                generator will only iterate through the sound-source nodes.
+                generator only iterates through the sound-source nodes.
             include_start_node: bool
                 Whether to include the starting node. Default is True.
 
@@ -322,8 +327,10 @@ class AcousticTaxonomy(Taxonomy):
         if source_tag is None or source_tag == "*":
             return iter(())
 
-        types = self.get_node(source_tag).data["sound_types"]
+        # sound types of starting node
+        start_types = self.get_node(source_tag).data["sound_types"]
 
+        # iterate over ancestors
         counter = 0
         for sid in self.rsearch(source_tag):
             source = self.get_node(sid)
@@ -335,19 +342,27 @@ class AcousticTaxonomy(Taxonomy):
                 counter += 1
 
             else:
-                for tid in types.rsearch(type_tag):
-                    if self.sound_types(sid).get_node(tid) is not None:
-                        type_iter = self.sound_types(sid).rsearch(tid)
+                # sound types of ancestor
+                types = self.sound_types(sid)
+
+                # iterate over sound types of starting node until a common sound type is found
+                for tid in start_types.rsearch(type_tag):
+                    if types.get_node(tid) is not None:
+                        type_iter = types.rsearch(tid)
                         break
 
+                # iterator over sound types in ancestor
                 for tid in type_iter:
                     if include_start_node or counter > 0:
-                        yield source.tag, self.sound_types(sid).get_node(tid).tag
+                        yield source.tag, types.get_node(tid).tag
 
                     counter += 1
 
     def descend(self, source_tag, type_tag=None, include_start_node=True):
         """Returns a python generator for descending the taxonomy starting at the specified node.
+
+        If the algorithm encounters a descendant sound source the sound-type tree of which
+        does not contain the starting sound type, it will skip the descendant altogether.
 
         Args:
             source_tag: str
@@ -364,25 +379,31 @@ class AcousticTaxonomy(Taxonomy):
         if source_tag is None or source_tag == "*":
             return iter(())
 
+        # iterate over descendant nodes
         counter = 0
         for sid in self.expand_tree(self.get_id(source_tag), mode=Tree.DEPTH):
             source = self.get_node(sid)
 
-            if type_tag is None or type_tag == "%":
+            if type_tag is None or type_tag == "*":
                 if include_start_node or counter > 0:
                     yield source.tag, type_tag
 
                 counter += 1
 
             else:
-                if self.sound_types(sid).get_node(type_tag) is None:
+                # sound types of the descendant
+                types = self.sound_types(sid)
+
+                # if the descendant does not have the starting sound type, skip it
+                if types.get_node(type_tag) is None:
                     continue
 
-                type_iter = self.sound_types(sid).expand_tree(
-                    self.sound_types(sid).get_id(type_tag), mode=Tree.DEPTH
-                )
+                # create an iterator over the descendant's sound types
+                type_iter = types.expand_tree(types.get_id(type_tag), mode=Tree.DEPTH)
+
+                # iterate over the sound types
                 for tid in type_iter:
                     if include_start_node or counter > 0:
-                        yield source.tag, self.sound_types(sid).get_node(tid).tag
+                        yield source.tag, types.get_node(tid).tag
 
                     counter += 1
