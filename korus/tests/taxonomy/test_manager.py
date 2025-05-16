@@ -59,3 +59,12 @@ def test_get_label_id():
 
     id = get_label_id("AA", tax, m)
     assert id == 3
+
+    id = get_label_id("AA", tax, m, ascend=True)
+    assert id == [3, 2, 1]
+
+    id = get_label_id("AB", tax, m, descend=True)
+    assert id == [4, 5]
+
+    id = get_label_id("AB", tax, m, ascend=True, descend=True)
+    assert sorted(id) == sorted([1, 2, 4, 5])

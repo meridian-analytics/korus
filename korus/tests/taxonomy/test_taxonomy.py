@@ -16,19 +16,19 @@ def test_ascend_descend():
     tax.create_node("ABA", parent="AB")
 
     tags = [tag for tag in tax.ascend("ABA")]
-    assert tags == ["ABA", "AB", "A", "root"]
+    assert tags == [("ABA",), ("AB",), ("A",), ("root",)]
 
     tags = [tag for tag in tax.ascend("ABA", False)]
-    assert tags == ["AB", "A", "root"]
+    assert tags == [("AB",), ("A",), ("root",)]
 
     tags = [tag for tag in tax.ascend("AA", False)]
-    assert tags == ["A", "root"]
+    assert tags == [("A",), ("root",)]
 
     tags = [tag for tag in tax.ascend("root", False)]
     assert tags == []
 
     tags = [tag for tag in tax.descend("root", False)]
-    assert tags == ["A", "AA", "AB", "ABA"]
+    assert tags == [("A",), ("AA",), ("AB",), ("ABA",)]
 
     tags = [tag for tag in tax.descend("ABA", False)]
     assert tags == []

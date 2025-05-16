@@ -149,8 +149,11 @@ class TaxonomyManager:
         ascend: bool = False,
         descend: bool = False,
         always_list: bool = False,
-    ):
+    ) -> int | list[int]:
         tax = self.current if version is None else self.releases[version]
+
+        if tax is None:
+            return []
 
         return get_label_id(
             label,

@@ -592,7 +592,7 @@ class Taxonomy(Tree):
                 Whether to include the starting node. Default is True.
 
         Yields:
-            tag: str
+            tag: tuple[str]
         """
         if not include_start_node:
             if self.get_node(n).is_root():
@@ -601,7 +601,7 @@ class Taxonomy(Tree):
             n = self.parent(self.get_id(n)).identifier
 
         for n in self.rsearch(n):
-            yield self.get_node(n).tag
+            yield (self.get_node(n).tag,)
 
     def descend(self, n, include_start_node=True):
         """Returns a python generator for descending the taxonomy starting at a given node.
@@ -613,7 +613,7 @@ class Taxonomy(Tree):
                 Whether to include the starting node. Default is True.
 
         Yields:
-            tag: str
+            tag: tuple[str]
         """
         if not include_start_node and self.get_node(n).is_leaf():
             return iter(())
@@ -621,6 +621,6 @@ class Taxonomy(Tree):
         counter = 0
         for n in self.expand_tree(self.get_id(n), mode=Tree.DEPTH):
             if counter > 0:
-                yield self.get_node(n).tag
+                yield (self.get_node(n).tag,)
 
             counter += 1
