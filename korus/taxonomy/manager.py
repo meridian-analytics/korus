@@ -6,12 +6,33 @@ from .acoustic import AcousticTaxonomy
 
 
 class LabelManager:
+    """ Helper class for managing taxonomy labels.
+    
+    Args:
+        columns: list[str]
+            The names of the attribute fields for each label
+        index: list[str]
+            The names of the attribute fields used for retrieving individual labels.
+            When combined with the taxonomy version, these fields must allow each 
+            label to be uniquely identified.
+
+    Attrs & Properties:
+        df: pd.DataFrame
+            DataFrame with all labels, indexed by the label ID
+    """
     def __init__(
         self, columns: list[str] = ["tag", "identifier"], index: list[str] = ["tag"]
     ):
         self.columns = columns
         self.index = ["version"] + index
+
+        # DataFrame with all labels, indexed by the label ID,
+        # i.e., elements may be accessed as self._df.loc[id]
         self._df = None
+
+        # DataFrame with all labels, indexed by the version number 
+        # and the indices specified by the `index` argument, i.e.,
+        # elements may be accessed as self._idf.loc[(version,*index)]
         self._idf = None
 
     def get_label_id(
@@ -19,7 +40,17 @@ class LabelManager:
         indices: tuple | list[tuple],
         always_list: bool = False,
     ) -> np.int64 | np.ndarray:
-        """
+        """ Get label ID.
+
+        Args:
+            indices: tuple | list[tuple]
+                One or several multi-level indices, with the version no. as the first-level index.
+            always_list: bool
+                Whether to always return a list of ints.
+
+        Returns:
+            : np.int64 | np.ndarray
+                The label ID(s)
 
         Raises:
             ValueError: if an invalid index is passed
