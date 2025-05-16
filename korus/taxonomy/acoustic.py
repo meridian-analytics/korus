@@ -262,7 +262,7 @@ class AcousticTaxonomy(Taxonomy):
 
         Args:
             source_tag: str
-                Sound source tag
+                Sound source tag or identifier
 
         Returns:
             t: korus.tree.KTree
@@ -305,14 +305,13 @@ class AcousticTaxonomy(Taxonomy):
         return removed_nodes
 
     def ascend(self, source_tag, type_tag=None, include_start_node=True):
-        """Returns a python generator for ascending the taxonomy starting
-        at @source_tag, @type_tag.
+        """Returns a python generator for ascending the taxonomy starting at the specified node.
 
         Args:
             source_tag: str
-                Sound source tag or identifier of starting node.
+                Sound-source tag or identifier of starting node.
             type_tag: str
-                Sound type tag of starting node. If None or '%', the
+                Sound-type tag or identifier of starting node. If None or '*', the
                 generator will only iterate through the sound-source nodes.
             include_start_node: bool
                 Whether to include the starting node. Default is True.
@@ -320,45 +319,41 @@ class AcousticTaxonomy(Taxonomy):
         Yields:
             source_tag, type_tag: str, str
         """
-        # debug_msg = f"[{self.__class__.__name__}] Ascending {self.name} v{self.version} starting from ({source_tag},{type_tag})"
-        # logging.debug(debug_msg)
+        if source_tag is None or source_tag == "*":
+            return iter(())
 
-        types = self.get_node(source_tag).data["sound_types"]  # sound-type tree
-        source_gen = self.rsearch(source_tag)  # ascending source-id generator
+        types = self.get_node(source_tag).data["sound_types"]
 
         counter = 0
-        for sid in source_gen:  # ascend up through sound sources
-            source_i = self.get_node(sid)
-            types_i = source_i.data["sound_types"]
+        for sid in self.rsearch(source_tag):
+            source = self.get_node(sid)
 
-            if type_tag is None or type_tag == "%":
+            if type_tag is None or type_tag == "*":
                 if include_start_node or counter > 0:
-                    yield source_i.tag, type_tag
+                    yield source.tag, type_tag
 
                 counter += 1
 
             else:
                 for tid in types.rsearch(type_tag):
-                    if types_i.get_node(tid) is not None:
-                        type_gen = types_i.rsearch(tid)
+                    if self.sound_types(sid).get_node(tid) is not None:
+                        type_iter = self.sound_types(sid).rsearch(tid)
                         break
 
-                for tid in type_gen:
-                    type_i = types_i.get_node(tid)
+                for tid in type_iter:
                     if include_start_node or counter > 0:
-                        yield source_i.tag, type_i.tag
+                        yield source.tag, self.sound_types(sid).get_node(tid).tag
 
                     counter += 1
 
     def descend(self, source_tag, type_tag=None, include_start_node=True):
-        """Returns a python generator for descending the taxonomy starting
-        at @source_tag, @type_tag.
+        """Returns a python generator for descending the taxonomy starting at the specified node.
 
         Args:
             source_tag: str
-                Sound source tag or identifier of starting node.
+                Sound-source tag or identifier of starting node.
             type_tag: str
-                Sound type tag of starting node. If None or '%', the
+                Sound-type tag or identifier of starting node. If None or '*', the
                 generator will only iterate through the sound-source nodes.
             include_start_node: bool
                 Whether to include the starting node. Default is True.
@@ -366,34 +361,28 @@ class AcousticTaxonomy(Taxonomy):
         Yields:
             source_tag, type_tag: str, str
         """
-        # debug_msg = f"[{self.__class__.__name__}] Descending {self.name} v{self.version} starting from ({source_tag},{type_tag})"
-        # logging.debug(debug_msg)
-
-        source_gen = self.expand_tree(self.get_id(source_tag), mode=Tree.DEPTH)
+        if source_tag is None or source_tag == "*":
+            return iter(())
 
         counter = 0
-        for sid in source_gen:
-            source_i = self.get_node(sid)
-            types_i = source_i.data["sound_types"]
+        for sid in self.expand_tree(self.get_id(source_tag), mode=Tree.DEPTH):
+            source = self.get_node(sid)
 
             if type_tag is None or type_tag == "%":
                 if include_start_node or counter > 0:
-                    yield source_i.tag, type_tag
+                    yield source.tag, type_tag
 
                 counter += 1
 
             else:
-                if types_i.get_node(type_tag) is None:
-                    # debug_msg = f"[{self.__class__.__name__}] Sound source '{source_i.tag}' does not have sound type '{type_tag}'. Skipping ..."
-                    # logging.debug(debug_msg)
+                if self.sound_types(sid).get_node(type_tag) is None:
                     continue
 
-                type_gen = types_i.expand_tree(
-                    types_i.get_id(type_tag), mode=Tree.DEPTH
+                type_iter = self.sound_types(sid).expand_tree(
+                    self.sound_types(sid).get_id(type_tag), mode=Tree.DEPTH
                 )
-                for tid in type_gen:
-                    type_i = types_i.get_node(tid)
+                for tid in type_iter:
                     if include_start_node or counter > 0:
-                        yield source_i.tag, type_i.tag
+                        yield source.tag, self.sound_types(sid).get_node(tid).tag
 
                     counter += 1

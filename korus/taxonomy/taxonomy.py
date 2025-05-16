@@ -596,11 +596,12 @@ class Taxonomy(Tree):
         """
         if not include_start_node:
             if self.get_node(n).is_root():
-                return
+                return iter(())
 
             n = self.parent(self.get_id(n)).identifier
 
-        return self.rsearch(n)
+        for n in self.rsearch(n):
+            yield self.get_node(n).tag
 
     def descend(self, n, include_start_node=True):
         """Returns a python generator for descending the taxonomy starting at a given node.
@@ -616,8 +617,9 @@ class Taxonomy(Tree):
         """
         if not include_start_node:
             if self.get_node(n).is_leaf():
-                return
+                return iter(())
 
             n = self.parent(self.get_id(n)).identifier
 
-        return self.expand_tree(self.get_id(n), mode=Tree.DEPTH)
+        for n in self.expand_tree(self.get_id(n), mode=Tree.DEPTH):
+            yield self.get_node(n).tag

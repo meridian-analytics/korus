@@ -174,11 +174,8 @@ def get_label_id(
     ascend: bool = False,
     descend: bool = False,
     always_list: bool = False,
-):
+) -> int | list[int]:
     """Returns the IDs of one or several labels.
-
-    TODO: generalize to also work for Taxonomy class (involves adding ascend/descend methods)
-    TODO: update ascend/descend methods in AcousticTaxonomy to handle * wildcard
 
     If @ascend is set to True, the function will also return the label IDs of all the
     ancestral nodes in the taxonomy tree. For example, if the sound source is specified as
@@ -190,14 +187,14 @@ def get_label_id(
     as SRKW, it will return labels corresponding not only to SRKW, but also J, K, and L pod.
 
     Args:
-        label: tuple(str, str) or list(tuple)
+        label: str | tuple | list
             Sound source and sound type label(s). The character '*' can be used as wildcard.
             For example, use ('SRKW','*') to retrieve all label IDs associated with the sound
             source 'SRKW', irrespective of sound type. Multiple source-type pairs can be
             specified as a list of tuples.
-        taxonomy: AcousticTaxonomy
-            The acoustic taxonomy
-        label_manager: AcousticLabelManager
+        taxonomy: Taxonomy
+            The taxonomy
+        label_manager: LabelManager
             The label manager
         ascend: bool
             Also return the labels of ancestral nodes.
@@ -207,7 +204,7 @@ def get_label_id(
             Whether to always return a list. Default is False.
 
     Returns:
-        id: int, list(int)
+        id: int | list[int]
             Label identifier(s)
 
     Raises:
@@ -223,22 +220,17 @@ def get_label_id(
     # loop over labels and get ID of each
     ids = []
     for l0 in labels:
-        id = label_manager.get_label_id((v, *l0))
-        ids.append(id)
-
-        if "*" in l0:
-            continue
+        ids += label_manager.get_label_id((v, *l0), always_list=True)
 
         if ascend:
             for l in taxonomy.ascend(*l0, include_start_node=False):
-                id = label_manager.get_label_id((v, *l))
-                ids.append(id)
+                ids += label_manager.get_label_id((v, *l), always_list=True)
 
         if descend:
             for l in taxonomy.descend(*l0, include_start_node=False):
-                id = label_manager.get_label_id((v, *l))
-                ids.append(id)
+                ids += label_manager.get_label_id((v, *l), always_list=True)
 
+    # recast output
     if not always_list and len(ids) == 1:
         ids = ids[0]
 
