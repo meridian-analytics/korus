@@ -1,6 +1,6 @@
 import os
 import pytest
-from korus.taxonomy.manager import LabelManager, get_label_id
+from korus.taxonomy.manager import TaxonomyManager, LabelManager, get_label_id
 from korus.taxonomy.taxonomy import Taxonomy
 
 
@@ -45,6 +45,10 @@ def test_label_manager():
     id = m.get_label_id(("*", "A"))
     assert id == [1, 4]
 
+    # retrieve version and label from ID
+    assert m.get_label(2) == (1, ("B",))
+    assert m.get_label([1, 4]) == [(1, ("A",)), (2, ("A",))]
+
 
 def test_get_label_id():
     """Test `get_label_id` function"""
@@ -68,3 +72,32 @@ def test_get_label_id():
 
     id = get_label_id("AB", tax, m, ascend=True, descend=True)
     assert sorted(id) == sorted([1, 2, 4, 5])
+
+
+def test_taxonomy_manager():
+    lm = LabelManager()
+    tax = Taxonomy()
+
+    m = TaxonomyManager(tax, lm)
+
+    m.draft.create_node("A", parent="root")
+    m.draft.create_node("AA", parent="A")
+    m.draft.create_node("AB", parent="A")
+    m.draft.create_node("ABA", parent="AB")
+
+    m.release()
+
+    id = m.get_label_id("AA")
+    assert id == 3
+
+    id = m.get_label_id("AA", 1, ascend=True)
+    assert id == [3, 2, 1]
+
+    id = m.get_label_id("AB", descend=True)
+    assert id == [4, 5]
+
+    id = m.get_label_id("AB", ascend=True, descend=True)
+    assert sorted(id) == sorted([1, 2, 4, 5])
+
+    id = m.get_label_id(label_id=4, descend=True)
+    assert id == [4, 5]

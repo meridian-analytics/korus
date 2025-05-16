@@ -6,20 +6,21 @@ from .acoustic import AcousticTaxonomy
 
 
 class LabelManager:
-    """ Helper class for managing taxonomy labels.
-    
+    """Helper class for managing taxonomy labels.
+
     Args:
         columns: list[str]
             The names of the attribute fields for each label
         index: list[str]
             The names of the attribute fields used for retrieving individual labels.
-            When combined with the taxonomy version, these fields must allow each 
+            When combined with the taxonomy version, these fields must allow each
             label to be uniquely identified.
 
     Attrs & Properties:
         df: pd.DataFrame
             DataFrame with all labels, indexed by the label ID
     """
+
     def __init__(
         self, columns: list[str] = ["tag", "identifier"], index: list[str] = ["tag"]
     ):
@@ -30,17 +31,30 @@ class LabelManager:
         # i.e., elements may be accessed as self._df.loc[id]
         self._df = None
 
-        # DataFrame with all labels, indexed by the version number 
+        # DataFrame with all labels, indexed by the version number
         # and the indices specified by the `index` argument, i.e.,
         # elements may be accessed as self._idf.loc[(version,*index)]
         self._idf = None
+
+    def get_label(
+        self,
+        id: int | list[int],
+        always_list: bool = False,
+    ) -> tuple | list[tuple]:
+        ids = id if isinstance(id, list) else [id]
+        rows = self.df.loc[ids][self.index].values
+        res = [(row[0], tuple(row[1:])) for row in rows]
+        if np.ndim(id) == 0 and not always_list:
+            res = res[0]
+
+        return res
 
     def get_label_id(
         self,
         indices: tuple | list[tuple],
         always_list: bool = False,
     ) -> np.int64 | np.ndarray:
-        """ Get label ID.
+        """Get label ID.
 
         Args:
             indices: tuple | list[tuple]
@@ -175,25 +189,65 @@ class TaxonomyManager:
 
     def get_label_id(
         self,
-        label: str | tuple | list,
+        label: str | tuple | list = None,
         version: int = None,
         ascend: bool = False,
         descend: bool = False,
         always_list: bool = False,
+        label_id: int | list[int] = None,
     ) -> int | list[int]:
-        tax = self.current if version is None else self.releases[version]
+        """
+        Args:
+            label: str | tuple | list
+                Sound source and sound type label(s). The character '*' can be used as wildcard.
+                For example, use ('SRKW','*') to retrieve all label IDs associated with the sound
+                source 'SRKW', irrespective of sound type. Multiple source-type pairs can be
+                specified as a list of tuples. Ignored if `label_id` is provided.
+            version: int
+                Taxonomy version. If None, the current release is used.
+            ascend: bool
+                Also return the labels of ancestral nodes.
+            descend: bool
+                Also return the labels of descendant nodes.
+            always_list: bool
+                Whether to always return a list. Default is False.
+            label_id: int | list[int]
+                Label IDs. If provided, the `label` and `version` arguments are ignored.
 
-        if tax is None:
-            return []
+        Returns:
+            ids: int | list[int]
+                Label identifier(s)
 
-        return get_label_id(
-            label,
-            tax,
-            self.labels,
-            ascend,
-            descend,
-            always_list,
-        )
+        Raises:
+            ValueError: if the label does not exist in the taxonomy
+        """
+        ids = []
+
+        # if `label_id` was specified, used it in place of `label`
+        if label_id is not None:
+            for version, label in self.labels.get_label(label_id, always_list=True):
+                ids += self.get_label_id(
+                    label, version, ascend, descend, always_list=True
+                )
+
+            if isinstance(label_id, int) and len(ids) == 1 and not always_list:
+                ids = ids[0]
+
+            return ids
+
+        tax = self.current if version is None else self.releases[version - 1]
+
+        if tax is not None:
+            ids = get_label_id(
+                label,
+                tax,
+                self.labels,
+                ascend,
+                descend,
+                always_list,
+            )
+
+        return ids
 
 
 class AcousticTaxonomyManager(TaxonomyManager):
