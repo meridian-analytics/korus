@@ -21,28 +21,49 @@ class LabelManager:
             DataFrame with all labels, indexed by the label ID
     """
 
-    def __init__(
-        self, columns: list[str] = ["tag", "identifier"], index: list[str] = ["tag"]
-    ):
+    def __init__(self, columns: list[str] = ["tag", "identifier"]):
         self.columns = columns
-        self.index = ["version"] + index
 
         # DataFrame with all labels, indexed by the label ID,
         # i.e., elements may be accessed as self._df.loc[id]
         self._df = None
 
         # DataFrame with all labels, indexed by the version number
-        # and the indices specified by the `index` argument, i.e.,
-        # elements may be accessed as self._idf.loc[(version,*index)]
-        self._idf = None
+        # combined with user-specified columns; elements may be
+        # accessed as self._idf[index_name].loc[(version,*index)]
+        self._indices = dict()
+        self._idf = dict()
+
+    def add_index(self, index: str | list[str], name: str = None):
+        """Add an index for faster query.
+
+        Args:
+            index: list[str]
+                The names of the attribute fields used for retrieving individual labels.
+                When combined with the taxonomy version, these fields must allow each
+                label to be uniquely identified.
+            name: str
+                The index name.
+        """
+        index = [index] if isinstance(index, str) else index
+        name = index[0] if name is None else name
+        self._indices[name] = ["version"] + index
+        self.df = self.df
 
     def get_label(
         self,
         id: int | list[int],
+        index_name: str = None,
         always_list: bool = False,
     ) -> tuple | list[tuple]:
+        """TODO: docstring"""
+        if index_name is None:
+            index_name = next(iter(self._indices))
+
+        index = self._indices[index_name]
+
         ids = id if isinstance(id, list) else [id]
-        rows = self.df.loc[ids][self.index].values
+        rows = self.df.loc[ids][index].values
         res = [(row[0], tuple(row[1:])) for row in rows]
         if np.ndim(id) == 0 and not always_list:
             res = res[0]
@@ -52,13 +73,16 @@ class LabelManager:
     def get_label_id(
         self,
         indices: tuple | list[tuple],
+        index_name: str = None,
         always_list: bool = False,
     ) -> np.int64 | np.ndarray:
         """Get label ID.
 
         Args:
             indices: tuple | list[tuple]
-                One or several multi-level indices, with the version no. as the first-level index.
+                One or several multi-level indices, with the version as the first-level index.
+            index_name: str
+                The index name. If not specified, the first added index is used.
             always_list: bool
                 Whether to always return a list of ints.
 
@@ -73,11 +97,14 @@ class LabelManager:
         if ndim == 1:
             indices = [indices]
 
+        if index_name is None:
+            index_name = next(iter(self._indices))
+
         ids = []
         for idx in indices:
             idx = tuple([slice(None) if i == "*" else i for i in idx])
             try:
-                id = self._idf.loc[idx, slice(None)].id
+                id = self._idf[index_name].loc[idx, slice(None)].id
 
             except KeyError:
                 err_msg = f"Failed to obtain Label ID because an invalid index was passed: {idx}"
@@ -99,13 +126,18 @@ class LabelManager:
 
     @df.setter
     def df(self, x: pd.DataFrame):
+        if x is None:
+            return
+
         self._df = x
         self._df = x.astype({"version": int})
         self._df.index.name = "id"
 
-        self._idf = self._df.copy()
-        self._idf["id"] = self._df.index.values
-        self._idf.set_index(self.index, inplace=True)
+        # also update the indexed DataFrames
+        for name, index in self._indices.items():
+            self._idf[name] = self._df.copy()
+            self._idf[name]["id"] = self._df.index.values
+            self._idf[name].set_index(index, inplace=True)
 
     def update(self, version: int, rows: list[tuple]):
         null_row = tuple([None for _ in self.columns])
@@ -120,19 +152,21 @@ class LabelManager:
 
 class AcousticLabelManager(LabelManager):
     def __init__(self):
-        columns = (
-            [
-                "sound_source_tag",
-                "sound_source_id",
-                "sound_type_tag",
-                "sound_type_id",
-            ],
-        )
-        index = [
+        columns = [
             "sound_source_tag",
+            "sound_source_id",
             "sound_type_tag",
+            "sound_type_id",
         ]
-        super().__init__(columns, index)
+        super().__init__(columns)
+        super().add_index(
+            ["sound_source_tag", "sound_type_tag"],
+            "tag",
+        )
+        super().add_index(
+            ["sound_source_id", "sound_type_id"],
+            "uuid",
+        )
 
 
 class TaxonomyManager:
@@ -221,10 +255,9 @@ class TaxonomyManager:
         Raises:
             ValueError: if the label does not exist in the taxonomy
         """
-        ids = []
-
         # if `label_id` was specified, used it in place of `label`
         if label_id is not None:
+            ids = []
             for version, label in self.labels.get_label(label_id, always_list=True):
                 ids += self.get_label_id(
                     label, version, ascend, descend, always_list=True
@@ -237,17 +270,49 @@ class TaxonomyManager:
 
         tax = self.current if version is None else self.releases[version - 1]
 
-        if tax is not None:
-            ids = get_label_id(
-                label,
-                tax,
-                self.labels,
-                ascend,
-                descend,
-                always_list,
-            )
+        ids = get_label_id(
+            label,
+            tax,
+            self.labels,
+            ascend,
+            descend,
+            always_list,
+        )
 
         return ids
+
+    def crosswalk_label_id(
+        self,
+        label_id: int | list[int],
+        version: int = None,
+        ascend: bool = False,
+        descend: bool = False,
+        always_list: bool = False,
+        equiv: bool = False,
+    ) -> int | list[int]:
+        """Map a list of label IDs to another taxonomy version.
+
+        TODO: implement this method
+
+        Args:
+            label_id: int | list[int]
+                Label ID(s)
+            version: int
+                Destination taxonomy version
+            ascend: bool
+                Also return the labels of ancestral nodes of the mapped node(s).
+            descend: bool
+                Also return the labels of descendant nodes of the mapped node(s).
+            equiv: bool
+                If True, only return the mapped label IDs that are 1-to-1
+
+        Returns:
+            : int | list[int]
+                The mapped label ID(s).
+        """
+        tax = self.current if version is None else self.releases[version - 1]
+
+        pass
 
 
 class AcousticTaxonomyManager(TaxonomyManager):

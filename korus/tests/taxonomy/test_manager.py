@@ -12,6 +12,7 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 def test_label_manager():
     """Basic tests for LabelManager class"""
     m = LabelManager()
+    m.add_index("tag")
 
     # add two labels
     rows = [
@@ -59,6 +60,8 @@ def test_get_label_id():
     tax.create_node("ABA", parent="AB")
 
     m = LabelManager()
+    m.add_index("tag")
+
     m.update(1, tax.all_labels)
 
     id = get_label_id("AA", tax, m)
@@ -76,6 +79,8 @@ def test_get_label_id():
 
 def test_taxonomy_manager():
     lm = LabelManager()
+    lm.add_index("tag")
+
     tax = Taxonomy()
 
     m = TaxonomyManager(tax, lm)
