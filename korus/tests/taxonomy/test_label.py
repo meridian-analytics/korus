@@ -1,0 +1,49 @@
+import os
+import pytest
+from korus.taxonomy.manager import LabelManager
+
+
+file_dir = os.path.dirname(os.path.realpath(__file__))
+path_to_assets = os.path.join(file_dir, "..", "assets")
+path_to_tmp = os.path.join(path_to_assets, "tmp")
+
+
+def test_label_manager():
+    """Basic tests for LabelManager class"""
+    m = LabelManager()
+
+    # add two labels
+    rows = [
+        ("A", 101),
+        ("B", 102),
+    ]
+    m.update(1, rows)
+
+    # passing an invalid version no. triggers error
+    with pytest.raises(ValueError):
+        m.get_label_id((0, "A"))
+
+    # null label as ID=0
+    id = m.get_label_id((1, None))
+    assert id == 0
+
+    # labels are assigned integer IDs in the order they are added
+    id = m.get_label_id((1, "A"))
+    assert id == 1
+
+    id = m.get_label_id((1, "B"))
+    assert id == 2
+
+    # we can use wildcards
+    id = m.get_label_id((1, "*"))
+    assert id == [0, 1, 2]
+
+    # add another label
+    rows += [("C", 103)]
+    m.update(2, rows)
+    id = m.get_label_id(("*", "A"))
+    assert id == [1, 4]
+
+    # retrieve version and label from ID
+    assert m.get_label(2) == (1, ("B",))
+    assert m.get_label([1, 4]) == [(1, ("A",)), (2, ("A",))]

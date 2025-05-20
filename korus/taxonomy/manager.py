@@ -3,170 +3,7 @@ import pandas as pd
 from datetime import datetime, timezone
 from .taxonomy import Taxonomy
 from .acoustic import AcousticTaxonomy
-
-
-class LabelManager:
-    """Helper class for managing taxonomy labels.
-
-    Args:
-        columns: list[str]
-            The names of the attribute fields for each label
-        index: list[str]
-            The names of the attribute fields used for retrieving individual labels.
-            When combined with the taxonomy version, these fields must allow each
-            label to be uniquely identified.
-
-    Attrs & Properties:
-        df: pd.DataFrame
-            DataFrame with all labels, indexed by the label ID
-    """
-
-    def __init__(self, columns: list[str] = ["tag", "identifier"]):
-        self.columns = columns
-
-        # DataFrame with all labels, indexed by the label ID,
-        # i.e., elements may be accessed as self._df.loc[id]
-        self._df = None
-
-        # DataFrame with all labels, indexed by the version number
-        # combined with user-specified columns; elements may be
-        # accessed as self._idf[index_name].loc[(version,*index)]
-        self._indices = dict()
-        self._idf = dict()
-
-    def add_index(self, index: str | list[str], name: str = None):
-        """Add an index for faster query.
-
-        Args:
-            index: list[str]
-                The names of the attribute fields used for retrieving individual labels.
-                When combined with the taxonomy version, these fields must allow each
-                label to be uniquely identified.
-            name: str
-                The index name.
-        """
-        index = [index] if isinstance(index, str) else index
-        name = index[0] if name is None else name
-        self._indices[name] = ["version"] + index
-        self.df = self.df
-
-    def get_label(
-        self,
-        id: int | list[int],
-        index_name: str = None,
-        always_list: bool = False,
-    ) -> tuple | list[tuple]:
-        """TODO: docstring"""
-        if index_name is None:
-            index_name = next(iter(self._indices))
-
-        index = self._indices[index_name]
-
-        ids = id if isinstance(id, list) else [id]
-        rows = self.df.loc[ids][index].values
-        res = [(row[0], tuple(row[1:])) for row in rows]
-        if np.ndim(id) == 0 and not always_list:
-            res = res[0]
-
-        return res
-
-    def get_label_id(
-        self,
-        indices: tuple | list[tuple],
-        index_name: str = None,
-        always_list: bool = False,
-    ) -> np.int64 | np.ndarray:
-        """Get label ID.
-
-        Args:
-            indices: tuple | list[tuple]
-                One or several multi-level indices, with the version as the first-level index.
-            index_name: str
-                The index name. If not specified, the first added index is used.
-            always_list: bool
-                Whether to always return a list of ints.
-
-        Returns:
-            : np.int64 | np.ndarray
-                The label ID(s)
-
-        Raises:
-            ValueError: if an invalid index is passed
-        """
-        ndim = np.ndim(indices)
-        if ndim == 1:
-            indices = [indices]
-
-        if index_name is None:
-            index_name = next(iter(self._indices))
-
-        ids = []
-        for idx in indices:
-            idx = tuple([slice(None) if i == "*" else i for i in idx])
-            try:
-                id = self._idf[index_name].loc[idx, slice(None)].id
-
-            except KeyError:
-                err_msg = f"Failed to obtain Label ID because an invalid index was passed: {idx}"
-                raise ValueError(err_msg)
-
-            if isinstance(id, np.int64):
-                ids.append(id.item())
-            else:
-                ids += id.values.tolist()
-
-        if ndim == 1 and len(ids) == 1 and not always_list:
-            ids = ids[0]
-
-        return ids
-
-    @property
-    def df(self) -> pd.DataFrame:
-        return self._df
-
-    @df.setter
-    def df(self, x: pd.DataFrame):
-        if x is None:
-            return
-
-        self._df = x
-        self._df = x.astype({"version": int})
-        self._df.index.name = "id"
-
-        # also update the indexed DataFrames
-        for name, index in self._indices.items():
-            self._idf[name] = self._df.copy()
-            self._idf[name]["id"] = self._df.index.values
-            self._idf[name].set_index(index, inplace=True)
-
-    def update(self, version: int, rows: list[tuple]):
-        null_row = tuple([None for _ in self.columns])
-        data = [null_row] + rows
-        new_df = pd.DataFrame(data, columns=self.columns, dtype=object)
-        new_df["version"] = version
-        if self.df is not None:
-            new_df = pd.concat([self.df, new_df], ignore_index=True)
-
-        self.df = new_df
-
-
-class AcousticLabelManager(LabelManager):
-    def __init__(self):
-        columns = [
-            "sound_source_tag",
-            "sound_source_id",
-            "sound_type_tag",
-            "sound_type_id",
-        ]
-        super().__init__(columns)
-        super().add_index(
-            ["sound_source_tag", "sound_type_tag"],
-            "tag",
-        )
-        super().add_index(
-            ["sound_source_id", "sound_type_id"],
-            "uuid",
-        )
+from .label import LabelManager, AcousticLabelManager
 
 
 class TaxonomyManager:
@@ -312,6 +149,30 @@ class TaxonomyManager:
         """
         tax = self.current if version is None else self.releases[version - 1]
 
+        pass
+
+    def trace_node_history(
+        self, n: str, version: int = None, bool=None, mode: str = "backward"
+    ):
+        """Maps a node in the taxonomy tree to any taxonomy version.
+
+        TODO: implement this method
+
+        Args:
+            n: str
+                Node identifier
+            version: int
+                Destination taxonomy version
+            mode: str
+                * backward/b: trace node history backwards in time (default)
+                * forward/f: trace node history forward in time
+
+        Returns:
+            : list[str]
+                Node identifiers in the destination taxonomy.
+            is_equivalent: bool
+                Whether the input node and the mapped node(s) may be considered equivalent.
+        """
         pass
 
 
