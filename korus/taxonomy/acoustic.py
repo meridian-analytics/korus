@@ -39,8 +39,8 @@ class AcousticTaxonomy(Taxonomy):
                 _labels.append(
                     (
                         sound_source.tag,
-                        sound_source.identifier,
                         sound_type.tag,
+                        sound_source.identifier,
                         sound_type.identifier,
                     )
                 )

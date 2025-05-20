@@ -152,14 +152,14 @@ class TaxonomyManager:
         pass
 
     def trace_node_history(
-        self, n: str, version: int = None, bool=None, mode: str = "backward"
+        self, node_id: str, version: int = None, bool=None, mode: str = "backward"
     ):
         """Maps a node in the taxonomy tree to any taxonomy version.
 
         TODO: implement this method
 
         Args:
-            n: str
+            node_id: str
                 Node identifier
             version: int
                 Destination taxonomy version

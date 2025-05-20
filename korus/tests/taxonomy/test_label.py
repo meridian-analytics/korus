@@ -44,6 +44,33 @@ def test_label_manager():
     id = m.get_label_id(("*", "A"))
     assert id == [1, 4]
 
-    # retrieve version and label from ID
+    # get label ID using node IDs instead of tags
+    id = m.get_label_id(("*", "C"))
+    assert id == 6
+    id = m.get_label_id(("*", 103), node_id=True)
+    assert id == 6
+
+    # retrieve version and tags
     assert m.get_label(2) == (1, ("B",))
     assert m.get_label([1, 4]) == [(1, ("A",)), (2, ("A",))]
+
+
+def test_label_manager_multiple_tags():
+    """Tests for LabelManager class with multiple-tag labels"""
+    m = LabelManager(tags=["tag1", "tag2"], ids=["id1", "id2"])
+
+    # add two labels
+    rows = [
+        ("A", "a", 101, 102),
+        ("B", "b", 201, 202),
+    ]
+    m.update(1, rows)
+
+    id = m.get_label_id(("*", "A", "a"))
+    assert id == 1
+
+    id = m.get_label_id(("*", 101, 102), node_id=True)
+    assert id == 1
+
+    id = m.get_label_id(("*", 101, "*"), node_id=True)
+    assert id == 1
