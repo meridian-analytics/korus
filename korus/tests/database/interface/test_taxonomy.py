@@ -49,10 +49,11 @@ def test_taxonomy_interface():
     ti.draft.create_sound_type("bb", "A", parent="b")
 
     # check that the draft has two more label pairs compared to the 1st release
-    first_release_labels = set([(row[0], row[2]) for row in ti.releases[0].all_labels])
-    draft_labels = set([(row[0], row[2]) for row in ti.draft.all_labels])
+    first_release_labels = set([(row[0], row[1]) for row in ti.releases[0].all_labels])
+    draft_labels = set([(row[0], row[1]) for row in ti.draft.all_labels])
     diff = draft_labels - first_release_labels
     assert diff == {("AA", "bb"), ("A", "bb")}
+    # print(diff)
 
     # make a release with a comment
     t = datetime.now(timezone.utc)
@@ -84,7 +85,7 @@ def test_taxonomy_interface():
 
     # check that the labels of the first release are correct
     first_release_labels_upon_load = set(
-        [(row[0], row[2]) for row in ti.releases[0].all_labels]
+        [(row[0], row[1]) for row in ti.releases[0].all_labels]
     )
     diff = first_release_labels_upon_load - first_release_labels
     assert diff == set()
