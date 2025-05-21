@@ -5,22 +5,22 @@ import pandas as pd
 class LabelManager:
     """Helper class for managing taxonomy labels.
 
-    When combined with the taxonomy version, the tag/identifier columns
+    When combined with the taxonomy version, the tag/identifiers
     must allow each label to be uniquely identified.
 
     Args:
         tags: list[str]
-            The columns used for storing node tags.
-        ids: list[str]
-            The columns used for storing node identifiers.
+            The names of the node tags.
+        nids: list[str]
+            The names of the node IDs.
 
     Attrs & Properties:
         df: pd.DataFrame
-            DataFrame with all labels, indexed by the label ID
+            DataFrame with all labels, indexed by the label ID, named `id`
     """
 
-    def __init__(self, tags: list[str] = ["tag"], ids=["identifier"]):
-        self._cols = {"tag": tags, "id": ids}
+    def __init__(self, tags: list[str] = ["tag"], nids=["identifier"]):
+        self._cols = {"tag": tags, "nid": nids}
 
         # DataFrame with all labels, indexed by the label ID,
         # i.e., elements may be accessed as self._df.loc[id]
@@ -33,18 +33,18 @@ class LabelManager:
 
     @property
     def columns(self):
-        return self._cols["tag"] + self._cols["id"]
+        return self._cols["tag"] + self._cols["nid"]
 
     def get_label(
         self,
         id: int | list[int],
-        node_id: bool = False,
+        return_nid: bool = False,
         always_list: bool = False,
     ) -> tuple | list[tuple]:
         """TODO: docstring"""
         cols = ["version"]
-        if node_id:
-            cols += self._cols["id"]
+        if return_nid:
+            cols += self._cols["nid"]
         else:
             cols += self._cols["tag"]
 
@@ -58,8 +58,9 @@ class LabelManager:
 
     def get_label_id(
         self,
-        indices: tuple | list[tuple],
-        node_id: bool = False,
+        version: int | list[int],
+        tag: tuple | list[tuple] = None,
+        nid: tuple | list[tuple] = None,
         always_list: bool = False,
     ) -> np.int64 | np.ndarray:
         """Get label ID.
@@ -79,17 +80,29 @@ class LabelManager:
         Raises:
             ValueError: if an invalid index is passed
         """
+        if nid is None:
+            indices = tag
+            df = self._idf["tag"]
+        else:
+            indices = nid
+            df = self._idf["nid"]
+
         ndim = np.ndim(indices)
-        if ndim == 1:
+        if ndim == 0:
+            indices = [(indices,)]
+        elif ndim == 1:
             indices = [indices]
 
-        key = "id" if node_id else "tag"
+        if np.ndim(version) == 0:
+            version = [version for _ in range(len(indices))]
+
+        indices = [(v, *idx) for v, idx in zip(version, indices)]
 
         ids = []
         for idx in indices:
             idx = tuple([slice(None) if i == "*" else i for i in idx])
             try:
-                id = self._idf[key].loc[idx, slice(None)].id
+                id = df.loc[idx, slice(None)].id
 
             except KeyError:
                 err_msg = f"Failed to obtain Label ID because an invalid index was passed: {idx}"
@@ -100,7 +113,7 @@ class LabelManager:
             else:
                 ids += id.values.tolist()
 
-        if ndim == 1 and len(ids) == 1 and not always_list:
+        if ndim <= 1 and len(ids) == 1 and not always_list:
             ids = ids[0]
 
         return ids
@@ -140,5 +153,5 @@ class AcousticLabelManager(LabelManager):
     def __init__(self):
         super().__init__(
             tags=["sound_source_tag", "sound_type_tag"],
-            ids=["sound_source_id", "sound_type_id"],
+            nids=["sound_source_id", "sound_type_id"],
         )

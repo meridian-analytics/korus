@@ -154,7 +154,7 @@ class TaxonomyManager:
     def trace_node_history(
         self, node_id: str, version: int = None, bool=None, mode: str = "backward"
     ):
-        """Maps a node in the taxonomy tree to any taxonomy version.
+        """Maps a node in the taxonomy tree to any other taxonomy version.
 
         TODO: implement this method
 
@@ -234,15 +234,15 @@ def get_label_id(
     # loop over labels and get ID of each
     ids = []
     for l0 in labels:
-        ids += label_manager.get_label_id((v, *l0), always_list=True)
+        ids += label_manager.get_label_id(v, l0, always_list=True)
 
         if ascend:
             for l in taxonomy.ascend(*l0, include_start_node=False):
-                ids += label_manager.get_label_id((v, *l), always_list=True)
+                ids += label_manager.get_label_id(v, l, always_list=True)
 
         if descend:
             for l in taxonomy.descend(*l0, include_start_node=False):
-                ids += label_manager.get_label_id((v, *l), always_list=True)
+                ids += label_manager.get_label_id(v, l, always_list=True)
 
     # recast output
     if not always_list and len(ids) == 1:

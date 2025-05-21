@@ -21,33 +21,33 @@ def test_label_manager():
 
     # passing an invalid version no. triggers error
     with pytest.raises(ValueError):
-        m.get_label_id((0, "A"))
+        m.get_label_id(0, "A")
 
     # null label as ID=0
-    id = m.get_label_id((1, None))
+    id = m.get_label_id(1, (None,))
     assert id == 0
 
     # labels are assigned integer IDs in the order they are added
-    id = m.get_label_id((1, "A"))
+    id = m.get_label_id(1, "A")
     assert id == 1
 
-    id = m.get_label_id((1, "B"))
+    id = m.get_label_id(1, "B")
     assert id == 2
 
     # we can use wildcards
-    id = m.get_label_id((1, "*"))
+    id = m.get_label_id(1, "*")
     assert id == [0, 1, 2]
 
     # add another label
     rows += [("C", 103)]
     m.update(2, rows)
-    id = m.get_label_id(("*", "A"))
+    id = m.get_label_id("*", "A")
     assert id == [1, 4]
 
     # get label ID using node IDs instead of tags
-    id = m.get_label_id(("*", "C"))
+    id = m.get_label_id("*", "C")
     assert id == 6
-    id = m.get_label_id(("*", 103), node_id=True)
+    id = m.get_label_id("*", nid=103)
     assert id == 6
 
     # retrieve version and tags
@@ -57,7 +57,7 @@ def test_label_manager():
 
 def test_label_manager_multiple_tags():
     """Tests for LabelManager class with multiple-tag labels"""
-    m = LabelManager(tags=["tag1", "tag2"], ids=["id1", "id2"])
+    m = LabelManager(tags=["tag1", "tag2"], nids=["id1", "id2"])
 
     # add two labels
     rows = [
@@ -66,11 +66,11 @@ def test_label_manager_multiple_tags():
     ]
     m.update(1, rows)
 
-    id = m.get_label_id(("*", "A", "a"))
+    id = m.get_label_id("*", ("A", "a"))
     assert id == 1
 
-    id = m.get_label_id(("*", 101, 102), node_id=True)
+    id = m.get_label_id("*", nid=(101, 102))
     assert id == 1
 
-    id = m.get_label_id(("*", 101, "*"), node_id=True)
+    id = m.get_label_id("*", nid=(101, "*"))
     assert id == 1
