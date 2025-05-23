@@ -56,6 +56,19 @@ class LabelManager:
 
         return res
 
+    def has_label(
+        self,
+        version: int | list[int],
+        tag: tuple | list[tuple] = None,
+        nid: tuple | list[tuple] = None,
+    ):
+        try:
+            self.get_label_id(version, tag, nid)
+            return True
+
+        except ValueError:
+            return False
+
     def get_label_id(
         self,
         version: int | list[int],

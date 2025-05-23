@@ -151,15 +151,49 @@ class TaxonomyManager:
 
         pass
 
-    def trace_node_history(
-        self, node_id: str, version: int = None, bool=None, mode: str = "backward"
-    ):
-        """Maps a node in the taxonomy tree to any other taxonomy version.
-
-        TODO: implement this method
+    def get_precursor_nodes(self, nid: str):
+        """Get precursor node(s)
 
         Args:
-            node_id: str
+            nid: str
+                The source node ID
+
+        Returns:
+            : list[str]
+                The IDs of the precursor node(s)
+            : bool
+                Whether the source node and the precursor node(s) may be considered equivalent.
+        """
+        for tax in self.releases:
+            if nid in tax.created_nodes:
+                return tax.created_nodes[nid]
+
+        return [], False
+
+    def get_inheritor_nodes(self, nid: str):
+        """Get inheritor node(s)
+
+        Args:
+            nid: str
+                The source node ID
+
+        Returns:
+            : list[str]
+                The IDs of the inheritor node(s)
+            : bool
+                Whether the source node and the inheritor node(s) may be considered equivalent.
+        """
+        for tax in self.releases:
+            if nid in tax.removed_nodes:
+                return tax.removed_nodes[nid]
+
+        return [], False
+
+    def trace_node_history(self, nid: str, version: int = None, mode: str = "backward"):
+        """Maps a node in the taxonomy tree to any other taxonomy version.
+
+        Args:
+            nid: str
                 Node identifier
             version: int
                 Destination taxonomy version
@@ -168,12 +202,41 @@ class TaxonomyManager:
                 * forward/f: trace node history forward in time
 
         Returns:
-            : list[str]
+            dst_nids: list[str]
                 Node identifiers in the destination taxonomy.
             is_equivalent: bool
-                Whether the input node and the mapped node(s) may be considered equivalent.
+                Whether the input node and the mapped node(s) in the destination taxonomy may be considered equivalent.
         """
-        pass
+        dst_nids = []
+        is_equivalent = True
+
+        if mode.lower() in ["b", "backward"]:
+            mapper = self.get_precursor_nodes
+        elif mode.lower() in ["f", "forward"]:
+            mapper = self.get_inheritor_nodes
+        else:
+            raise ValueError(f"Invalid node history tracing mode: {mode}")
+
+        nids = [nid]
+        while len(nids) > 0:
+
+            # check if node IDs exist in the destination taxonomy
+            missing_nids = []
+            for nid in nids:
+                if self.labels.has_label(version, nid=nid):
+                    dst_nids.append(nid)
+                else:
+                    missing_nids.append(nid)
+
+            # for missing IDs, use mapper to obtain precursor/inheritor nodes
+            nids = []
+            for nid in missing_nids:
+                mapped_nids, equiv = mapper(nid)
+                nids += mapped_nids
+                if not equiv:
+                    is_equivalent = False
+
+        return dst_nids, is_equivalent
 
 
 class AcousticTaxonomyManager(TaxonomyManager):
