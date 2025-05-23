@@ -1,5 +1,4 @@
-import numpy as np
-import pandas as pd
+import itertools
 from datetime import datetime, timezone
 from .taxonomy import Taxonomy
 from .acoustic import AcousticTaxonomy
@@ -125,11 +124,9 @@ class TaxonomyManager:
         ascend: bool = False,
         descend: bool = False,
         always_list: bool = False,
-        equiv: bool = False,
+        equivalent_only: bool = False,
     ) -> int | list[int]:
         """Map a list of label IDs to another taxonomy version.
-
-        TODO: implement this method
 
         Args:
             label_id: int | list[int]
@@ -140,16 +137,51 @@ class TaxonomyManager:
                 Also return the labels of ancestral nodes of the mapped node(s).
             descend: bool
                 Also return the labels of descendant nodes of the mapped node(s).
-            equiv: bool
+            equivalent_only: bool
                 If True, only return the mapped label IDs that are 1-to-1
 
         Returns:
-            : int | list[int]
+            ids: int | list[int]
                 The mapped label ID(s).
         """
+        ids = []
+
         tax = self.current if version is None else self.releases[version - 1]
 
-        pass
+        # convert label IDs to (version, node identifier) tuples
+        inputs = self.labels.get_label(label_id, return_nid=True, always_list=True)
+
+        # loop over inputs
+        for src_version, nid in inputs:
+
+            # get closest relatives
+            mode = "b" if src_version > version else "f"
+            relatives, equiv = self.get_closest_relative(nid, version, mode)
+
+            if equivalent_only and not equiv:
+                continue
+
+            # convert node IDs to tags
+            relatives = self.labels.get_label(
+                self.labels.get_label_id(version, nid=relatives), return_version=False
+            )
+
+            # get label IDs
+            ids += get_label_id(
+                relatives,
+                tax,
+                self.labels,
+                ascend,
+                descend,
+                always_list=True,
+            )
+
+            ids = list(set(ids))
+
+        if isinstance(label_id, int) and len(ids) == 1 and not always_list:
+            ids = ids[0]
+
+        return ids
 
     def get_precursor_nodes(self, nid: str):
         """Get precursor node(s)
@@ -189,54 +221,86 @@ class TaxonomyManager:
 
         return [], False
 
-    def trace_node_history(self, nid: str, version: int = None, mode: str = "backward"):
-        """Maps a node in the taxonomy tree to any other taxonomy version.
+    def get_closest_relative(
+        self, nid: str | tuple[str], version: int = None, mode: str = "backward"
+    ):
+        """Trace node history.
+
+        If node is present in the taxonomy, the node's ID is returned.
+
+        If node is missing, the ID's of its closest relatives are returned (precursor nodes if
+        mode=backward and inheritor nodes if mode=forward.)
 
         Args:
-            nid: str
-                Node identifier
+            nid: str | tuple[str]
+                Node ID or set of node IDs
             version: int
-                Destination taxonomy version
+                Taxonomy version
             mode: str
                 * backward/b: trace node history backwards in time (default)
                 * forward/f: trace node history forward in time
 
         Returns:
-            dst_nids: list[str]
-                Node identifiers in the destination taxonomy.
+            relatives: list[str] | list[tuple[str]]
+                IDs of the closest relatives
             is_equivalent: bool
-                Whether the input node and the mapped node(s) in the destination taxonomy may be considered equivalent.
+                Whether the source node and the relative node may be considered equivalent.
         """
-        dst_nids = []
         is_equivalent = True
+
+        if version is None:
+            version = self.version
 
         if mode.lower() in ["b", "backward"]:
             mapper = self.get_precursor_nodes
         elif mode.lower() in ["f", "forward"]:
             mapper = self.get_inheritor_nodes
         else:
-            raise ValueError(f"Invalid node history tracing mode: {mode}")
+            raise ValueError(f"Invalid closest-relative search mode: {mode}")
 
-        nids = [nid]
-        while len(nids) > 0:
+        if isinstance(nid, str):
+            # recast node ID as tuple
+            is_tuple = False
+            nid_tuple = (nid,)
+        else:
+            is_tuple = True
+            nid_tuple = nid
 
-            # check if node IDs exist in the destination taxonomy
-            missing_nids = []
-            for nid in nids:
-                if self.labels.has_label(version, nid=nid):
-                    dst_nids.append(nid)
-                else:
-                    missing_nids.append(nid)
+        # find closest relative(s) for each member of the tuple
+        relatives = [[] for _ in nid_tuple]
 
-            # for missing IDs, use mapper to obtain precursor/inheritor nodes
-            nids = []
-            for nid in missing_nids:
-                mapped_nids, equiv = mapper(nid)
-                nids += mapped_nids
-                if not equiv:
-                    is_equivalent = False
+        for i, nid in enumerate(nid_tuple):
 
-        return dst_nids, is_equivalent
+            nids = [nid]
+            while len(nids) > 0:
+
+                # if node exists, we are done
+                missing = []
+                for nid in nids:
+                    if self.labels.has_nid(nid, version):
+                        relatives[i].append(nid)
+                    else:
+                        missing.append(nid)
+
+                # for missing nodes, use mapper to obtain precursor/inheritor nodes
+                nids = []
+                for nid in missing:
+                    mapped_nids, equiv = mapper(nid)
+                    nids += mapped_nids
+                    if not equiv:
+                        is_equivalent = False
+
+        # make all possible combinations
+        relatives = list(itertools.product(*relatives))
+
+        # retain only valid combinations
+        relatives = [r for r in relatives if self.labels.has_nid(r, version)]
+
+        # recast output
+        if not is_tuple:
+            relatives = [r[0] for r in relatives]
+
+        return relatives, is_equivalent
 
 
 class AcousticTaxonomyManager(TaxonomyManager):

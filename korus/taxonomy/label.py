@@ -40,6 +40,7 @@ class LabelManager:
         id: int | list[int],
         return_nid: bool = False,
         always_list: bool = False,
+        return_version: bool = True,
     ) -> tuple | list[tuple]:
         """TODO: docstring"""
         cols = ["version"]
@@ -51,23 +52,22 @@ class LabelManager:
         ids = id if isinstance(id, list) else [id]
         rows = self.df.loc[ids][cols].values
         res = [(row[0], tuple(row[1:])) for row in rows]
+
+        if not return_version:
+            res = [x[1] for x in res]
+
         if np.ndim(id) == 0 and not always_list:
             res = res[0]
 
         return res
 
-    def has_label(
-        self,
-        version: int | list[int],
-        tag: tuple | list[tuple] = None,
-        nid: tuple | list[tuple] = None,
-    ):
-        try:
-            self.get_label_id(version, tag, nid)
-            return True
+    def has_nid(self, nid: str | tuple[str], version: int = None):
+        if version and isinstance(nid, tuple):
+            return (version, *nid) in self._idf["nid"].index
 
-        except ValueError:
-            return False
+        else:
+            df = self.df if version is None else self.df[self.df.version == version]
+            return np.any(df[self._cols["nid"]].values == nid)
 
     def get_label_id(
         self,
@@ -79,10 +79,12 @@ class LabelManager:
         """Get label ID.
 
         Args:
-            indices: tuple | list[tuple]
-                Multi-level index, with the version as the first-level index.
-            node_id: bool
-                Query on node identifiers instead of tags.
+            version: int | list[int]
+                Taxonomy version(s). If list, must have the same length as `tag` or `nid`
+            tag: tuple | list[tuple]
+                Tag(s).
+            nid: tuple | list[tuple]
+                Node ID(s).
             always_list: bool
                 Whether to always return a list of ints.
 
