@@ -58,8 +58,15 @@ class SQLiteTableBackend(TableBackend):
         indices: list[int] = None
     ) -> list[int]:
         """TODO: finish this ..."""
-        cond = where_condition(self.conn, self.name, condition, invert, self.codec.encode)
+        cond = encode_condition(self.name, condition, self.codec.encode)
+
+        if indices is not None:
+            incides = [self.codec.encode(idx, self.name, "id") for idx in indices]
+
+        cond = where_condition(self.conn, self.name, cond, invert)
+
         indices = search_table(self.conn, self.name, cond, indices)
+
         indices = [self.codec.decode(idx, self.name, "id") for idx in indices]
         return indices
 
@@ -154,7 +161,25 @@ def get_row_count(conn, table_name):
     return n
 
 
-def where_condition(conn, table_name, condition, invert, encoder):
+def encode_condition(table_name, condition, encoder):
+    encoded_condition = {}
+    for name,values in condition.items():      
+        is_tuple = isinstance(values, tuple) 
+
+        if not isinstance(values, (list,tuple)):
+            values = [values]
+
+        values = [encoder(v, table_name, name) for v in values]
+        
+        if is_tuple:
+            values = tuple(values) 
+
+        encoded_condition[name] = values
+
+    return encoded_condition        
+
+
+def where_condition(conn, table_name, condition, invert):
     col_types = get_column_types(conn, table_name)
 
     # left joins on JSON columns
@@ -169,11 +194,6 @@ def where_condition(conn, table_name, condition, invert, encoder):
     where_conds = []
     for name,values in condition.items():        
         x = f"{name}"
-
-        if not isinstance(values, (list,tuple)):
-            values = [values]
-
-        values = [encoder(v, table_name, name) for v in values]
 
         if isinstance(values, tuple):
             a,b = values
