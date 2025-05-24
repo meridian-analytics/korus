@@ -57,8 +57,10 @@ class SQLiteTableBackend(TableBackend):
         invert: bool = False, 
         indices: list[int] = None
     ) -> list[int]:
-        indices = search_table(self.conn, self.name, condition, invert, indices)
-        indices = [self.codec.decode(id, self.name, "id") for idx in indices]
+        """TODO: finish this ..."""
+        cond = where_condition(self.conn, self.name, condition, invert, self.codec.encode)
+        indices = search_table(self.conn, self.name, cond, indices)
+        indices = [self.codec.decode(idx, self.name, "id") for idx in indices]
         return indices
 
     def add_field(
@@ -140,6 +142,11 @@ def get_column_names(conn, table_name):
     return [row[1] for row in rows]
 
 
+def get_column_types(conn, table_name):
+    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    return {row[1]: row[2] for row in rows}
+
+
 def get_row_count(conn, table_name):
     col_name = get_column_names(conn, table_name)[0]
     q = f"SELECT count({col_name}) FROM {table_name}"
@@ -147,34 +154,60 @@ def get_row_count(conn, table_name):
     return n
 
 
-def where_condition(conn, table_name, condition, invert):
-    conds = []
-    for name,value in condition.items():        
-        if isinstance(value, tuple):
+def where_condition(conn, table_name, condition, invert, encoder):
+    col_types = get_column_types(conn, table_name)
+
+    # left joins on JSON columns
+    left_joins = []
+    for name in condition.keys():
+        if col_types[name] == "JSON":
+            left_joins.append(f"LEFT JOIN json_each('{table_name}'.'{name}') AS {name}")
+
+    left_joins = " ".join(left_joins)
+
+    # WHERE conditions
+    where_conds = []
+    for name,values in condition.items():        
+        x = f"{name}"
+
+        if not isinstance(values, (list,tuple)):
+            values = [values]
+
+        values = [encoder(v, table_name, name) for v in values]
+
+        if isinstance(values, tuple):
+            a,b = values
             if not invert:
-                cond = f"{name} >= {value[0]} AND {name} <= {value[1]}"
+                cond = f"{x} >= {a} AND {x} <= {b}"
             else:
-                cond = f"{name} < {value[0]} OR {name} > {value[1]}"
+                cond = f"{x} < {a} OR {x} > {b}"
 
         else:
-            if not isinstance(value, list):
-                value = [value]
-
             if not invert:
-                cond = f"{name} IN {to_str(value)}"
+                cond = f"{x} IN {to_str(values)}"
             else:
-                cond = f"{name} NOT IN {to_str(value)}"
+                cond = f"{x} NOT IN {to_str(values)}"
 
-        conds.append(cond)
+        where_conds.append(cond)
     
-    return " AND ".join(conds)
+    if len(where_conds) > 0:
+        return left_joins + " WHERE " + " AND ".join(where_conds)
+
+    else:
+        return ""
 
 
-def search_table(conn, table_name, condition=None, invert=False, indices=None):
+def search_table(conn, table_name, condition, indices=None):
+    """TODO: finish this ..."""
     c = conn.cursor()
-    q = f"SELECT id FROM {table_name}"
+
     if indices is not None:
-        q += f" WHERE id IN {to_str(indices)}"
+        condition = " AND ".join(f"{table_name}.id IN {to_str(indices)}", condition)
+
+    q = f"SELECT {table_name}.id FROM {table_name}"
+
+    if len(condition) > 0:
+        q += f" WHERE {condition}"
 
     rows = c.execute(q).fetchall()
     return [row[0] for row in rows]
