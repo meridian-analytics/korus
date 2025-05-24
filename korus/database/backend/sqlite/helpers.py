@@ -194,15 +194,21 @@ def where_condition(conn, table_name, condition, invert, encoder):
         return left_joins + " WHERE " + " AND ".join(where_conds)
 
     else:
-        return ""
+        return None
 
 
-def search_table(conn, table_name, condition, indices=None):
+def search_table(conn, table_name, condition=None, indices=None):
     """TODO: finish this ..."""
     c = conn.cursor()
 
     if indices is not None:
-        condition = " AND ".join(f"{table_name}.id IN {to_str(indices)}", condition)
+        id_cond = f"WHERE id IN {to_str(indices)}"
+
+        if condition is None:
+            condition = id_cond
+        
+        else:
+            condition = condition.replace("WHERE", id_cond + " AND")
 
     q = f"SELECT {table_name}.id FROM {table_name}"
 
