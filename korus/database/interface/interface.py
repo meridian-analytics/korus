@@ -77,7 +77,8 @@ class TableInterface:
         self.name = name
         self.backend = backend
         self._fields = []
-        self._index = 0
+        self._index = -1
+        self._count = 0
 
     @property
     def fields(self) -> list[FieldDefinition]:
@@ -224,16 +225,22 @@ class TableInterface:
 
     def __iter__(self):
         """Iterate through the table"""
+        self._count = 0
+        self._index = -1
         return self
 
     def __next__(self):
         """Get the next row from the table"""
-        if self._index >= len(self):
+        self._count += 1
+
+        if self._count > len(self):
             raise StopIteration
 
-        row = self.get(self._index)[0]
-        self._index += 1
-        return row
+        while True:
+            self._index += 1
+            rows = self.get(self._index)
+            if len(rows) > 0:
+                return rows[0]
 
     def __str__(self) -> str:
         """Nicely formatted summary of the table definition
