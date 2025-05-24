@@ -10,16 +10,17 @@ import korus.db as kdb
 
 
 class InputLogger:
-    """ Class for logging input values
+    """Class for logging input values
 
-        Stores data in a JSON file named 'last_submit.json' in the user's home directory under $HOME/.ktam/
+    Stores data in a JSON file named 'last_submit.json' in the user's home directory under $HOME/.ktam/
 
-        Implements the methods :meth:`write` and :meth:`read` for writing and reading to the file.            
+    Implements the methods :meth:`write` and :meth:`read` for writing and reading to the file.
     """
+
     def __init__(self):
-        dir_path = os.path.join(os.environ['HOME'], ".ktam")
+        dir_path = os.path.join(os.environ["HOME"], ".ktam")
         self.path = os.path.join(dir_path, "last_submit.json")
-        
+
         if os.path.exists(self.path):
             self._load()
 
@@ -32,16 +33,16 @@ class InputLogger:
             self._dump()
 
     def write(self, name, value, group=None):
-        """ Log a value
+        """Log a value
 
-            Args:
-                name: str
-                    Parameter name
-                value: 
-                    The value to be logged
-                group: str
-                    Optional group name, used for organising the data.
-                    Parameter names must be unique within each group.
+        Args:
+            name: str
+                Parameter name
+            value:
+                The value to be logged
+            group: str
+                Optional group name, used for organising the data.
+                Parameter names must be unique within each group.
         """
         if group is None:
             self.data[name] = value
@@ -51,17 +52,17 @@ class InputLogger:
                 self.data[group] = dict()
 
             self.data[group][name] = value
-    
-        self._dump()
-    
-    def read(self, name, group=None):
-        """ Retrieve a value
 
-            Args:
-                name: str
-                    Parameter name
-                group: str
-                    Optional group name, used for organising the data.
+        self._dump()
+
+    def read(self, name, group=None):
+        """Retrieve a value
+
+        Args:
+            name: str
+                Parameter name
+            group: str
+                Optional group name, used for organising the data.
         """
         self._load()
         if group is None:
@@ -81,31 +82,30 @@ class InputLogger:
 
     def _dump(self):
         """Dumps the data to the JSON file"""
-        with open(self.path, 'w') as f:
-            json.dump(self.data, f)   
+        with open(self.path, "w") as f:
+            json.dump(self.data, f)
 
 
 # maps 'keyboard input' -> 'key name'
-human_readable_key = { 
-    "": "<ENTER>"
-}
+human_readable_key = {"": "<ENTER>"}
 
 
 class Option:
-    """ Class for handling specific, configurable input options
+    """Class for handling specific, configurable input options
 
-        Args:
-            key: str,list,tuple
-                Input key(s) used to select the option 
-            message: str
-                Message describing actions triggered by the option
-            fcn: callable
-                Function carrying out the action
+    Args:
+        key: str,list,tuple
+            Input key(s) used to select the option
+        message: str
+            Message describing actions triggered by the option
+        fcn: callable
+            Function carrying out the action
     """
+
     def __init__(self, key, message, fcn):
-        self.key = key if isinstance(key, (list,tuple)) else [key]
+        self.key = key if isinstance(key, (list, tuple)) else [key]
         self.message = message
-        self.fcn = fcn         
+        self.fcn = fcn
 
     def key_str(self):
         """Concatenates the input key(s) into a human-readable string"""
@@ -118,26 +118,27 @@ class Option:
 
 
 class UserInput:
-    """ Interactive session for requesting user input via console.
+    """Interactive session for requesting user input via console.
 
-        Args:
-            name: str
-                Parameter name
-            message: str
-                Request message presented to the user
-            transform_fcn: callable
-                Function applied to input provided by the user via the console.
-            group: str
-                Group that the parameter belongs to. Optional. 
-                Parameter names must be unique within groups.
-            json_fcn: callable
-                Function applied to input when storing in JSON logging file.
-            allowed_values: 
-                Allowed input value(s).
+    Args:
+        name: str
+            Parameter name
+        message: str
+            Request message presented to the user
+        transform_fcn: callable
+            Function applied to input provided by the user via the console.
+        group: str
+            Group that the parameter belongs to. Optional.
+            Parameter names must be unique within groups.
+        json_fcn: callable
+            Function applied to input when storing in JSON logging file.
+        allowed_values:
+            Allowed input value(s).
     """
+
     def __init__(
-        self, 
-        name, 
+        self,
+        name,
         message,
         transform_fcn=lambda x: x,
         group=None,
@@ -160,36 +161,34 @@ class UserInput:
 
         if unknown:
             self.unknown_key_str = self.add_option(
-                key=["u","unknown"],
-                message="Unknown or N/A",
-                fcn=lambda x: None
+                key=["u", "unknown"], message="Unknown or N/A", fcn=lambda x: None
             )
         else:
             self.unknown_key_str = None
 
     def add_option(self, key, message, fcn):
-        """ Add a special, configurable option to the user prompt.
+        """Add a special, configurable option to the user prompt.
 
-            key: str,list,tuple
-                Input key(s) used to select the option 
-            message: str
-                Message describing actions triggered by the option
-            fcn: callable
-                Function carrying out the action
+        key: str,list,tuple
+            Input key(s) used to select the option
+        message: str
+            Message describing actions triggered by the option
+        fcn: callable
+            Function carrying out the action
         """
-        opt = Option(key, message, fcn)    
+        opt = Option(key, message, fcn)
         self.options[opt.key_str()] = opt
         return opt.key_str()
 
     def _form_request_msg(self, include_options=False):
-        """ Helper function for :meth:`request` """
+        """Helper function for :meth:`request`"""
         color = "green"
         s = colored(f"\n >> {self.message}", color, attrs=["bold"])
-        
+
         if include_options:
             if len(self.options) > 0:
                 s += colored("\n\n     Keyword options:", color)
-            
+
             for opt in self.options.values():
                 s += colored(f"\n      * {opt.key_str()}: {opt.message}", color)
 
@@ -198,18 +197,20 @@ class UserInput:
         return s
 
     def request(self, logger=None):
-        """ Request input from the user via the console.
+        """Request input from the user via the console.
 
-            Args:
-                logger: korus.app.app_util.ui.InputLogger
-                    Input logger. 
+        Args:
+            logger: korus.app.app_util.ui.InputLogger
+                Input logger.
         """
         if logger:
             last_inp = logger.read(self.name, group=self.group)
             opt = Option(
-                "", 
-                f"Reuse last input: {last_inp}", 
-                lambda x: "" if last_inp in [None,""] else self.transform_fcn(last_inp)
+                "",
+                f"Reuse last input: {last_inp}",
+                lambda x: (
+                    "" if last_inp in [None, ""] else self.transform_fcn(last_inp)
+                ),
             )
             self.options[opt.key_str()] = opt
 
@@ -226,7 +227,11 @@ class UserInput:
                         self.selected_opt = opt
                         break
 
-                if self.selected_opt and value is None and self.selected_opt.key_str() != self.unknown_key_str:
+                if (
+                    self.selected_opt
+                    and value is None
+                    and self.selected_opt.key_str() != self.unknown_key_str
+                ):
                     msg = self._form_request_msg(include_options=True)
                     continue
 
@@ -234,7 +239,9 @@ class UserInput:
                     value = None if inp is None else self.transform_fcn(inp)
 
                 if self.allowed_values is not None and value not in self.allowed_values:
-                    err_msg = f"Invalid input. Allowed values are: {self.allowed_values}"
+                    err_msg = (
+                        f"Invalid input. Allowed values are: {self.allowed_values}"
+                    )
                     raise ValueError(err_msg)
 
                 break
@@ -252,20 +259,21 @@ class UserInput:
 
 
 class UserInputYesNo(UserInput):
-    """ Interactive session specifically for inputting yes/no answers.
+    """Interactive session specifically for inputting yes/no answers.
 
-        Args:
-            name: str
-                Parameter name
-            message: str
-                Request message presented to the user
-            group: str
-                Group that the parameter belongs to. Optional. 
-                Parameter names must be unique within groups.
-    """    
+    Args:
+        name: str
+            Parameter name
+        message: str
+            Request message presented to the user
+        group: str
+            Group that the parameter belongs to. Optional.
+            Parameter names must be unique within groups.
+    """
+
     def __init__(
-        self, 
-        name, 
+        self,
+        name,
         message,
         group=None,
     ):
@@ -278,7 +286,7 @@ class UserInputYesNo(UserInput):
                 raise ValueError
 
         super().__init__(
-            name=name, 
+            name=name,
             message=message,
             transform_fcn=transform_fcn,
             group=group,
@@ -287,23 +295,25 @@ class UserInputYesNo(UserInput):
 
 
 class UserInputSound(UserInput):
-    """ Interactive session specifically for inputting sound-source and sound-type information.
+    """Interactive session specifically for inputting sound-source and sound-type information.
 
-        Args:
-            name: str
-                Parameter name
-            message: str
-                Request message presented to the user
-            conn: sqlite3.Connection
-                Database connection
-            taxonomy_id: int
-                Index of the reference taxonomy for interpreting the tags provided by the user.
-            group: str
-                Group that the parameter belongs to. Optional. 
-                Parameter names must be unique within groups.
+    Args:
+        name: str
+            Parameter name
+        message: str
+            Request message presented to the user
+        conn: sqlite3.Connection
+            Database connection
+        taxonomy_id: int
+            Index of the reference taxonomy for interpreting the tags provided by the user.
+        group: str
+            Group that the parameter belongs to. Optional.
+            Parameter names must be unique within groups.
     """
-    def __init__(self, 
-        name, 
+
+    def __init__(
+        self,
+        name,
         message,
         conn,
         taxonomy_id,
@@ -313,12 +323,12 @@ class UserInputSound(UserInput):
         def transform_fcn(x):
             if isinstance(x, str):
                 # parse user input from console
-                x = x.replace("\'","\"")
+                x = x.replace("'", '"')
                 x = x.replace("(", "[")
                 x = x.replace(")", "]")
                 x = json.loads(x)
                 if not isinstance(x, list) and len(x) > 0:
-                    raise ValueError                
+                    raise ValueError
                 if not isinstance(x[0], list):
                     x = [x]
                 return x
@@ -334,38 +344,42 @@ class UserInputSound(UserInput):
 
         self.ui_sound_source = UserInput("sound_source", "Sound source")
         self.ui_sound_type = UserInput("sound_type", "Sound type")
-        self.ui_proceed = UserInput("proceed", "Specify another source-type pair? [y/N]", transform_fcn=lambda x: x.lower() == "y")
+        self.ui_proceed = UserInput(
+            "proceed",
+            "Specify another source-type pair? [y/N]",
+            transform_fcn=lambda x: x.lower() == "y",
+        )
 
         self.ui_sound_source.add_option(
-            key=["v","view"],
+            key=["v", "view"],
             message="View allowed values",
-            fcn=lambda x: self.tax.show(append_name=True)        
+            fcn=lambda x: self.tax.show(append_name=True),
         )
 
         self.add_option(
-            key=["i","iterative"],
+            key=["i", "iterative"],
             message="Iterative approach with look-up functionality and automatic validation",
-            fcn=lambda x: self._iter_fcn()
+            fcn=lambda x: self._iter_fcn(),
         )
 
         if default:
             self.add_option(
-                key=["d","default"],
+                key=["d", "default"],
                 message=f"Use default value: {default}",
-                fcn=lambda x: default
+                fcn=lambda x: default,
             )
 
     def _iter_fcn(self):
-        """ Helper function"""
+        """Helper function"""
         sounds = []
         while True:
 
             ss = self.ui_sound_source.request()
 
             self.ui_sound_type.add_option(
-                key=["v","view"],
+                key=["v", "view"],
                 message="View allowed values",
-                fcn=lambda x: self.tax.sound_types(ss).show(append_name=True)       
+                fcn=lambda x: self.tax.sound_types(ss).show(append_name=True),
             )
 
             st = self.ui_sound_type.request()
@@ -378,5 +392,3 @@ class UserInputSound(UserInput):
                 break
 
         return sounds
-
-

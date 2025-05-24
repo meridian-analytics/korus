@@ -10,8 +10,10 @@ import korus.app.app_util.ui as ui
 MAX_CHAR = 60
 
 
-def view_table_contents(conn, table_name, ids=None, columns=None, transform_fcn=lambda name,value: value):
-    """ Print table contents in human-friendly format.
+def view_table_contents(
+    conn, table_name, ids=None, columns=None, transform_fcn=lambda name, value: value
+):
+    """Print table contents in human-friendly format.
 
     Args:
         conn: sqlite3.Connection
@@ -44,20 +46,22 @@ def view_table_contents(conn, table_name, ids=None, columns=None, transform_fcn=
         print(f"table `{table_name}` is empty")
 
     else:
-        col_names = c.execute(f"SELECT name FROM PRAGMA_TABLE_INFO('{table_name}')").fetchall()
+        col_names = c.execute(
+            f"SELECT name FROM PRAGMA_TABLE_INFO('{table_name}')"
+        ).fetchall()
         col_names = [name[0] for name in col_names]
         df = pd.DataFrame(data, columns=col_names)
 
         # restrict to subset of columns
         if len(columns) > 0:
-            df = df[columns]                    
+            df = df[columns]
 
         num_items = len(df)
         item_no = 0
 
         ui_select_item = ui.UserInput(
-            "select_table_item", 
-            f"Select item (1 - {num_items}), press ENTER to view next item, or Ctrl-c to return to the previous menu.", 
+            "select_table_item",
+            f"Select item (1 - {num_items}), press ENTER to view next item, or Ctrl-c to return to the previous menu.",
             group=f"view_{table_name}",
             transform_fcn=lambda x: int(x) if len(x) > 0 else 0,
             allowed_values=[i for i in range(0, num_items + 1)],
@@ -72,7 +76,7 @@ def view_table_contents(conn, table_name, ids=None, columns=None, transform_fcn=
 
                 item_no = new_item_no
 
-                #collect item data in nested list (format expected by tabulate)
+                # collect item data in nested list (format expected by tabulate)
                 row = df.iloc[item_no - 1]
                 tbl = []
                 for k, v in row.to_dict().items():
@@ -85,23 +89,25 @@ def view_table_contents(conn, table_name, ids=None, columns=None, transform_fcn=
 
                     tbl.append([k, v])
 
-                # pretty print                
-                print(tabulate(tbl, headers=["Field", "Value"], tablefmt='psql'))
+                # pretty print
+                print(tabulate(tbl, headers=["Field", "Value"], tablefmt="psql"))
 
             except KeyboardInterrupt:
                 break
 
+
 def view_data_storage_locations(conn):
     view_table_contents(conn, table_name="storage")
 
+
 def view_jobs(conn):
     def transform_fcn(name, value):
-        """ Transform function for converting label IDs to source/type names """
+        """Transform function for converting label IDs to source/type names"""
         if name == "primary_sound":
             if value is None:
                 return []
-            
-            ids = value.replace("[","").replace("]","").replace(" ","").split(",")
+
+            ids = value.replace("[", "").replace("]", "").replace(" ", "").split(",")
             query = f"SELECT sound_source_tag,sound_type_tag FROM label WHERE id IN {list_to_str(ids)}"
             c = conn.cursor()
             rows = c.execute(query).fetchall()
@@ -111,14 +117,22 @@ def view_jobs(conn):
 
     view_table_contents(conn, table_name="job", transform_fcn=transform_fcn)
 
+
 def view_deployments(conn):
     view_table_contents(conn, table_name="deployment")
+
 
 def view_files(conn, file_ids=None):
     view_table_contents(conn, table_name="file", ids=file_ids)
 
+
 def view_tags(conn):
     view_table_contents(conn, table_name="tag")
 
+
 def view_taxonomies(conn):
-    view_table_contents(conn, table_name="taxonomy", columns=["id","name","version","timestamp","comment"])
+    view_table_contents(
+        conn,
+        table_name="taxonomy",
+        columns=["id", "name", "version", "timestamp", "comment"],
+    )

@@ -6,7 +6,9 @@ import korus.db as kdb
 import korus.app.app_util.add as add
 
 
-current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+current_dir = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+)
 path_to_assets = os.path.join(current_dir, "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
 
@@ -17,7 +19,7 @@ def test_from_raven(basic_db):
     granularity = "window"
     path = os.path.join(path_to_assets, "raven-sel-table-1.txt")
     df = add.from_raven(path, tax, granularity, interactive=False)
-    
+
     # check 1st entry
     r = df.iloc[0]
     assert r.valid == 0
@@ -26,7 +28,7 @@ def test_from_raven(basic_db):
     assert r.tentative_sound_source == None
     assert r.tentative_sound_type == None
     assert r.ambiguous_sound_source == None
-    assert r.ambiguous_sound_type == ["S01","S02"]
+    assert r.ambiguous_sound_type == ["S01", "S02"]
     assert r.granularity == "window"
 
     # check 2nd entry
@@ -37,7 +39,7 @@ def test_from_raven(basic_db):
     assert r.tentative_sound_source == None
     assert r.tentative_sound_type == None
     assert r.ambiguous_sound_source == None
-    assert r.ambiguous_sound_type == ["S01","S02"]
+    assert r.ambiguous_sound_type == ["S01", "S02"]
     assert r.granularity == "window"
 
     # check 3rd entry

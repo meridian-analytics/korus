@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from tabulate import tabulate
-from korus.util import not_impl_err_msg
+from korus.database.backend import TableBackend
 
 
 @dataclass
@@ -34,20 +34,20 @@ class FieldDefinition:
     options: list = None
 
     def options_as_str(self) -> str:
-        """ Returns:
-                : str
-                    Allowed values as a single, comma-separated string.
+        """Returns:
+        : str
+            Allowed values as a single, comma-separated string.
         """
         if self.options is None:
             return None
-        
+
         else:
             return ", ".join([str(v) for v in self.options])
-        
+
     def as_tuple_str(self) -> tuple:
-        """ Returns:
-                : tuple
-                    The field definition in a tuple of strings. 
+        """Returns:
+        : tuple
+            The field definition in a tuple of strings.
         """
         return (
             self.name,
@@ -55,7 +55,7 @@ class FieldDefinition:
             self.description,
             "Y" if self.required else "N",
             str(self.default),
-            self.options_as_str()
+            self.options_as_str(),
         )
 
 
@@ -72,7 +72,8 @@ class TableInterface:
             The table backend, connecting the interface to the underlying database
     """
 
-    def __init__(self, name: str, backend):
+    def __init__(self, name: str, backend: TableBackend):
+        super().__init__()
         self.name = name
         self.backend = backend
         self._fields = []
@@ -84,9 +85,18 @@ class TableInterface:
         return self._fields
 
     @property
+    def names(self) -> list[str]:
+        """The names of the fields in the table"""
+        return [field.name for field in self._fields]
+
+    @property
     def fields_asdict(self) -> dict[str, FieldDefinition]:
         """The definitions of the table's fields as a dict"""
         return {field.name: field for field in self._fields}
+
+    def values_asdict(self, values: tuple) -> dict:
+        """A tuple of field values as a dict"""
+        return {name: value for name, value in zip(self.names, values)}
 
     def add_field(
         self,
@@ -113,7 +123,9 @@ class TableInterface:
             options: list (optional)
                 Allowed values
         """
-        self._fields.append(FieldDefinition(name, type, description, required, default, options))
+        self._fields.append(
+            FieldDefinition(name, type, description, required, default, options)
+        )
 
     def _validate_data(self, row: dict, replace: dict = None):
         """Helper function for validating input data and replacing missing fields.
@@ -184,16 +196,12 @@ class TableInterface:
         }
         self.backend.set(idx, self._validate_data(row, replace))
 
-    def filter(self):
-        """Search the table
-
-        Returns:
-            indices: list[int]
-                The indices of the rows matching the search criteria
-        """
-        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
-
-    def get(self, indices: int | list[int] = None, fields: str | list[str] = None):
+    def get(
+        self,
+        indices: int | list[int] = None,
+        fields: str | list[str] = None,
+        return_indices: bool = False,
+    ):
         """Retrieve data from the table.
 
         Note that the method always returns a list, even when only a single index is specified.
@@ -208,7 +216,7 @@ class TableInterface:
             : list[tuple]
                 The data
         """
-        return self.backend.get(indices, fields)
+        return self.backend.get(indices, fields, return_indices)
 
     def __len__(self) -> int:
         """Number of rows in the table"""
@@ -241,7 +249,14 @@ class TableInterface:
         res += "\nFields:\n"
         res += tabulate(
             [f.as_tuple_str() for f in self.fields],
-            headers=["Name", "Type", "Description", "Required", "Default Value", "Allowed Values"],
+            headers=[
+                "Name",
+                "Type",
+                "Description",
+                "Required",
+                "Default Value",
+                "Allowed Values",
+            ],
         )
 
         return res

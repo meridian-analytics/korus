@@ -1,12 +1,12 @@
 def create_annotation_table(conn):
-    """ Create annotation table according to Korus schema.
+    """Create annotation table according to Korus schema.
 
-        TODO: Change tentative_label_id type from INTEGER to JSON ? (to allow for lists)
-                Or add another column named label_list_id (or similar)
-    
-        Args:
-            conn: sqlite3.Connection
-                Database connection
+    TODO: Change tentative_label_id type from INTEGER to JSON ? (to allow for lists)
+            Or add another column named label_list_id (or similar)
+
+    Args:
+        conn: sqlite3.Connection
+            Database connection
     """
     c = conn.cursor()
 
@@ -51,13 +51,13 @@ def create_annotation_table(conn):
 
 
 def create_granularity_table(conn):
-    """ Create granularity table according to Korus schema.
+    """Create granularity table according to Korus schema.
 
-        Also adds entries for the standard Korus granularities: unit, window, file, batch, encounter
+    Also adds entries for the standard Korus granularities: unit, window, file, batch, encounter
 
-        Args:
-            conn: sqlite3.Connection
-                Database connection
+    Args:
+        conn: sqlite3.Connection
+            Database connection
     """
     c = conn.cursor()
     tbl_def = """
@@ -75,42 +75,34 @@ def create_granularity_table(conn):
     rows = [
         (
             "unit",
-            "Annotation of a single vocalisation/sound. Bounding box drawn snuggly around a single vocalisation/sound."\
-            " Overlapping sounds may be present."
+            "Annotation of a single vocalisation/sound. Bounding box drawn snuggly around a single vocalisation/sound."
+            " Overlapping sounds may be present.",
         ),
         (
             "window",
-            "Annotation of a single vocalisation/sound. Box width does not necessarily match sound duration."\
-            " Sound may be fully or only partially within the box. Overlapping sounds may be present."
+            "Annotation of a single vocalisation/sound. Box width does not necessarily match sound duration."
+            " Sound may be fully or only partially within the box. Overlapping sounds may be present.",
         ),
-        (
-            "file",
-            "Annotation spanning precisely the duration of a single audio file."
-        ),
-        (
-            "batch",
-            "Annotation of multiple vocalisations/sounds."
-        ),
-        (
-            "encounter",
-            "Annotation of an entire (biological) acoustic encounter."
-        ),
+        ("file", "Annotation spanning precisely the duration of a single audio file."),
+        ("batch", "Annotation of multiple vocalisations/sounds."),
+        ("encounter", "Annotation of an entire (biological) acoustic encounter."),
     ]
 
     for row in rows:
         name = row[0]
         descr = row[1]
         c.execute(
-            f"INSERT INTO granularity (id,name,description) VALUES (NULL,?,?)", [name,descr]
+            f"INSERT INTO granularity (id,name,description) VALUES (NULL,?,?)",
+            [name, descr],
         )
 
 
 def create_job_table(conn):
-    """ Create job table according to Korus schema.
+    """Create job table according to Korus schema.
 
-        Args:
-            conn: sqlite3.Connection
-                Database connection
+    Args:
+        conn: sqlite3.Connection
+            Database connection
     """
     c = conn.cursor()
 
@@ -147,11 +139,11 @@ def create_job_table(conn):
 
 
 def create_deployment_table(conn):
-    """ Create deployment table according to Korus schema.
+    """Create deployment table according to Korus schema.
 
-        Args:
-            conn: sqlite3.Connection
-                Database connection
+    Args:
+        conn: sqlite3.Connection
+            Database connection
     """
     c = conn.cursor()
 
@@ -195,13 +187,13 @@ def create_deployment_table(conn):
 
 
 def create_file_table(conn):
-    """ Create file table according to Korus schema.
+    """Create file table according to Korus schema.
 
-        Also creates an index on (deployment_id, filename) for faster querying.
+    Also creates an index on (deployment_id, filename) for faster querying.
 
-        Args:
-            conn: sqlite3.Connection
-                Database connection
+    Args:
+        conn: sqlite3.Connection
+            Database connection
     """
     c = conn.cursor()
 
@@ -230,7 +222,8 @@ def create_file_table(conn):
     c.execute(tbl_def)
 
     # create indices for faster queries
-    c.execute("""
+    c.execute(
+        """
         CREATE INDEX
             deployment_filename_index
         ON
@@ -238,7 +231,8 @@ def create_file_table(conn):
     """
     )
 
-    c.execute("""
+    c.execute(
+        """
         CREATE INDEX
             deployment_time_index
         ON
@@ -248,13 +242,13 @@ def create_file_table(conn):
 
 
 def create_file_job_relation_table(conn):
-    """ Create file-job relation table according to Korus schema.
+    """Create file-job relation table according to Korus schema.
 
-        Also creates an index on (job_id) for faster querying.
+    Also creates an index on (job_id) for faster querying.
 
-        Args:
-            conn: sqlite3.Connection
-                Database connection
+    Args:
+        conn: sqlite3.Connection
+            Database connection
     """
     c = conn.cursor()
 
@@ -273,7 +267,8 @@ def create_file_job_relation_table(conn):
     c.execute(tbl_def)
 
     # create index for faster queries
-    c.execute("""
+    c.execute(
+        """
         CREATE INDEX
             job_index
         ON
@@ -283,11 +278,11 @@ def create_file_job_relation_table(conn):
 
 
 def create_model_table(conn):
-    """ Create model table according to Korus schema.
+    """Create model table according to Korus schema.
 
-        Args:
-            conn: sqlite3.Connection
-                Database connection
+    Args:
+        conn: sqlite3.Connection
+            Database connection
     """
     c = conn.cursor()
     tbl_def = """
@@ -305,13 +300,13 @@ def create_model_table(conn):
 
 
 def create_storage_table(conn):
-    """ Create data-storage table according to Korus schema.
+    """Create data-storage table according to Korus schema.
 
-        @address can be an IP address or a URL
+    @address can be an IP address or a URL
 
-        Args:
-            conn: sqlite3.Connection
-                Database connection
+    Args:
+        conn: sqlite3.Connection
+            Database connection
     """
     c = conn.cursor()
     tbl_def = """
@@ -331,14 +326,15 @@ def create_storage_table(conn):
 
 AUTO_NEG = "__AUTO_NEGATIVE__"
 
+
 def create_tag_table(conn):
-    """ Create tag table according to Korus schema.
+    """Create tag table according to Korus schema.
 
-        Also adds an entry for auto-generated negatives.
+    Also adds an entry for auto-generated negatives.
 
-        Args:
-            conn: sqlite3.Connection
-                Database connection
+    Args:
+        conn: sqlite3.Connection
+            Database connection
     """
     c = conn.cursor()
     tbl_def = """
@@ -356,16 +352,16 @@ def create_tag_table(conn):
     # add entry for AUTO_NEG
     descr = "Negative sample, automatically generated by the korus.db.add_negatives function"
     c.execute(
-        f"INSERT INTO tag (id,name,description) VALUES (NULL,?,?)", [AUTO_NEG,descr]
+        f"INSERT INTO tag (id,name,description) VALUES (NULL,?,?)", [AUTO_NEG, descr]
     )
 
 
 def create_taxonomy_table(conn):
-    """ Create taxonomy table according to Korus schema.
+    """Create taxonomy table according to Korus schema.
 
-        Args:
-            conn: sqlite3.Connection
-                Database connection
+    Args:
+        conn: sqlite3.Connection
+            Database connection
     """
     c = conn.cursor()
     tbl_def = """
@@ -385,11 +381,11 @@ def create_taxonomy_table(conn):
 
 
 def create_taxonomy_created_node_table(conn):
-    """ Create taxonomy_created_node table according to Korus schema.
+    """Create taxonomy_created_node table according to Korus schema.
 
-        Args:
-            conn: sqlite3.Connection
-                Database connection
+    Args:
+        conn: sqlite3.Connection
+            Database connection
     """
     c = conn.cursor()
     tbl_def = """
@@ -407,11 +403,11 @@ def create_taxonomy_created_node_table(conn):
 
 
 def create_taxonomy_removed_node_table(conn):
-    """ Create taxonomy_removed_node table according to Korus schema.
+    """Create taxonomy_removed_node table according to Korus schema.
 
-        Args:
-            conn: sqlite3.Connection
-                Database connection
+    Args:
+        conn: sqlite3.Connection
+            Database connection
     """
     c = conn.cursor()
     tbl_def = """
@@ -429,13 +425,13 @@ def create_taxonomy_removed_node_table(conn):
 
 
 def create_label_table(conn):
-    """ Create label table according to Korus schema.
+    """Create label table according to Korus schema.
 
-        Also creates an index on (taxonomy_id, sound_source_tag, sound_type_tag) for faster querying.
+    Also creates an index on (taxonomy_id, sound_source_tag, sound_type_tag) for faster querying.
 
-        Args:
-            conn: sqlite3.Connection
-                Database connection
+    Args:
+        conn: sqlite3.Connection
+            Database connection
     """
     c = conn.cursor()
 
@@ -457,12 +453,13 @@ def create_label_table(conn):
     c.execute(tbl_def)
 
     # create index for faster queries
-    c.execute("""
+    c.execute(
+        """
         CREATE INDEX
             source_type_index
         ON
             label(taxonomy_id, sound_source_tag, sound_type_tag)
     """
     )
-        
-    #c.execute("INSERT INTO label VALUES (NULL, NULL, NULL)")
+
+    # c.execute("INSERT INTO label VALUES (NULL, NULL, NULL)")

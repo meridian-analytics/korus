@@ -1,5 +1,7 @@
 import json
+import numpy as np
 from datetime import datetime, timezone
+import korus.database.backend.sqlite.helpers as help
 
 
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
@@ -17,6 +19,37 @@ def get_sqlite_type(x: "typing.Any"):
 
     else:
         return "TEXT"
+
+
+def encode_ms(v: float):
+    if v is None:
+        return None
+
+    else:
+        return int(np.round(v * 1e3))
+
+
+def decode_ms(v: int):
+    return float(v) / 1e3
+
+
+def encode_key(v: int | list[int]):
+    if v is None:
+        return None
+
+    elif isinstance(v, int):
+        return v + 1
+
+    else:
+        return [x + 1 for x in v]
+
+
+def decode_key(v: int | list[int]):
+    if isinstance(v, int):
+        return v - 1
+
+    else:
+        return [x - 1 for x in v]
 
 
 def decode_datetime(v: str) -> datetime:
@@ -80,13 +113,19 @@ def decode_field(value, fcn=None):
         return value
 
 
-def encode_row(row, fcns):
+def encode_row(row, fcns=None):
+    if fcns is None:
+        fcns = {}
+
     return {
         k: encode_field(v, fcns.get(k, None)) for k, v in row.items() if v is not None
     }
 
 
-def decode_row(row, fcns):
+def decode_row(row, fcns=None):
+    if fcns is None:
+        fcns = {}
+
     return {k: decode_field(v, fcns.get(k, None)) for k, v in row.items()}
 
 
@@ -141,3 +180,37 @@ class Codec:
 
     def decode(self, *args, **kwargs):
         return self.decoder(*args, **kwargs)
+
+
+def create_codec(conn):
+    codec = Codec()
+
+    # decode timestamps
+    codec.decoder.add_rule("deployment", "start_utc", decode_datetime)
+    codec.decoder.add_rule("deployment", "end_utc", decode_datetime)
+    codec.decoder.add_rule("file", "start_utc", decode_datetime)
+
+    # millisecod fields in annotation table
+    codec.encoder.add_rule("annotation", "duration_ms", encode_ms)
+    codec.decoder.add_rule("annotation", "duration_ms", decode_ms)
+    codec.encoder.add_rule("annotation", "start_ms", encode_ms)
+    codec.decoder.add_rule("annotation", "start_ms", decode_ms)
+
+    # file_id_list field in annotation table
+    codec.encoder.add_rule("annotation", "file_id_list", encode_key)
+    codec.decoder.add_rule("annotation", "file_id_list", decode_key)
+
+    # encode & decode table keys
+    table_names = help.get_table_names(conn)
+    for table_name in table_names:
+        # primary keys
+        codec.encoder.add_rule(table_name, "id", encode_key)
+        codec.decoder.add_rule(table_name, "id", decode_key)
+
+        for key_name in table_names:
+            # foreign keys
+            key_name += "_id"
+            codec.encoder.add_rule(table_name, key_name, encode_key)
+            codec.decoder.add_rule(table_name, key_name, decode_key)
+
+    return codec

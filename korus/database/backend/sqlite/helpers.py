@@ -1,7 +1,7 @@
 import numpy as np
 import sqlite3
 from korus.database.backend import TableBackend
-from korus.database.backend.sqlite.encode import Codec, get_sqlite_type
+from korus.database.backend.sqlite.encode import Codec, get_sqlite_type, encode_key
 
 
 class SQLiteTableBackend(TableBackend):
@@ -17,20 +17,37 @@ class SQLiteTableBackend(TableBackend):
     """
 
     def __init__(self, conn: sqlite3.Connection, name: str, codec: Codec):
+        super().__init__(name)
         self.conn = conn
-        self.name = name
         self.codec = codec
+
+    def __len__(self):
+        return get_row_count(self.conn, self.name)
 
     def add(self, row: dict):
         insert_row(self.conn, self.name, self.codec.encode(row, self.name))
         self.conn.commit()
 
     def set(self, idx: int, row: dict):
-        raise NotImplementedError()
-        # TODO: implement this method
+        update_row(
+            self.conn, self.name, encode_key(idx), self.codec.encode(row, self.name)
+        )
+        self.conn.commit()
 
-    def get(self, indices: int | list[int] = None, fields: str | list[str] = None):
-        rows = fetch_row(self.conn, self.name, indices, fields, as_dict=True)
+    def get(
+        self,
+        indices: int | list[int] = None,
+        fields: str | list[str] = None,
+        return_indices: bool = False,
+    ):
+        rows = fetch_row(
+            self.conn,
+            self.name,
+            encode_key(indices),
+            fields,
+            as_dict=True,
+            return_indices=return_indices,
+        )
         rows = [self.codec.decode(row, self.name) for row in rows]
         return [tuple(list(row.values())) for row in rows]
 
@@ -91,6 +108,10 @@ def table_exists(conn, name):
         : bool
             True, if table exists. False, otherwise.
     """
+    return name in get_table_names(conn)
+
+
+def get_table_names(conn):
     c = conn.cursor()
     query = f"""
         SELECT 
@@ -99,12 +120,9 @@ def table_exists(conn, name):
             sqlite_master 
         WHERE 
             type='table' 
-        AND 
-            name='{name}'
-    
     """
-    results = c.execute(query).fetchall()
-    return len(results) > 0
+    rows = c.execute(query).fetchall()
+    return [row[0] for row in rows]
 
 
 def get_column_names(conn, table_name):
@@ -112,7 +130,16 @@ def get_column_names(conn, table_name):
     return [row[1] for row in rows]
 
 
-def fetch_row(conn, table_name, indices=None, fields=None, as_dict=False):
+def get_row_count(conn, table_name):
+    col_name = get_column_names(conn, table_name)[0]
+    q = f"SELECT count({col_name}) FROM {table_name}"
+    n = conn.execute(q).fetchall()[0][0]
+    return n
+
+
+def fetch_row(
+    conn, table_name, indices=None, fields=None, as_dict=False, return_indices=False
+):
     c = conn.cursor()
 
     if isinstance(fields, str):
@@ -120,7 +147,9 @@ def fetch_row(conn, table_name, indices=None, fields=None, as_dict=False):
 
     if fields is None:
         fields_str = "*"
+
     else:
+        fields = ["id"] + fields
         fields_str = ",".join(fields)
 
     q = f"SELECT {fields_str} FROM {table_name}"
@@ -130,6 +159,10 @@ def fetch_row(conn, table_name, indices=None, fields=None, as_dict=False):
 
     rows = c.execute(q).fetchall()
 
+    # remove index, if not requested
+    if not return_indices:
+        rows = [row[1:] for row in rows]
+
     # preserve ordering
     if indices is not None and np.ndim(indices) > 0:
         idx = np.argsort(np.argsort(indices))
@@ -138,6 +171,9 @@ def fetch_row(conn, table_name, indices=None, fields=None, as_dict=False):
     if as_dict:
         if fields is None:
             fields = get_column_names(conn, table_name)
+
+        if not return_indices:
+            fields.remove("id")
 
         rows = [{k: v for k, v in zip(fields, row)} for row in rows]
 
@@ -165,18 +201,9 @@ def insert_row(conn, table_name, row):
     """
     c = conn.cursor()
 
-    # check if table has its own 'id' column
-    has_id = False
-    columns = conn.execute(f"PRAGMA table_info({table_name})")
-    for col in columns:
-        if col[1] == "id":
-            has_id = True
-            break
-
-    # SQL query
     col_names = ",".join(row.keys())
     val_str = ",".join(["?" for _ in row.keys()])
-    if has_id:
+    if has_id(conn, table_name):
         col_names = "id," + col_names
         val_str = "NULL," + val_str
 
@@ -187,7 +214,49 @@ def insert_row(conn, table_name, row):
     return c
 
 
-def add_column(conn, table_name, col_name, col_type, required=False, default_value=None):
+def update_row(conn, table_name, idx, row):
+    """Update a row in a table in the database.
+
+    Note: Expects the table to have an `id` index column
+
+    Args:
+        conn: sqlite3.Connection
+            Database connection
+        table_name: str
+            Table name
+        idx: int
+            Identifier of the row to be replaced
+        row: dict
+            row to be inserted
+
+    Returns:
+        c: sqlite3.Cursor
+            Database cursor
+    """
+    assert_msg = (
+        f"Unable to update table {table_name} because it does not have an `id` column"
+    )
+    assert has_id(conn, table_name), assert_msg
+
+    c = conn.cursor()
+    values = ", ".join([f"{k} = {v}" for k, v in row.items()])
+    q = f"UPDATE {table_name} SET {values} WHERE id = {idx}"
+    c.execute(q)
+    return c
+
+
+def has_id(conn, table_name):
+    columns = conn.execute(f"PRAGMA table_info({table_name})")
+    for col in columns:
+        if col[1] == "id":
+            return True
+
+    return False
+
+
+def add_column(
+    conn, table_name, col_name, col_type, required=False, default_value=None
+):
     q = f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"
 
     if required:

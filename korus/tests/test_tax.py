@@ -9,7 +9,7 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
 def test_taxonomy():
-    """ Test basic functionalities of the Taxonomy class. Not a comprehensive test."""
+    """Test basic functionalities of the Taxonomy class. Not a comprehensive test."""
     sqlite_path = os.path.join(path_to_tmp, "mytax.sqlite")
     if os.path.exists(sqlite_path):
         os.remove(sqlite_path)
@@ -32,14 +32,14 @@ def test_taxonomy():
 
     # if we attempt to merge two 'new' nodes, Korus complains
     with pytest.raises(RuntimeError):
-        tax.merge_nodes("S23", children=["S2","S3"])
+        tax.merge_nodes("S23", children=["S2", "S3"])
 
     # check that we are keeping track of created and deleted nodes
     assert len(tax.removed_nodes) == 0
-    assert len(tax.created_nodes) == 8 #7 + 1 root node
+    assert len(tax.created_nodes) == 8  # 7 + 1 root node
 
     count = 0
-    for k,v in tax.created_nodes.items():
+    for k, v in tax.created_nodes.items():
         # check that root node has created_from = None and is_equivalent = False
         if count == 0:
             assert v[0] == [None]
@@ -62,14 +62,14 @@ def test_taxonomy():
     assert tax.latest_version() == 1
 
     # check we can now merge nodes
-    tax.merge_nodes("S23", children=["S2","S3"])
-    tax.merge_nodes("S45", children=["S4","S5"], remove=True)
+    tax.merge_nodes("S23", children=["S2", "S3"])
+    tax.merge_nodes("S45", children=["S4", "S5"], remove=True)
 
     # check that we are keeping correct track of created/removed nodes
     assert len(tax.created_nodes) == 2
     assert len(tax.removed_nodes) == 2
 
-    for k,v in tax.created_nodes.items():
+    for k, v in tax.created_nodes.items():
         n = tax.get_node(k)
 
         if n.tag == "S23":
@@ -81,7 +81,7 @@ def test_taxonomy():
             assert len(v[0]) == 2
             assert v[1] == True
 
-    for k,v in tax.removed_nodes.items():
+    for k, v in tax.removed_nodes.items():
         assert v[0] == [tax.get_id("S45")]
         assert v[1] == False
 
@@ -90,14 +90,14 @@ def test_taxonomy():
     tax.save()
     assert tax.latest_version() == 2
 
-    #check that we can load the taxonomy back into memory
+    # check that we can load the taxonomy back into memory
     tax = kx.Taxonomy.load(sqlite_path, name="mytax", version=2)
     assert tax.version == 2
     assert tax.path == sqlite_path
 
 
 def test_acoustic_taxonomy():
-    """ Test basic functionalities of the AcousticTaxonomy class. Not a comprehensive test."""
+    """Test basic functionalities of the AcousticTaxonomy class. Not a comprehensive test."""
     sqlite_path = os.path.join(path_to_tmp, "myacoutax.sqlite")
     if os.path.exists(sqlite_path):
         os.remove(sqlite_path)
@@ -150,11 +150,11 @@ def test_acoustic_taxonomy():
 
     # check that we can merge sound sources
     tax.merge_sound_sources(
-        "Toothed", 
-        children=["KW","Dolphin"], 
-        remove=False, 
+        "Toothed",
+        children=["KW", "Dolphin"],
+        remove=False,
         data_merge_fcn=None,
-        name="Odontecetes"
+        name="Odontecetes",
     )
 
     # check that toothed whales inherit sound types from parent node (Mammal)
@@ -167,9 +167,9 @@ def test_acoustic_taxonomy():
     # check that we can merge sound types
     tax.merge_sound_types(
         tag="S2&3",
-        source_tag="SRKW", 
-        children=["S02","S03"], 
-        remove=False, 
+        source_tag="SRKW",
+        children=["S02", "S03"],
+        remove=False,
         data_merge_fcn=None,
     )
 
@@ -183,47 +183,46 @@ def test_acoustic_taxonomy():
 
     # verify that sound types are as expected
     sound_types = tax.sound_types("SRKW")
-    expected = ["Unknown","CK","PC","S01","S02","S03","TC","TCX"]
-    for i,nid in enumerate(sound_types.expand_tree(mode=Tree.DEPTH)):
+    expected = ["Unknown", "CK", "PC", "S01", "S02", "S03", "TC", "TCX"]
+    for i, nid in enumerate(sound_types.expand_tree(mode=Tree.DEPTH)):
         assert sound_types.get_node(nid).tag == expected[i]
 
     # check that we can ascend up through the sound-type tree
     gen = tax.ascend("SRKW", "S01", include_start_node=False)
     expected = [
-        ("SRKW","PC"),
-        ("SRKW","Unknown"),
-        ("KW","PC"),
-        ("KW","Unknown"),
-        ("Mammal","Unknown"),
-        ("Bio","Unknown"),
-        ("Unknown","Unknown"),      
+        ("SRKW", "PC"),
+        ("SRKW", "Unknown"),
+        ("KW", "PC"),
+        ("KW", "Unknown"),
+        ("Mammal", "Unknown"),
+        ("Bio", "Unknown"),
+        ("Unknown", "Unknown"),
     ]
-    for i,(s,t) in enumerate(gen):
+    for i, (s, t) in enumerate(gen):
         assert (s, t) == expected[i]
 
     gen = tax.ascend("SRKW", include_start_node=False)
-    expected = ["KW","Mammal","Bio","Unknown"]
-    for i,(s,t) in enumerate(gen):
+    expected = ["KW", "Mammal", "Bio", "Unknown"]
+    for i, (s, t) in enumerate(gen):
         assert s == expected[i]
 
     # check that we can descend down through the sound-type tree
     gen = tax.descend("Mammal", "TC", include_start_node=True)
     expected = [
-        ("Mammal","TC"),
-        ("Dolphin","TC"),
-        ("HW","TC"),
-        ("KW","TC"),
-        ("SRKW","TC"),
-        ("SRKW","TCX"),      
+        ("Mammal", "TC"),
+        ("Dolphin", "TC"),
+        ("HW", "TC"),
+        ("KW", "TC"),
+        ("SRKW", "TC"),
+        ("SRKW", "TCX"),
     ]
-    for i,(s,t) in enumerate(gen):
+    for i, (s, t) in enumerate(gen):
         assert (s, t) == expected[i]
 
     gen = tax.descend("KW", include_start_node=False)
     expected = ["SRKW"]
-    for i,(s,t) in enumerate(gen):
+    for i, (s, t) in enumerate(gen):
         assert s == expected[i]
-
 
     tax.create_sound_type("S99", "SRKW", parent="PC", name="S99 call")
     tax.save("added S99 call")
@@ -242,17 +241,19 @@ def test_acoustic_taxonomy():
     tax.save("added S103 call", overwrite=True)
 
     import sqlite3
+
     conn = sqlite3.connect(sqlite_path)
     c = conn.cursor()
     rows = c.execute("SELECT id,name,version,comment FROM taxonomy").fetchall()
-    rows[0] == (1, 'myacoutax', 1, None)
-    rows[1] == (2, 'myacoutax', 2, None)
-    rows[2] == (3, 'myacoutax', 3, 'added S99 call; added S100 call')
-    rows[3] == (4, 'myacoutax', 4, 'added S101 call; added S103 call')
-    rows[4] == (5, 'myacoutax', 5, 'added S102 call')
+    rows[0] == (1, "myacoutax", 1, None)
+    rows[1] == (2, "myacoutax", 2, None)
+    rows[2] == (3, "myacoutax", 3, "added S99 call; added S100 call")
+    rows[3] == (4, "myacoutax", 4, "added S101 call; added S103 call")
+    rows[4] == (5, "myacoutax", 5, "added S102 call")
 
-
-    rows = c.execute(f"SELECT * FROM taxonomy_created_node WHERE taxonomy_id = {4}").fetchall()
+    rows = c.execute(
+        f"SELECT * FROM taxonomy_created_node WHERE taxonomy_id = {4}"
+    ).fetchall()
     print(rows)
 
     conn.close()

@@ -1,8 +1,12 @@
-from .interface.deployment import DeploymentInterface
-from .interface.annotation import AnnotationInterface
-from .interface.file import FileInterface
-from .interface.job import JobInterface
-from .interface.storage import StorageInterface
+from .interface import (
+    DeploymentInterface,
+    AnnotationInterface,
+    FileInterface,
+    JobInterface,
+    StorageInterface,
+    TaxonomyInterface,
+    LabelInterface,
+)
 from .backend import DatabaseBackend
 from .backend.sqlite import SQLiteBackend
 
@@ -17,6 +21,8 @@ class Database:
         self.file = FileInterface(self.backend.file)
         self.job = JobInterface(self.backend.job)
         self.storage = StorageInterface(self.backend.storage)
+        self._label = LabelInterface(self.backend.label)
+        self.taxonomy = TaxonomyInterface(self.backend.taxonomy, self._label)
 
 
 class SQLiteDatabase(Database):

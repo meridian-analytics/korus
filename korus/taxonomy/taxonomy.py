@@ -1,8 +1,6 @@
-import os
-import json
 import copy
-import warnings
 from treelib import Tree
+from datetime import datetime
 
 
 def tree_from_dict(tree, recipe, parent=None, data_transform=None):
@@ -13,7 +11,7 @@ def tree_from_dict(tree, recipe, parent=None, data_transform=None):
     node.
 
     Args:
-        tree: korus.tree.KTree
+        tree: korus.tree.LabelTree
             Parent tree to which the data will be appended. Can be an empty tree.
         recipe: dict
             Dictionary recipe for building the tree.
@@ -56,7 +54,7 @@ def tree_to_dict(tree, nid=None, key=None, sort=True, reverse=False):
     The key 'children' is used to designate branching points.
 
     Args:
-        tree: korus.tree.KTree
+        tree: korus.tree.LabelTree
             Input tree.
         nid: str
             Only transform the part of the tree below this node.
@@ -109,9 +107,12 @@ def tree_to_dict(tree, nid=None, key=None, sort=True, reverse=False):
         return tree_dict
 
 
-class KTree(Tree):
-    """KTree (Ketos-Tree) is derived from the treelib.tree.Tree
-    class. It adds a few new features and makes a few changes:
+class Taxonomy(Tree):
+    """Class for managing annotation taxonomies with a tree-like structure
+    where every child nodes has precisely one parent node.
+
+    Derived from the treelib.tree.Tree class. It adds a few new features
+    and makes a few changes:
 
      * tags are required to be unique.
      * UUIDs are always used as identifiers.
@@ -122,35 +123,126 @@ class KTree(Tree):
        e.g., removing or moving a newly created node.
 
     Args:
+        name: str
+            Short, descriptive name for the taxonomy.
         root_tag: str
-            Tag for the root node. If specified, the root node will be
-            automatically created at initialisation.
+            Tag for the root node. If specified, the root node will be automatically created at initialisation.
+
+    Attrs & Properties:
+        name:
+        version:
+        timestamp:
+        comment:
+        changes:
+        created_nodes:
+            maps created_node_uuid -> (precursor_node_uuid(s), is_equivalent)
+        removed_nodes:
+            maps removed_node_uuid -> (inheritor_node_uuid(s), is_equivalent)
     """
 
-    def __init__(self, root_tag="root"):
+    def __init__(
+        self,
+        name: str = "taxonomy",
+        root_tag: str = "root",
+        version: int = None,
+        timestamp: datetime = None,
+        changes: list[str] = None,
+        comment: str = None,
+        created_nodes: dict = None,
+        removed_nodes: dict = None,
+    ):
         super().__init__()
 
+        self.name = name
+
+        self.version = version
+        self.timestamp = timestamp
+        self.comment = comment
+        self._changes = [] if changes is None else changes
+        self._created_nodes = {} if created_nodes is None else created_nodes
+        self._removed_nodes = {} if removed_nodes is None else removed_nodes
+
         self._tag_to_id = {}
-
-        self._created_nodes = (
-            {}
-        )  # maps: created_node_uuid -> (precursor_node_uuid(s), is_equivalent)
-        self._removed_nodes = (
-            {}
-        )  # maps: removed_node_uuid -> (inheritor_node_uuid(s), is_equivalent)
-
         self._data_merge_fcn = lambda x: dict()
 
         if root_tag is not None:
             self.create_node(root_tag)
 
     @property
+    def changes(self):
+        return self._changes
+
+    @changes.setter
+    def changes(self, x):
+        self._changes = x
+
+    @property
     def created_nodes(self):
         return self._created_nodes
+
+    @created_nodes.setter
+    def created_nodes(self, x):
+        self._created_nodes = x
 
     @property
     def removed_nodes(self):
         return self._removed_nodes
+
+    @removed_nodes.setter
+    def removed_nodes(self, x):
+        self._removed_nodes = x
+
+    @property
+    def all_labels(self):
+        return [(node.tag, node.identifier) for node in self.all_nodes_itr()]
+
+    @classmethod
+    def from_dict(cls, input_dict, data_transform=None):
+        """Load a taxonomy from a dictionary.
+
+        Expects the dictionary to have the keys,
+
+            tree, name, version, changes, timestamp, comment, created_nodes, removed_nodes
+
+        Within the 'tree' dictionary, the key 'children' is used to designate branching
+        points, and the key 'data' is used to designate any data associated with a
+        node.
+
+        Args:
+            input_dict: dict()
+                Input dictionary.
+            data_transform: callable
+                This function gets applied to all entries in the dictionary with the key 'data'.
+
+        Returns:
+            tax: korus.taxonomy.Taxonomy
+                The taxonomy
+        """
+        recipe = input_dict.pop("tree")
+        tax = tree_from_dict(
+            cls(**input_dict, root_tag=None),
+            recipe=recipe,
+            data_transform=data_transform,
+        )
+        return tax
+
+    def to_dict(self) -> dict:
+        """Transform the taxonomy to a dictionary.
+
+        Returns:
+            : dict
+                The taxonomy in the form of a dictionary.
+        """
+        return {
+            "tree": tree_to_dict(self),
+            "name": self.name,
+            "version": self.version,
+            "timestamp": self.timestamp,
+            "comment": self.comment,
+            "changes": self.changes,
+            "created_nodes": self.created_nodes,
+            "removed_nodes": self.removed_nodes,
+        }
 
     def deepcopy(self):
         """Make a deep copy of the present instance
@@ -160,6 +252,10 @@ class KTree(Tree):
 
     def clear_history(self):
         """Clear the history of created and removed nodes."""
+        self.version = None
+        self.timestamp = None
+        self.comment = None
+        self._changes = []
         self._created_nodes = {}
         self._removed_nodes = {}
 
@@ -172,7 +268,6 @@ class KTree(Tree):
         """
         if not append_name:
             print(self)
-            ##super().show(**kwargs)
 
         else:
             tree = Tree(self, deep=True)  # make a deep copy
@@ -184,7 +279,6 @@ class KTree(Tree):
                     n.tag += f' [{n.data["name"]}]'
 
             print(tree)
-            ##tree.show(**kwargs)
 
     def _create_tag_to_id_mapping(self):
         """Create tag -> identifier mapping
@@ -291,6 +385,8 @@ class KTree(Tree):
         )
         self._tag_to_id[tag] = node.identifier
 
+        self._changes.append(f"{self.name}: Added {tag}")
+
         return node
 
     def merge_nodes(
@@ -347,6 +443,11 @@ class KTree(Tree):
             tag=tag, parent=parent_node.tag, precursor=(children, True), **kwargs
         )
 
+        # change message
+        children_tags = ", ".join([self.get_node(id).tag for id in children])
+        msg = f"{self.name}: Merged {children_tags} -> {tag} with remove={remove}"
+        self._changes.append(msg)
+
         # move or remove original nodes
         for id in children:
             self.move_node(
@@ -368,6 +469,9 @@ class KTree(Tree):
 
         n = self.get_id(n)  # tag -> identifier
 
+        # change message
+        self._changes.append(f"{self.name}: Removed {self.get_node(n).tag}")
+
         # set inheritors of removed nodes
         parent_id = self.parent(n).identifier
         node_gen = self.expand_tree(n, mode=Tree.DEPTH)
@@ -386,6 +490,10 @@ class KTree(Tree):
         self._detect_new_node(n)
         n = self.get_id(n)  # tag -> identifier
         new_parent = self.get_id(new_parent)
+
+        msg = f"{self.name}: Moved {self.get_node(n).tag} from {self.parent(n).tag} -> {self.get_node(new_parent).tag}"
+        self._changes.append(msg)
+
         return super().move_node(n, new_parent)
 
     def link_past_node(self, n):
@@ -403,6 +511,9 @@ class KTree(Tree):
             [child.identifier for child in self.children(n)],
             True,
         )  # (IDs, is_equivalent)
+
+        msg = f"{self.name}: Linked past {self.get_node(n).tag}"
+        self._changes.append(msg)
 
         return super().link_past_node(n)
 
@@ -470,3 +581,46 @@ class KTree(Tree):
 
             if is_lca:
                 return self.get_node(nid_lca).tag
+
+    def ascend(self, n, include_start_node=True):
+        """Returns a python generator for ascending the taxonomy starting at a given node.
+
+        Args:
+            n: str
+                Node tag or identifier
+            include_start_node: bool
+                Whether to include the starting node. Default is True.
+
+        Yields:
+            tag: tuple[str]
+        """
+        if not include_start_node:
+            if self.get_node(n).is_root():
+                return iter(())
+
+            n = self.parent(self.get_id(n)).identifier
+
+        for n in self.rsearch(n):
+            yield (self.get_node(n).tag,)
+
+    def descend(self, n, include_start_node=True):
+        """Returns a python generator for descending the taxonomy starting at a given node.
+
+        Args:
+            n: str
+                Node tag or identifier.
+            include_start_node: bool
+                Whether to include the starting node. Default is True.
+
+        Yields:
+            tag: tuple[str]
+        """
+        if not include_start_node and self.get_node(n).is_leaf():
+            return iter(())
+
+        counter = 0
+        for n in self.expand_tree(self.get_id(n), mode=Tree.DEPTH):
+            if counter > 0:
+                yield (self.get_node(n).tag,)
+
+            counter += 1

@@ -17,11 +17,11 @@ def test_create_database():
     db = SQLiteDatabase(path)
 
     row = dict(
-        deployment_id = 1,
-        storage_id = 2,
-        filename = "xyz.wav",
-        relative_path = "a/b/c",
-        sample_rate = 96000,
+        deployment_id=1,
+        storage_id=2,
+        filename="xyz.wav",
+        relative_path="a/b/c",
+        sample_rate=96000,
     )
 
     with pytest.raises(AssertionError):

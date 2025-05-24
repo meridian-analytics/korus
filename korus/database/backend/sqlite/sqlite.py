@@ -1,13 +1,9 @@
 import sqlite3
 from korus.database.backend import DatabaseBackend
-from .deployment import DeploymentBackend
 from .annotation import AnnotationBackend
-from .file import FileBackend
-from .job import JobBackend
-from .storage import StorageBackend
 from .tables import create_tables
 from korus.database.backend.sqlite.helpers import SQLiteTableBackend
-import korus.database.backend.sqlite.encode as enc
+from korus.database.backend.sqlite.encode import create_codec
 
 
 class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
@@ -25,23 +21,24 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
         # commit changes to SQLite database
         self.commit()
 
-        # add decoding rules
-        self.codec = enc.Codec()
-        self.codec.decoder.add_rule("file", "start_utc", enc.decode_datetime)
+        # add field-specific encoding and decoding rules
+        self.codec = create_codec(self)
 
         # table backends
-        self._deployment = DeploymentBackend(self, self.codec)
         self._annotation = AnnotationBackend(self, self.codec)
-        self._file = FileBackend(self, self.codec)
-        self._job = JobBackend(self, self.codec)
-        self._storage = StorageBackend(self, self.codec)
+        self._deployment = SQLiteTableBackend(self, "deployment", self.codec)
+        self._file = SQLiteTableBackend(self, "file", self.codec)
+        self._job = SQLiteTableBackend(self, "job", self.codec)
+        self._storage = SQLiteTableBackend(self, "storage", self.codec)
+        self._taxonomy = SQLiteTableBackend(self, "taxonomy", self.codec)
+        self._label = SQLiteTableBackend(self, "label", self.codec)
 
     @property
     def deployment(self) -> SQLiteTableBackend:
         return self._deployment
 
     @property
-    def annotation(self) -> SQLiteTableBackend:
+    def annotation(self) -> AnnotationBackend:
         return self._annotation
 
     @property
@@ -56,26 +53,34 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
     def storage(self) -> SQLiteTableBackend:
         return self._storage
 
+    @property
+    def taxonomy(self) -> SQLiteTableBackend:
+        return self._taxonomy
+
+    @property
+    def label(self) -> SQLiteTableBackend:
+        return self._label
+
     def add_tag(self, name: str, description: str):
         """Add an annotation tag.
-        
+
         Args:
             name: str
                 The tag name
             description: str
                 A short description of the tag's intended use
         """
-        help.insert_row(self, "tag", {"name":name, "description":description})
+        help.insert_row(self, "tag", {"name": name, "description": description})
         self.commit()
 
     def add_granularity(self, name: str, description: str):
         """Add an annotation granularity level.
-        
+
         Args:
             name: str
                 The granularity level's name
             description: str
                 A short definition of the granularity level
         """
-        help.insert_row(self, "granularity", {"name":name, "description":description})
+        help.insert_row(self, "granularity", {"name": name, "description": description})
         self.commit()

@@ -14,17 +14,17 @@ def not_impl_err_msg(class_name, method_name):
 
 
 def list_to_str(l):
-    """ Transform a list to a string, suitably formatted for forming SQLite queries.
-    
-        Example query: `SELECT * FROM y WHERE z IN {list_to_str(x)}`
+    """Transform a list to a string, suitably formatted for forming SQLite queries.
 
-        Args:
-            l: list or numpy array
-                List of values
+    Example query: `SELECT * FROM y WHERE z IN {list_to_str(x)}`
 
-        Returns:
-            : str
-                String
+    Args:
+        l: list or numpy array
+            List of values
+
+    Returns:
+        : str
+            String
     """
     if not isinstance(l, (list, np.ndarray)):
         l = [l]
@@ -32,8 +32,8 @@ def list_to_str(l):
 
 
 def collect_audiofile_metadata(
-    path, 
-    ext="WAV", 
+    path,
+    ext="WAV",
     timestamp_parser=None,
     earliest_start_utc=None,
     latest_start_utc=None,
@@ -44,44 +44,43 @@ def collect_audiofile_metadata(
     inspect_files=True,
     tmp_path="./korus-tmp",
 ):
-    
-    """ Collect metadata records for all audio files in a specified directory.
+    """Collect metadata records for all audio files in a specified directory.
 
-    In order to extract timestamps embedded in the filenames, you must specify a 
-    parser function using the @timestamp_parser argument. This function must take 
-    the relative path to the audio file as input (as a string) and return the 
+    In order to extract timestamps embedded in the filenames, you must specify a
+    parser function using the @timestamp_parser argument. This function must take
+    the relative path to the audio file as input (as a string) and return the
     UTC start time of the file (as a datetime.datetime object).
-    
+
     Args:
         path: str
             Path to the directory or tar archive where the audio files are stored.
         ext: str
             Audio file extension. Default is WAV.
         timestamp_parser: callable
-            Function that takes a string as input and returns a datetime.datetime object. 
+            Function that takes a string as input and returns a datetime.datetime object.
         earliest_start_utc: datetime.datetime
             Only consider files starting at or after this UTC time.
         latest_start_utc: datetime.datetime
             Only consider files starting at or before this UTC time.
         subset: str, list(str)
-            File paths relative to the top directory given by the @path argument. Use 
+            File paths relative to the top directory given by the @path argument. Use
             this argument to restrict attention to a subset of the files.
         tar_path: str
             Path within tar archive. Only relavant if @path points to a tar archive.
         progress_bar: bool
             Display progress bar. Default is False.
         date_subfolder: bool
-            If audio files are organized in date-stamped subfolders with format yyyymmdd, 
-            and both the earliest and latest start time have been specified, this argument 
-            can be used to restrict the search space to only the relevant subfolders. 
+            If audio files are organized in date-stamped subfolders with format yyyymmdd,
+            and both the earliest and latest start time have been specified, this argument
+            can be used to restrict the search space to only the relevant subfolders.
             Default is False.
         inspect_files: bool
-            Inspect files to obtain no. samples and sampling rate. If False, the returned 
-            metadata table does not have the columns `num_samples`, `sample_rate`, and `end_utc`. 
+            Inspect files to obtain no. samples and sampling rate. If False, the returned
+            metadata table does not have the columns `num_samples`, `sample_rate`, and `end_utc`.
             Default is True.
         tmp_path: str
-            If the audio files are stored in tar archive, and @inspect_files is True, audio files 
-            will be extracted to this folder temporarily to allow the file size and sampling rate 
+            If the audio files are stored in tar archive, and @inspect_files is True, audio files
+            will be extracted to this folder temporarily to allow the file size and sampling rate
             to be determined.
 
     Returns:
@@ -101,23 +100,27 @@ def collect_audiofile_metadata(
             while date <= latest_start_utc.date():
                 date_str = date.strftime("%Y%m%d")
                 sub_folders.append(date_str)
-                date += timedelta(days=1)         
+                date += timedelta(days=1)
         else:
             sub_folders = [""]
 
         rel_path = []
         for sub_folder in sub_folders:
             if is_tar:
-                kwargs = {
-                    "path": path,
-                    "tar_path": os.path.join(tar_path, sub_folder)
-                }
+                kwargs = {"path": path, "tar_path": os.path.join(tar_path, sub_folder)}
 
             else:
                 kwargs = {"path": os.path.join(path, sub_folder)}
 
-            file_paths = find_files(**kwargs, substr=[ext.lower(), ext.upper()], subdirs=True, progress_bar=progress_bar)       
-            rel_path += [os.path.join(sub_folder, file_path) for file_path in file_paths]
+            file_paths = find_files(
+                **kwargs,
+                substr=[ext.lower(), ext.upper()],
+                subdirs=True,
+                progress_bar=progress_bar,
+            )
+            rel_path += [
+                os.path.join(sub_folder, file_path) for file_path in file_paths
+            ]
 
     if isinstance(rel_path, str):
         rel_path = [rel_path]
@@ -137,7 +140,9 @@ def collect_audiofile_metadata(
         df.loc[indices, "t"] = timestamps
 
         df["start_utc"] = ""
-        df.loc[indices, "start_utc"] = df.t.loc[indices].dt.strftime("%Y-%m-%d %H:%M:%S.%f")
+        df.loc[indices, "start_utc"] = df.t.loc[indices].dt.strftime(
+            "%Y-%m-%d %H:%M:%S.%f"
+        )
 
         logging.debug(f"Successfully parsed {len(indices)} of {len(df)} timestamps")
 
@@ -160,7 +165,7 @@ def collect_audiofile_metadata(
 
         # loop over files and get no. samples and sampling rate for each one
         num_samples, sample_rate = [], []
-        for _,row in tqdm(df.iterrows(), total=df.shape[0], disable=not progress_bar):
+        for _, row in tqdm(df.iterrows(), total=df.shape[0], disable=not progress_bar):
             if is_tar:
                 member = tar.getmember(row.rel_path)
                 tar.extract(member, path=tmp_path)
@@ -168,13 +173,13 @@ def collect_audiofile_metadata(
 
             else:
                 full_path = os.path.join(path, row.rel_path)
-    
+
             n, sr = get_num_samples_and_rate(full_path)
             num_samples.append(n)
             sample_rate.append(sr)
 
             if is_tar:
-                os.remove(full_path)           
+                os.remove(full_path)
 
         if is_tar:
             tar.close()
@@ -185,13 +190,16 @@ def collect_audiofile_metadata(
 
         # end_utc
         if "start_utc" in df.columns:
-            df["t_end"] = df.apply(lambda r: r.t + timedelta(seconds=float(r.num_samples) / r.sample_rate), axis=1)
+            df["t_end"] = df.apply(
+                lambda r: r.t + timedelta(seconds=float(r.num_samples) / r.sample_rate),
+                axis=1,
+            )
             df["end_utc"] = df.t_end.dt.strftime("%Y-%m-%d %H:%M:%S.%f")
 
     # rel_path -> filename, relative_path
     df["filename"] = df["rel_path"].apply(lambda x: os.path.basename(x))
     df["relative_path"] = df["rel_path"].apply(lambda x: os.path.dirname(x))
-    
+
     # drop unneccesary columns
     drop_cols = ["rel_path"]
     if "t" in df.columns:
@@ -206,15 +214,15 @@ def collect_audiofile_metadata(
 
 
 def get_num_samples_and_rate(path):
-    """ Determine the number of samples and sampling rate of a given audio file.
+    """Determine the number of samples and sampling rate of a given audio file.
 
-        Args:
-            path: str
-                Full path to the audio file
+    Args:
+        path: str
+            Full path to the audio file
 
-        Returns:
-            : int, int
-                No. samples and sampling rate in Hz
+    Returns:
+        : int, int
+            No. samples and sampling rate in Hz
     """
     if not os.path.exists(path):
         raise FileNotFoundError(f"{path} not found.")
@@ -270,19 +278,19 @@ def find_files(path, substr=None, subdirs=False, tar_path="", progress_bar=False
     if is_tar:
         with tarfile.open(path) as tar:
             for member in tqdm(tar.getmembers(), disable=not progress_bar):
-                if member.isreg(): #skip if not a file
+                if member.isreg():  # skip if not a file
                     mem_path = member.name
 
                     if is_tar:
-                        #skip files not in the specified directory within the tar archive
-                        if mem_path[:len(tar_path)] != tar_path:
+                        # skip files not in the specified directory within the tar archive
+                        if mem_path[: len(tar_path)] != tar_path:
                             continue
 
-                        #drop top path within tar archive
-                        mem_path = mem_path[len(tar_path):]
-                        
-                    #skip files in sub directories
-                    if not subdirs and "/" in mem_path: 
+                        # drop top path within tar archive
+                        mem_path = mem_path[len(tar_path) :]
+
+                    # skip files in sub directories
+                    if not subdirs and "/" in mem_path:
                         continue
 
                     all_files.append(mem_path)
@@ -323,23 +331,23 @@ def find_files(path, substr=None, subdirs=False, tar_path="", progress_bar=False
 
 
 def parse_timestamp(x, timestamp_parser, progress_bar=False):
-    """ Parses timestamps from a list of strings using a user-specified function.
+    """Parses timestamps from a list of strings using a user-specified function.
 
-        Args:
-            x: list(str)
-                Strings to be parsed
-            timestamp_parser: function
-                Function that takes a single str as input and returns a datetime object
-            progress_bar: bool
-                Display progress bar. Default is False.
+    Args:
+        x: list(str)
+            Strings to be parsed
+        timestamp_parser: function
+            Function that takes a single str as input and returns a datetime object
+        progress_bar: bool
+            Display progress bar. Default is False.
 
-        Returns:
-            indices: list(int)
-                Indices of the strings that were successfully parsed 
-            timestamps: list(datetime)
-                Parsed datetime values
+    Returns:
+        indices: list(int)
+            Indices of the strings that were successfully parsed
+        timestamps: list(datetime)
+            Parsed datetime values
 
-        Examples:
+    Examples:
     """
     indices, timestamps = [], []
 
@@ -355,5 +363,3 @@ def parse_timestamp(x, timestamp_parser, progress_bar=False):
             continue
 
     return indices, timestamps
-
-
