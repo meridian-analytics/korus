@@ -202,7 +202,7 @@ class TableInterface:
         indices: int | list[int] = None,
         fields: str | list[str] = None,
         return_indices: bool = False,
-    ):
+    ) -> list[tuple]:
         """Retrieve data from the table.
 
         Note that the method always returns a list, even when only a single index is specified.
@@ -241,6 +241,26 @@ class TableInterface:
             rows = self.get(self._index)
             if len(rows) > 0:
                 return rows[0]
+
+    def reset_filter(self):
+        self.indices = None
+
+    def filter(self, condition: dict = None, invert: bool = False):
+        """Search the table.
+
+        Args:
+            condition: dict
+                Search criteria, where the keys are the field names and 
+                the values are the search values. Use tuples to search on 
+                a range of values and lists to search on multiple values.
+            invert: bool
+                Invert the search, i.e., exclude values or a range of values.
+        
+        """
+        if condition is None:
+            condition = dict()
+
+        self.indices = self.backend.filter(condition, invert, self.indices)
 
     def __str__(self) -> str:
         """Nicely formatted summary of the table definition

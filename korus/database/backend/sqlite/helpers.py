@@ -39,7 +39,7 @@ class SQLiteTableBackend(TableBackend):
         indices: int | list[int] = None,
         fields: str | list[str] = None,
         return_indices: bool = False,
-    ):
+    ) -> list[tuple]:
         rows = fetch_row(
             self.conn,
             self.name,
@@ -50,6 +50,16 @@ class SQLiteTableBackend(TableBackend):
         )
         rows = [self.codec.decode(row, self.name) for row in rows]
         return [tuple(list(row.values())) for row in rows]
+
+    def filter(
+        self, 
+        condition: dict = None, 
+        invert: bool = False, 
+        indices: list[int] = None
+    ) -> list[int]:
+        indices = search_table(self.conn, self.name, condition, invert, indices)
+        indices = [self.codec.decode(id, self.name, "id") for idx in indices]
+        return indices
 
     def add_field(
         self,
@@ -76,7 +86,7 @@ class SQLiteTableBackend(TableBackend):
 def to_str(x):
     """Transform the input to a string, suitably formatted for forming SQLite queries.
 
-    Example query: `SELECT * FROM y WHERE z IN {list_to_str(x)}`
+    Example query: `SELECT * FROM y WHERE z IN {to_str(x)}`
 
     Args:
         x:
@@ -135,6 +145,39 @@ def get_row_count(conn, table_name):
     q = f"SELECT count({col_name}) FROM {table_name}"
     n = conn.execute(q).fetchall()[0][0]
     return n
+
+
+def where_condition(conn, table_name, condition, invert):
+    conds = []
+    for name,value in condition.items():        
+        if isinstance(value, tuple):
+            if not invert:
+                cond = f"{name} >= {value[0]} AND {name} <= {value[1]}"
+            else:
+                cond = f"{name} < {value[0]} OR {name} > {value[1]}"
+
+        else:
+            if not isinstance(value, list):
+                value = [value]
+
+            if not invert:
+                cond = f"{name} IN {to_str(value)}"
+            else:
+                cond = f"{name} NOT IN {to_str(value)}"
+
+        conds.append(cond)
+    
+    return " AND ".join(conds)
+
+
+def search_table(conn, table_name, condition=None, invert=False, indices=None):
+    c = conn.cursor()
+    q = f"SELECT id FROM {table_name}"
+    if indices is not None:
+        q += f" WHERE id IN {to_str(indices)}"
+
+    rows = c.execute(q).fetchall()
+    return [row[0] for row in rows]
 
 
 def fetch_row(

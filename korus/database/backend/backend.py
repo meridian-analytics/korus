@@ -11,7 +11,7 @@ class TableBackend:
         indices: int | list[int] = None,
         fields: str | list[str] = None,
         return_indices: bool = False,
-    ):
+    ) -> list[tuple]:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "get"))
 
     def add(self, row: dict):
@@ -19,6 +19,9 @@ class TableBackend:
 
     def set(self, idx: int, row: dict):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "set"))
+    
+    def filter(self, condition: dict = None, invert: bool = False, indices: list[int] = None) -> list[int]:
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
 
     def __len__(self):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "__len__"))
