@@ -98,13 +98,28 @@ def test_sqlite_backend_file(minimal_sqlite_backend):
     indices = db.file.filter(cond, invert=True)
     assert indices == [2]
 
-    t = datetime(2023,1,1)
+    t = datetime(2022, 12, 2, 2, 0, 0, 123457, tzinfo=timezone.utc)
     cond = {
         "sample_rate": 100, 
         "start_utc": (t, None)
     }
     indices = db.file.filter(cond)
     assert indices == []    
+
+    cond = {
+        "sample_rate": (100, None), 
+        "start_utc": (t, None)
+    }
+    indices = db.file.filter(cond)
+    assert indices == [2]    
+
+    t = datetime(2022, 12, 2, 2, 0, 0, 123455)
+    cond = {
+        "sample_rate": (100, None), 
+        "start_utc": (t, None)
+    }
+    indices = db.file.filter(cond)
+    assert sorted(indices) == [1,2]    
 
 def test_sqlite_backend_taxonomy(minimal_sqlite_backend):
     """Test add/get/set methods for the Taxonomy backend"""

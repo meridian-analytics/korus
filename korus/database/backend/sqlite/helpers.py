@@ -191,6 +191,11 @@ def where_condition(conn, table_name, condition, invert):
 
         if isinstance(values, tuple):
             a,b = values
+            if isinstance(a, str):
+                a = f"'{a}'"
+            if isinstance(b, str):
+                b = f"'{b}'"
+
             cond = []
             if invert:
                 if a is not None: cond.append(f"{x} < {a}")
