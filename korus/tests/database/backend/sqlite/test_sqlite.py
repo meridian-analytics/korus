@@ -9,7 +9,7 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
 def test_sqlite_backend_file(minimal_sqlite_backend):
-    """Test add/get/set/filter methods for the File backend"""
+    """Test add/get/set/filter methods for SQLiteTableBackend"""
     db = minimal_sqlite_backend
 
     # insert two rows of data into the file table
@@ -75,12 +75,16 @@ def test_sqlite_backend_file(minimal_sqlite_backend):
     rows = db.file.get(indices=2, fields="sample_rate")
     assert rows[0][0] == 8000
 
-    # filter 
+    # filtering 
     cond = {"filename": "ZYX.FLAC"}
     indices = db.file.filter(cond)
     assert indices == [2]
 
     cond = {"filename": ["ZYX.FLAC"]}
+    indices = db.file.filter(cond)
+    assert indices == [2]
+
+    cond = {"sample_rate": 8000}
     indices = db.file.filter(cond)
     assert indices == [2]
 
@@ -121,8 +125,14 @@ def test_sqlite_backend_file(minimal_sqlite_backend):
     indices = db.file.filter(cond)
     assert sorted(indices) == [1,2]    
 
-def test_sqlite_backend_taxonomy(minimal_sqlite_backend):
-    """Test add/get/set methods for the Taxonomy backend"""
-    db = minimal_sqlite_backend
+    # filtering on JSON columns
+    db.annotation.add({
+        "deployment_id": 0, "job_id": 0, "excluded_label_id": [0, 1]
+    })
+    db.annotation.add({
+        "deployment_id": 0, "job_id": 0, "excluded_label_id": [0, 2]
+    })
+    cond = {"excluded_label_id": 0}
+    indices = db.annotation.filter(cond)
+    print(indices)
 
-    #

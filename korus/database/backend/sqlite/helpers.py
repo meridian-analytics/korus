@@ -188,6 +188,8 @@ def where_condition(conn, table_name, condition, invert):
     where_conds = []
     for name,values in condition.items():        
         x = f"{name}"
+        if col_types[name] == "JSON":
+            x += ".value"
 
         if isinstance(values, tuple):
             a,b = values
@@ -236,6 +238,8 @@ def search_table(conn, table_name, condition=None, indices=None):
             condition = condition.replace("WHERE", id_cond + " AND")
 
     q = f"SELECT {table_name}.id FROM {table_name} {condition}"
+    print()
+    print(q)
     rows = c.execute(q).fetchall()
     return [row[0] for row in rows]
 
