@@ -225,7 +225,6 @@ def where_condition(conn, table_name, condition, invert):
 
 
 def search_table(conn, table_name, condition=None, indices=None):
-    """TODO: finish this ..."""
     c = conn.cursor()
 
     if indices is not None:
