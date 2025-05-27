@@ -85,7 +85,7 @@ def minimal_sqlite_backend():
         {
             "deployment_id": 0,
             "storage_id": 0,
-            "filename": "xyz.wav",
+            "filename": "abc.wav",
             "sample_rate": 96000,
             "num_samples": 960000,
         }

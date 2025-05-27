@@ -57,17 +57,11 @@ class SQLiteTableBackend(TableBackend):
         invert: bool = False, 
         indices: list[int] = None
     ) -> list[int]:
-        """TODO: finish this ..."""
+        indices = self.codec.encode(indices, self.name, "id")
         cond = encode_condition(self.name, condition, self.codec.encode)
-
-        if indices is not None:
-            incides = [self.codec.encode(idx, self.name, "id") for idx in indices]
-
         cond = where_condition(self.conn, self.name, cond, invert)
-
         indices = search_table(self.conn, self.name, cond, indices)
-
-        indices = [self.codec.decode(idx, self.name, "id") for idx in indices]
+        indices = self.codec.decode(indices, self.name, "id")
         return indices
 
     def add_field(
@@ -197,16 +191,22 @@ def where_condition(conn, table_name, condition, invert):
 
         if isinstance(values, tuple):
             a,b = values
-            if not invert:
-                cond = f"{x} >= {a} AND {x} <= {b}"
+            cond = []
+            if invert:
+                if a is not None: cond.append(f"{x} < {a}")
+                if b is not None: cond.append(f"{x} > {b}")
+                cond = " OR ".join(cond)
+
             else:
-                cond = f"{x} < {a} OR {x} > {b}"
+                if a is not None: cond.append(f"{x} >= {a}")
+                if b is not None: cond.append(f"{x} <= {b}")
+                cond = " AND ".join(cond)
 
         else:
-            if not invert:
-                cond = f"{x} IN {to_str(values)}"
-            else:
+            if invert:
                 cond = f"{x} NOT IN {to_str(values)}"
+            else:
+                cond = f"{x} IN {to_str(values)}"
 
         where_conds.append(cond)
     
@@ -230,11 +230,7 @@ def search_table(conn, table_name, condition=None, indices=None):
         else:
             condition = condition.replace("WHERE", id_cond + " AND")
 
-    q = f"SELECT {table_name}.id FROM {table_name}"
-
-    if len(condition) > 0:
-        q += f" WHERE {condition}"
-
+    q = f"SELECT {table_name}.id FROM {table_name} {condition}"
     rows = c.execute(q).fetchall()
     return [row[0] for row in rows]
 

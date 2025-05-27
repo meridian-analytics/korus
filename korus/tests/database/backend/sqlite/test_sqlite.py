@@ -9,7 +9,7 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
 def test_sqlite_backend_file(minimal_sqlite_backend):
-    """Test add/get/set methods for the File backend"""
+    """Test add/get/set/filter methods for the File backend"""
     db = minimal_sqlite_backend
 
     # insert two rows of data into the file table
@@ -74,6 +74,29 @@ def test_sqlite_backend_file(minimal_sqlite_backend):
     rows = db.file.set(idx=2, row={"sample_rate": 8000})
     rows = db.file.get(indices=2, fields="sample_rate")
     assert rows[0][0] == 8000
+
+    # filter 
+    cond = {"filename": "ZYX.FLAC"}
+    indices = db.file.filter(cond)
+    assert indices == [2]
+
+    cond = {"filename": ["ZYX.FLAC"]}
+    indices = db.file.filter(cond)
+    assert indices == [2]
+
+    cond = {"filename": ["xyz.wav", "ZYX.FLAC"]}
+    indices = db.file.filter(cond)
+    assert sorted(indices) == [1, 2]
+    indices = db.file.filter(cond, indices=[0,1])
+    assert indices == [1]
+    indices = db.file.filter(cond, invert=True)
+    assert indices == [0]
+
+    cond = {"sample_rate": (9000,None)}
+    indices = db.file.filter(cond)
+    assert sorted(indices) == [0, 1]
+    indices = db.file.filter(cond, invert=True)
+    assert indices == [2]
 
 
 def test_sqlite_backend_taxonomy(minimal_sqlite_backend):
