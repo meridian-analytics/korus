@@ -134,5 +134,8 @@ def test_sqlite_backend_file(minimal_sqlite_backend):
     })
     cond = {"excluded_label_id": 0}
     indices = db.annotation.filter(cond)
-    print(indices)
+    assert sorted(indices) == [1, 2]
 
+    cond = {"excluded_label_id": 2}
+    indices = db.annotation.filter(cond)
+    assert indices == [2]

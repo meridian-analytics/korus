@@ -105,7 +105,7 @@ def to_str(x):
     if np.ndim(x) == 0:
         x = [x]
 
-    return "(" + ",".join([f"'{v}'" for v in x]) + ")"
+    return "(" + ",".join([f"'{v}'" if isinstance(v, str) else f"{v}" for v in x]) + ")"
 
 
 def table_exists(conn, name):
@@ -238,8 +238,6 @@ def search_table(conn, table_name, condition=None, indices=None):
             condition = condition.replace("WHERE", id_cond + " AND")
 
     q = f"SELECT {table_name}.id FROM {table_name} {condition}"
-    print()
-    print(q)
     rows = c.execute(q).fetchall()
     return [row[0] for row in rows]
 
