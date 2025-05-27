@@ -98,6 +98,13 @@ def test_sqlite_backend_file(minimal_sqlite_backend):
     indices = db.file.filter(cond, invert=True)
     assert indices == [2]
 
+    t = datetime(2023,1,1)
+    cond = {
+        "sample_rate": 100, 
+        "start_utc": (t, None)
+    }
+    indices = db.file.filter(cond)
+    assert indices == []    
 
 def test_sqlite_backend_taxonomy(minimal_sqlite_backend):
     """Test add/get/set methods for the Taxonomy backend"""
