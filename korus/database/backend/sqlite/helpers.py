@@ -39,7 +39,7 @@ class SQLiteTableBackend(TableBackend):
         indices: int | list[int] = None,
         fields: str | list[str] = None,
         return_indices: bool = False,
-    ):
+    ) -> list[tuple]:
         rows = fetch_row(
             self.conn,
             self.name,
@@ -50,6 +50,16 @@ class SQLiteTableBackend(TableBackend):
         )
         rows = [self.codec.decode(row, self.name) for row in rows]
         return [tuple(list(row.values())) for row in rows]
+
+    def filter(
+        self, condition: dict = None, invert: bool = False, indices: list[int] = None
+    ) -> list[int]:
+        indices = self.codec.encode(indices, self.name, "id")
+        cond = encode_condition(self.name, condition, self.codec.encode)
+        cond = where_condition(self.conn, self.name, cond, invert)
+        indices = search_table(self.conn, self.name, cond, indices)
+        indices = self.codec.decode(indices, self.name, "id")
+        return indices
 
     def add_field(
         self,
@@ -76,7 +86,7 @@ class SQLiteTableBackend(TableBackend):
 def to_str(x):
     """Transform the input to a string, suitably formatted for forming SQLite queries.
 
-    Example query: `SELECT * FROM y WHERE z IN {list_to_str(x)}`
+    Example query: `SELECT * FROM y WHERE z IN {to_str(x)}`
 
     Args:
         x:
@@ -92,7 +102,7 @@ def to_str(x):
     if np.ndim(x) == 0:
         x = [x]
 
-    return "(" + ",".join([f"'{v}'" for v in x]) + ")"
+    return "(" + ",".join([f"'{v}'" if isinstance(v, str) else f"{v}" for v in x]) + ")"
 
 
 def table_exists(conn, name):
@@ -130,11 +140,106 @@ def get_column_names(conn, table_name):
     return [row[1] for row in rows]
 
 
+def get_column_types(conn, table_name):
+    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    return {row[1]: row[2] for row in rows}
+
+
 def get_row_count(conn, table_name):
     col_name = get_column_names(conn, table_name)[0]
     q = f"SELECT count({col_name}) FROM {table_name}"
     n = conn.execute(q).fetchall()[0][0]
     return n
+
+
+def encode_condition(table_name, condition, encoder):
+    encoded_condition = {}
+    for name, values in condition.items():
+        is_tuple = isinstance(values, tuple)
+
+        if not isinstance(values, (list, tuple)):
+            values = [values]
+
+        values = [encoder(v, table_name, name) for v in values]
+
+        if is_tuple:
+            values = tuple(values)
+
+        encoded_condition[name] = values
+
+    return encoded_condition
+
+
+def where_condition(conn, table_name, condition, invert):
+    col_types = get_column_types(conn, table_name)
+
+    # left joins on JSON columns
+    left_joins = []
+    for name in condition.keys():
+        if col_types[name] == "JSON":
+            left_joins.append(f"LEFT JOIN json_each('{table_name}'.'{name}') AS {name}")
+
+    left_joins = " ".join(left_joins)
+
+    # WHERE conditions
+    where_conds = []
+    for name, values in condition.items():
+        x = f"{name}"
+        if col_types[name] == "JSON":
+            x += ".value"
+
+        if isinstance(values, tuple):
+            a, b = values
+            if isinstance(a, str):
+                a = f"'{a}'"
+            if isinstance(b, str):
+                b = f"'{b}'"
+
+            cond = []
+            if invert:
+                if a is not None:
+                    cond.append(f"{x} < {a}")
+                if b is not None:
+                    cond.append(f"{x} > {b}")
+                cond = " OR ".join(cond)
+
+            else:
+                if a is not None:
+                    cond.append(f"{x} >= {a}")
+                if b is not None:
+                    cond.append(f"{x} <= {b}")
+                cond = " AND ".join(cond)
+
+        else:
+            if invert:
+                cond = f"{x} NOT IN {to_str(values)}"
+            else:
+                cond = f"{x} IN {to_str(values)}"
+
+        where_conds.append(cond)
+
+    if len(where_conds) > 0:
+        return left_joins + " WHERE " + " AND ".join(where_conds)
+
+    else:
+        return None
+
+
+def search_table(conn, table_name, condition=None, indices=None):
+    c = conn.cursor()
+
+    if indices is not None:
+        id_cond = f"WHERE id IN {to_str(indices)}"
+
+        if condition is None:
+            condition = id_cond
+
+        else:
+            condition = condition.replace("WHERE", id_cond + " AND")
+
+    q = f"SELECT {table_name}.id FROM {table_name} {condition}"
+    rows = c.execute(q).fetchall()
+    return [row[0] for row in rows]
 
 
 def fetch_row(

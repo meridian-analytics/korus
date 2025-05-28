@@ -1,17 +1,34 @@
 import datetime
+from korus.database.backend import TableBackend
 from .interface import TableInterface
+from .taxonomy import TaxonomyInterface
+from .job import JobInterface
 
 
 class AnnotationInterface(TableInterface):
-    def __init__(self, backend):
+    """
+    TODO: overwrite get() method to provide conversion to ketos/raven formats
+    """
+
+    def __init__(
+        self,
+        backend: TableBackend,
+        taxonomy_interface: TaxonomyInterface,
+        job_interface: JobInterface,
+    ):
+
         super().__init__("annotation", backend)
 
+        self.taxonomy_interface = taxonomy_interface
+        self.job_interface = job_interface
+
+        # fields
         self.add_field("deployment_id", int, "Deployment index")
         self.add_field("job_id", int, "Job index")
         self.add_field("file_id", int, "File index", required=False)
         self.add_field("label_id", int, "Label index", required=False)
         self.add_field(
-            "tenative_label_id", int, "Tentative label index", required=False
+            "tentative_label_id", int, "Tentative label index", required=False
         )
         self.add_field(
             "ambiguous_label_id", list, "Ambiguous label indices", required=False
@@ -42,13 +59,47 @@ class AnnotationInterface(TableInterface):
         self.add_field("valid", bool, "Validation status", default=True)
         self.add_field("comments", str, "Additional observations", required=False)
 
-    def get(self):
-        """TODO: handle conversion to different formats: raven,ketos"""
-        pass
+        # aliases
+        alias_description = "Specify label tuples in place of label IDs"
+        self.add_alias(
+            "label_id",
+            "label",
+            tuple,
+            alias_description,
+            self._get_label_id,
+            self._get_label,
+        )
+        self.add_alias(
+            "tentative_label_id",
+            "tentative_label",
+            tuple,
+            alias_description,
+            self._get_label_id,
+            self._get_label,
+        )
+        self.add_alias(
+            "ambiguous_label_id",
+            "ambiguous_label",
+            list,
+            alias_description,
+            self._get_label_id,
+            self._get_label,
+        )
+        self.add_alias(
+            "excluded_label_id",
+            "excluded_label",
+            list,
+            alias_description,
+            self._get_label_id,
+            self._get_label,
+        )
 
-    def filter(self, spatiotemporal_cut: callable):
-        """TODO:
+    def _get_label_id(self, label: tuple | list[tuple], job_id: int) -> int | list[int]:
+        """Alias transform: convert labels to label IDs"""
+        tax_version = self.job_interface.get(indices=job_id, fields="taxonomy_id")[0][0]
+        label_id = self.taxonomy_interface.get_label_id(label, tax_version)
+        return label_id
 
-        spatiotemporal_cut:  fcn(t,lat,lon,z) -> bool
-        """
-        pass
+    def _get_label(self, label_id: int | list[int]) -> tuple | list[tuple]:
+        """Reverse alias transform: convert label IDs to labels"""
+        return self.taxonomy_interface.get_label(label_id)

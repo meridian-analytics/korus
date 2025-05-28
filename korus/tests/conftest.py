@@ -14,6 +14,15 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
 class InMemoryTableBackend(TableBackend):
+    """Stores data as a list of dicts.
+
+    Attrs:
+        rows: list[dict]
+            The rows of data added to the database
+        fields: list[str]
+            The field/column names
+    """
+
     def __init__(self):
         super().__init__("in_memory")
         self.rows = []
@@ -59,6 +68,45 @@ class InMemoryTableBackend(TableBackend):
     def set(self, idx, row):
         self.rows[idx] = row
 
+    def filter(self, condition=None, invert=False, indices=None):
+        if condition is None:
+            condition = dict()
+
+        filtered_indices = []
+        for idx, row in enumerate(self.rows):
+
+            accepted = True
+            for name, values in condition.items():
+                if name not in row:
+                    continue
+
+                x = row[name]
+
+                if not isinstance(values, (tuple, list)):
+                    values = [values]
+
+                if isinstance(values, tuple):
+                    a, b = values
+                    if invert:
+                        accepted *= x < a or x > b
+                    else:
+                        accepted *= x >= a and x <= b
+
+                else:
+                    if invert:
+                        accepted *= x not in values
+                    else:
+                        accepted *= x in values
+
+            # passes all conditions
+            if accepted:
+                filtered_indices.append(idx)
+
+        if indices is not None:
+            filtered_indices = [idx for idx in filtered_indices if idx in indices]
+
+        return filtered_indices
+
 
 @pytest.fixture
 def in_memory_table_backend():
@@ -85,7 +133,7 @@ def minimal_sqlite_backend():
         {
             "deployment_id": 0,
             "storage_id": 0,
-            "filename": "xyz.wav",
+            "filename": "abc.wav",
             "sample_rate": 96000,
             "num_samples": 960000,
         }

@@ -57,6 +57,14 @@ class TaxonomyManager:
         self.labels.update(release.version, release.all_labels)
         self.draft.clear_history()
 
+    def get_label(
+        self,
+        id: int | list[int],
+        always_list: bool = False,
+    ):
+        """TODO: docstring"""
+        return self.labels.get_label(id, always_list=always_list, return_version=False)
+
     def get_label_id(
         self,
         label: str | tuple | list = None,
