@@ -78,8 +78,8 @@ class FieldAlias:
     field_name: str
     name: str
     type: type
-    transform: callable = lambda x: x
-    reverse_transform: callable = lambda x: x
+    transform: callable = lambda x, **_: x
+    reverse_transform: callable = lambda x, **_: x
 
     def as_tuple_str(self) -> tuple:
         """Returns:
@@ -181,34 +181,28 @@ class TableInterface:
             type: Any
                 The alias type
             transform: callable (optional)
-                Transform applied to every alias value to convert it to a field value
+                Transform applied to every row of input data to convert the alias value to its corresponding field value.
+                Expects the alias value as the first positional argument, and accepts other field/alias values as keyword arguments.
             reverse_transform: callable (optional)
-                Transform applied to every field value to convert it to an alias value
+                Transform applied to every row of output data to convert the field value to its corresponding alias value.
+                Expects the field value as the first positional argument, and accepts other field/alias values as keyword arguments.
         """
         self._aliases.append(
             FieldAlias(field_name, name, type, transform, reverse_transform)
         )
 
-    def _validate_data(self, row: dict, replace: dict = None):
-        """Helper function for validating input data and replacing missing fields.
+    def _validate_data(self, row: dict):
+        """Helper function for validating input data.
 
         Args:
             row: dict
                 The input data to be validated
-            replace: dict
-                Values to replace missing fields. Overwrites the individual fields'
-                default values.
 
         Returns:
             validated: dict
-                The validated data, with missing fields replaced.
+                The validated data
         """
-        # replace missing values with provided replacement values or default values
-        validated = {k: v.default for k, v in self.fields_asdict.items()}
-        if replace is not None:
-            validated.update(replace)
-
-        validated.update(row)
+        validated = row
 
         # check for valid field names, valid types, valid values, and that required fields have non-null values
         for k, v in validated.items():
@@ -232,6 +226,45 @@ class TableInterface:
                 assert isinstance(v, f.type), assert_msg
 
         return validated
+    
+    def _replace_missing_values(self, row: dict, replace: dict = None):
+        """Helper function for replacing missing fields.
+
+        Args:
+            row: dict
+                The input data to be validated
+            replace: dict
+                Values to replace missing fields. Overwrites the individual fields'
+                default values.
+
+        Returns:
+            complete_row: dict
+                The data, with missing fields replaced.
+        """
+        complete_row = {k: v.default for k, v in self.fields_asdict.items()}
+        if replace is not None:
+            complete_row.update(replace)
+
+        complete_row.update(row)
+        return complete_row
+
+    def _apply_alias_transforms(self, row: dict) -> dict:
+        """Helper function for transforming alias values to field values"""
+        for alias in self._aliases:
+            if alias.name in row:
+                v = row.pop(alias.name)
+                row[alias.field_name] = alias.transform(v, **row)
+
+        return row
+
+    def _apply_reverse_alias_transforms(self, row: dict) -> dict:
+        """Helper function for transforming field values to alias values"""
+        for alias in self._aliases:
+            if alias.field_name in row:
+                v = row.pop(alias.field_name)
+                row[alias.name] = alias.reverse_transform(v, **row)
+
+        return row
 
     def add(self, row: dict):
         """Add an entry to the table
@@ -241,7 +274,9 @@ class TableInterface:
                 Input data in the form of a dict, where the keys are the field names
                 and the values are the values to be added to the database.
         """
-        self.backend.add(self._validate_data(row))
+        row = self._replace_missing_values(row)
+        row = self._validate_data(row)
+        self.backend.add(row)
 
     def set(self, idx: int, row: dict):
         """Modify an existing entry in the table
@@ -253,7 +288,9 @@ class TableInterface:
                 New data to replace the existing data
         """
         current_values = self.values_asdict(self.get(idx)[0])
-        self.backend.set(idx, self._validate_data(row, current_values))
+        row = self._replace_missing_values(row, current_values)
+        row = self._validate_data(row)
+        self.backend.set(idx, row)
 
     def get(
         self,
@@ -346,6 +383,8 @@ class TableInterface:
 
     def __str__(self) -> str:
         """Nicely formatted summary of the table definition
+
+        TODO: also print summary of aliases
 
         Returns:
             res: str
