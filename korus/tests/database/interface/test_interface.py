@@ -3,6 +3,19 @@ from datetime import datetime
 import korus.database.interface as itf
 
 
+def test_create_field_alias():
+    a = itf.FieldAlias(
+        "label_id", 
+        "label", 
+        tuple, 
+        "a description"
+    )
+    assert a.field_name == "label_id"
+    assert a.name == "label"
+    assert a.type == tuple
+    assert a.description == "a description"
+
+
 def test_create_a_field_definition():
     """Check that FieldDefinition class behaves as it should"""
     # without default value

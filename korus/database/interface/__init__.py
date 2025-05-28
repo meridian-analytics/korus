@@ -1,4 +1,4 @@
-from .interface import FieldDefinition
+from .interface import FieldDefinition, FieldAlias
 from .deployment import DeploymentInterface
 from .annotation import AnnotationInterface
 from .file import FileInterface

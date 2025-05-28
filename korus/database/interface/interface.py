@@ -70,6 +70,8 @@ class FieldAlias:
             The alias name
         type: Any
             The alias type
+        description: str
+            Short, human-readable description of the alias
         transform: callable (optional)
             Transform applied to every alias value to convert it to a field value
         reverse_transform: callable (optional)
@@ -79,6 +81,7 @@ class FieldAlias:
     field_name: str
     name: str
     type: type
+    description: str
     transform: callable = lambda x, **_: x
     reverse_transform: callable = lambda x, **_: x
 
@@ -91,6 +94,7 @@ class FieldAlias:
             self.field_name,
             self.name,
             self.type.__name__,
+            self.description,
         )
 
 

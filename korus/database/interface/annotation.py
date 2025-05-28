@@ -60,11 +60,20 @@ class AnnotationInterface(TableInterface):
         self.add_field("comments", str, "Additional observations", required=False)
 
         # aliases
-        self.add_alias("label_id", "label", tuple, self._get_label_id, self._get_label)
+        alias_description = "Specify label tuples in place of label IDs"
+        self.add_alias(
+            "label_id", 
+            "label", 
+            tuple, 
+            alias_description,
+            self._get_label_id, 
+            self._get_label
+        )
         self.add_alias(
             "tentative_label_id",
             "tentative_label",
             tuple,
+            alias_description,
             self._get_label_id,
             self._get_label,
         )
@@ -72,6 +81,7 @@ class AnnotationInterface(TableInterface):
             "ambiguous_label_id",
             "ambiguous_label",
             list,
+            alias_description,
             self._get_label_id,
             self._get_label,
         )
@@ -79,6 +89,7 @@ class AnnotationInterface(TableInterface):
             "excluded_label_id",
             "excluded_label",
             list,
+            alias_description,
             self._get_label_id,
             self._get_label,
         )
