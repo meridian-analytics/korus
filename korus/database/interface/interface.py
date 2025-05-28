@@ -126,6 +126,11 @@ class TableInterface:
         return self._fields
 
     @property
+    def aliases(self) -> list[FieldAlias]:
+        """The field aliases"""
+        return self._aliases
+
+    @property
     def names(self) -> list[str]:
         """The names of the fields in the table"""
         return [field.name for field in self._fields]
@@ -216,7 +221,9 @@ class TableInterface:
                 Expects the field value as the first positional argument, and accepts other field/alias values as keyword arguments.
         """
         self._aliases.append(
-            FieldAlias(field_name, name, type, description, transform, reverse_transform)
+            FieldAlias(
+                field_name, name, type, description, transform, reverse_transform
+            )
         )
 
     def _validate_data(self, row: dict):
@@ -461,6 +468,20 @@ class TableInterface:
                 "Required",
                 "Default Value",
                 "Allowed Values",
+            ],
+        )
+
+        if len(self._aliases) == 0:
+            return res
+
+        # aliases
+        res += "\nAliases:\n"
+        res += tabulate(
+            [f.as_tuple_str() for f in self.aliases],
+            headers=[
+                "Field" "Alias",
+                "Type",
+                "Description",
             ],
         )
 

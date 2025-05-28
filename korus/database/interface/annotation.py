@@ -62,12 +62,12 @@ class AnnotationInterface(TableInterface):
         # aliases
         alias_description = "Specify label tuples in place of label IDs"
         self.add_alias(
-            "label_id", 
-            "label", 
-            tuple, 
+            "label_id",
+            "label",
+            tuple,
             alias_description,
-            self._get_label_id, 
-            self._get_label
+            self._get_label_id,
+            self._get_label,
         )
         self.add_alias(
             "tentative_label_id",
