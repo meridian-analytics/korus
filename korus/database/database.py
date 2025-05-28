@@ -16,13 +16,14 @@ class Database:
     def __init__(self, backend: DatabaseBackend):
         self.backend = backend
 
+        self._label = LabelInterface(self.backend.label)
+
         self.deployment = DeploymentInterface(self.backend.deployment)
-        self.annotation = AnnotationInterface(self.backend.annotation)
         self.file = FileInterface(self.backend.file)
         self.job = JobInterface(self.backend.job)
         self.storage = StorageInterface(self.backend.storage)
-        self._label = LabelInterface(self.backend.label)
         self.taxonomy = TaxonomyInterface(self.backend.taxonomy, self._label)
+        self.annotation = AnnotationInterface(self.backend.annotation, self.taxonomy)
 
 
 class SQLiteDatabase(Database):

@@ -1,4 +1,5 @@
 from .interface import TableInterface
+from .label import LabelInterface
 from korus.taxonomy import AcousticTaxonomy, AcousticTaxonomyManager
 from korus.database.backend import TableBackend
 from datetime import datetime, timezone
@@ -14,7 +15,7 @@ class TaxonomyInterface(TableInterface, AcousticTaxonomyManager):
     TODO: consider removing the `name` field
     """
 
-    def __init__(self, backend: TableBackend, label_interface: TableInterface):
+    def __init__(self, backend: TableBackend, label_interface: LabelInterface):
         super().__init__(name="taxonomy", backend=backend)
 
         self.label_interface = label_interface

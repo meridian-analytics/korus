@@ -59,6 +59,40 @@ class FieldDefinition:
         )
 
 
+@dataclass
+class FieldAlias:
+    """Definition of a field alias in a Korus table interface.
+
+    Attrs:
+        field_name: str
+            The field's name
+        name: str
+            The alias name
+        type: Any
+            The alias type
+        transform: callable (optional)
+            Transform applied to every alias value to convert it to a field value
+        reverse_transform: callable (optional)
+            Transform applied to every field value to convert it to an alias value
+    """
+    field_name: str
+    name: str
+    type: type
+    transform: callable = lambda x: x
+    reverse_transform: callable = lambda x: x
+
+    def as_tuple_str(self) -> tuple:
+        """Returns:
+        : tuple
+            The alias definition in a tuple of strings.
+        """
+        return (
+            self.field_name,
+            self.name,
+            self.type.__name__,
+        )
+
+
 class TableInterface:
     """Base class for all Korus table interfaces.
 
@@ -77,6 +111,7 @@ class TableInterface:
         self.name = name
         self.backend = backend
         self._fields = []
+        self._aliases = []
         self._index = -1
         self._count = 0
 
@@ -126,6 +161,32 @@ class TableInterface:
         """
         self._fields.append(
             FieldDefinition(name, type, description, required, default, options)
+        )
+
+    def add_alias(
+        self,
+        field_name: str,
+        name: str,
+        type: "typing.Any",
+        transform: callable = None,
+        reverse_transform: callable = None,
+    ):
+        """Add an alias to the table interface.
+
+        Args:
+            field_name: str
+                The field's name
+            name: str
+                The alias name
+            type: Any
+                The alias type
+            transform: callable (optional)
+                Transform applied to every alias value to convert it to a field value
+            reverse_transform: callable (optional)
+                Transform applied to every field value to convert it to an alias value
+        """
+        self._aliases.append(
+            FieldAlias(field_name, name, type, transform, reverse_transform)
         )
 
     def _validate_data(self, row: dict, replace: dict = None):
@@ -191,11 +252,8 @@ class TableInterface:
             row: dict
                 New data to replace the existing data
         """
-        current_values = self.get(idx)[0]
-        replace = {
-            field.name: value for field, value in zip(self.fields, current_values)
-        }
-        self.backend.set(idx, self._validate_data(row, replace))
+        current_values = self.values_asdict(self.get(idx)[0])
+        self.backend.set(idx, self._validate_data(row, current_values))
 
     def get(
         self,
@@ -243,6 +301,7 @@ class TableInterface:
                 return rows[0]
 
     def reset_filter(self):
+        """Reset the search filter"""
         self.indices = None
 
     def filter(self, condition: dict = None, invert: bool = False):
@@ -256,11 +315,34 @@ class TableInterface:
             invert: bool
                 Invert the search, i.e., exclude values or a range of values.
         
+        Returns:
+            self: TableInterface
+                A reference to this instance
+        """
+        condition = self._validate_condition(condition)
+        self.indices = self.backend.filter(condition, invert, self.indices)
+        return self
+
+    def _validate_condition(self, condition: dict) -> dict:
+        """Helper function for validating filter conditions.
+        
+        TODO: implement this method
+
+        Args:
+            condition: dict
+                Search criteria
+
+        Returns:
+            condition: dict
+                The validated criteria
+
+        Raises:
+            ValueError: if the validation fails
         """
         if condition is None:
             condition = dict()
 
-        self.indices = self.backend.filter(condition, invert, self.indices)
+        return condition
 
     def __str__(self) -> str:
         """Nicely formatted summary of the table definition
