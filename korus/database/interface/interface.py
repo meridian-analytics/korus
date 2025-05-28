@@ -194,6 +194,7 @@ class TableInterface:
         field_name: str,
         name: str,
         type: "typing.Any",
+        description: str,
         transform: callable = None,
         reverse_transform: callable = None,
     ):
@@ -215,7 +216,7 @@ class TableInterface:
                 Expects the field value as the first positional argument, and accepts other field/alias values as keyword arguments.
         """
         self._aliases.append(
-            FieldAlias(field_name, name, type, transform, reverse_transform)
+            FieldAlias(field_name, name, type, description, transform, reverse_transform)
         )
 
     def _validate_data(self, row: dict):
