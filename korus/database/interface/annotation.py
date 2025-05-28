@@ -59,7 +59,26 @@ class AnnotationInterface(TableInterface):
         self.add_field("valid", bool, "Validation status", default=True)
         self.add_field("comments", str, "Additional observations", required=False)
 
-        # aliases
+        # time aliases
+        self.add_alias(
+            "start_ms",
+            "start",
+            float,
+            "Start time in seconds from the beginning of the file",
+            lambda x, **_: int(x * 1e3),
+            lambda x, **_: float(x) / 1e3,
+        )
+
+        self.add_alias(
+            "duration_ms",
+            "duration",
+            float,
+            "Duration in seconds",
+            lambda x, **_: int(x * 1e3),
+            lambda x, **_: float(x) / 1e3,
+        )
+
+        # label aliases
         alias_description = "Specify label tuples in place of label IDs"
         self.add_alias(
             "label_id",
@@ -94,12 +113,38 @@ class AnnotationInterface(TableInterface):
             self._get_label,
         )
 
-    def _get_label_id(self, label: tuple | list[tuple], job_id: int) -> int | list[int]:
+    def _get_label_id(self, label: tuple | list[tuple], **kwargs) -> int | list[int]:
         """Alias transform: convert labels to label IDs"""
-        tax_version = self.job_interface.get(indices=job_id, fields="taxonomy_id")[0][0]
+        if "job_id" in kwargs:
+            tax_version = self.job_interface.get(
+                indices=kwargs["job_id"], fields="taxonomy_id"
+            )[0][0]
+
+        else:
+            tax_version = kwargs.get("taxonomy_version", None)
+
         label_id = self.taxonomy_interface.get_label_id(label, tax_version)
         return label_id
 
-    def _get_label(self, label_id: int | list[int]) -> tuple | list[tuple]:
+    def _get_label(self, label_id: int | list[int], **_) -> tuple | list[tuple]:
         """Reverse alias transform: convert label IDs to labels"""
         return self.taxonomy_interface.get_label(label_id)
+
+    def filter(self, condition: dict = None, invert: bool = False, **kwargs):
+        """Search the table.
+
+        TODO: extend method interface to mimic db.filter_annotation
+
+        Args:
+            condition: dict
+                Search criteria, where the keys are the field names and
+                the values are the search values. Use tuples to search on
+                a range of values and lists to search on multiple values.
+            invert: bool
+                Invert the search, i.e., exclude values or a range of values.
+
+        Returns:
+            self: TableInterface
+                A reference to this instance
+        """
+        return super().filter(condition, invert, **kwargs)

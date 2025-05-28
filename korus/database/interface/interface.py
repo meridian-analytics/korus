@@ -288,17 +288,16 @@ class TableInterface:
         complete_row.update(row)
         return complete_row
 
-    def _apply_alias_transforms(self, row: dict) -> dict:
+    def _apply_alias_transforms(self, row: dict, **kwargs) -> dict:
         """Helper function for transforming alias values to field values.
         Replaces values and renames keys in the input dictionary.
         """
         for alias in self._aliases:
             if alias.name in row:
-                v = row[alias.name]
-                row[alias.field_name] = alias.transform(v, **row)
-
-        for alias in self._aliases:
-            row.pop(alias.name, None)
+                v = row.pop(alias.name)
+                _kwargs = kwargs.copy()
+                _kwargs.update(row)
+                row[alias.field_name] = alias.transform(v, **_kwargs)
 
         return row
 
@@ -312,11 +311,8 @@ class TableInterface:
 
         for alias in self._aliases:
             if alias.field_name in row:
-                v = row[alias.field_name]
+                v = row.pop(alias.field_name)
                 row[alias.name] = alias.reverse_transform(v, **row)
-
-        for alias in self._aliases:
-            row.pop(alias.field_name, None)
 
         return tuple(row.values())
 
@@ -409,8 +405,11 @@ class TableInterface:
         """Reset the search filter"""
         self.indices = None
 
-    def filter(self, condition: dict = None, invert: bool = False):
+    def filter(self, condition: dict = None, invert: bool = False, **kwargs):
         """Search the table.
+
+        If the backend's filtering method accepts additional keyword arguments,
+        these can be passed as keyword arguments to this method.
 
         Args:
             condition: dict
@@ -424,9 +423,9 @@ class TableInterface:
             self: TableInterface
                 A reference to this instance
         """
-        condition = self._apply_alias_transforms(condition)
+        condition = self._apply_alias_transforms(condition, **kwargs)
         condition = self._validate_condition(condition)
-        self.indices = self.backend.filter(condition, invert, self.indices)
+        self.indices = self.backend.filter(condition, invert, self.indices, **kwargs)
         return self
 
     def _validate_condition(self, condition: dict) -> dict:

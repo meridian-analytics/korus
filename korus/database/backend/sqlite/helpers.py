@@ -52,7 +52,11 @@ class SQLiteTableBackend(TableBackend):
         return [tuple(list(row.values())) for row in rows]
 
     def filter(
-        self, condition: dict = None, invert: bool = False, indices: list[int] = None
+        self,
+        condition: dict = None,
+        invert: bool = False,
+        indices: list[int] = None,
+        **kwargs,
     ) -> list[int]:
         indices = self.codec.encode(indices, self.name, "id")
         cond = encode_condition(self.name, condition, self.codec.encode)

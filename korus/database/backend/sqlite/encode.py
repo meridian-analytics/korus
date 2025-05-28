@@ -21,18 +21,6 @@ def get_sqlite_type(x: "typing.Any"):
         return "TEXT"
 
 
-def encode_ms(v: float):
-    if v is None:
-        return None
-
-    else:
-        return int(np.round(v * 1e3))
-
-
-def decode_ms(v: int):
-    return float(v) / 1e3
-
-
 def encode_key(v: int | list[int]):
     if v is None:
         return None
@@ -189,12 +177,6 @@ def create_codec(conn):
     codec.decoder.add_rule("deployment", "start_utc", decode_datetime)
     codec.decoder.add_rule("deployment", "end_utc", decode_datetime)
     codec.decoder.add_rule("file", "start_utc", decode_datetime)
-
-    # millisecod fields in annotation table
-    codec.encoder.add_rule("annotation", "duration_ms", encode_ms)
-    codec.decoder.add_rule("annotation", "duration_ms", decode_ms)
-    codec.encoder.add_rule("annotation", "start_ms", encode_ms)
-    codec.decoder.add_rule("annotation", "start_ms", decode_ms)
 
     # file_id_list field in annotation table
     codec.encoder.add_rule("annotation", "file_id_list", encode_key)
