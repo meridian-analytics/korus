@@ -19,8 +19,10 @@ class TableBackend:
 
     def set(self, idx: int, row: dict):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "set"))
-    
-    def filter(self, condition: dict = None, invert: bool = False, indices: list[int] = None) -> list[int]:
+
+    def filter(
+        self, condition: dict = None, invert: bool = False, indices: list[int] = None
+    ) -> list[int]:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
 
     def __len__(self):

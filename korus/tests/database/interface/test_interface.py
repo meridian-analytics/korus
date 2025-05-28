@@ -3,6 +3,14 @@ from datetime import datetime
 import korus.database.interface as itf
 
 
+def test_create_field_alias():
+    a = itf.FieldAlias("label_id", "label", tuple, "a description")
+    assert a.field_name == "label_id"
+    assert a.name == "label"
+    assert a.type == tuple
+    assert a.description == "a description"
+
+
 def test_create_a_field_definition():
     """Check that FieldDefinition class behaves as it should"""
     # without default value
@@ -83,3 +91,33 @@ def test_add_get_set_data(in_memory_table_backend):
     # legal value is accepted
     row["C"] = 3
     i.add(row)
+
+
+def test_use_alias(in_memory_table_backend):
+    """Check that aliases work as they should"""
+    i = itf.interface.TableInterface("test", in_memory_table_backend)
+
+    i.add_field("A", int, "a test field", default=None)
+
+    i.add_alias(
+        "A",
+        "AA",
+        str,
+        "a test alias",
+        transform=lambda x, **_: int(x),
+        reverse_transform=lambda x, **_: str(x),
+    )
+
+    # add using field name
+    i.add({"A": 12})
+
+    # add using alias
+    i.add({"AA": "12"})
+
+    # retrieve alias value
+    values = i.get(fields="A")
+    assert values == [("12",), ("12",)]
+
+    # retrieve field value
+    values = i.get(fields="A", alias=False)
+    assert values == [(12,), (12,)]

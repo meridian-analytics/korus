@@ -59,6 +59,45 @@ class FieldDefinition:
         )
 
 
+@dataclass
+class FieldAlias:
+    """Definition of a field alias in a Korus table interface.
+
+    Attrs:
+        field_name: str
+            The field's name
+        name: str
+            The alias name
+        type: Any
+            The alias type
+        description: str
+            Short, human-readable description of the alias
+        transform: callable (optional)
+            Transform applied to every alias value to convert it to a field value
+        reverse_transform: callable (optional)
+            Transform applied to every field value to convert it to an alias value
+    """
+
+    field_name: str
+    name: str
+    type: type
+    description: str
+    transform: callable = lambda x, **_: x
+    reverse_transform: callable = lambda x, **_: x
+
+    def as_tuple_str(self) -> tuple:
+        """Returns:
+        : tuple
+            The alias definition in a tuple of strings.
+        """
+        return (
+            self.field_name,
+            self.name,
+            self.type.__name__,
+            self.description,
+        )
+
+
 class TableInterface:
     """Base class for all Korus table interfaces.
 
@@ -77,6 +116,7 @@ class TableInterface:
         self.name = name
         self.backend = backend
         self._fields = []
+        self._aliases = []
         self._index = -1
         self._count = 0
 
@@ -84,6 +124,11 @@ class TableInterface:
     def fields(self) -> list[FieldDefinition]:
         """The definitions of the table's fields"""
         return self._fields
+
+    @property
+    def aliases(self) -> list[FieldAlias]:
+        """The field aliases"""
+        return self._aliases
 
     @property
     def names(self) -> list[str]:
@@ -95,9 +140,30 @@ class TableInterface:
         """The definitions of the table's fields as a dict"""
         return {field.name: field for field in self._fields}
 
-    def values_asdict(self, values: tuple) -> dict:
-        """A tuple of field values as a dict"""
-        return {name: value for name, value in zip(self.names, values)}
+    def values_asdict(
+        self, values: tuple, fields: str | list[str] = None, index: bool = False
+    ) -> dict:
+        """Convert a tuple of field values to a dict, with field names as keys.
+
+        Args:
+            values: tuple
+                The values
+            fields: str | list[str]
+                The field names. If None, the value tuple is assumed to contain values
+                for every field, in the correct ordering.
+            index: bool
+                Whether the index has been inserted at the beginning of the value tuple.
+        """
+        if isinstance(fields, str):
+            fields = [fields]
+
+        elif fields is None:
+            fields = self.names
+
+        if index:
+            fields = ["id"] + fields
+
+        return {name: value for name, value in zip(fields, values)}
 
     def add_field(
         self,
@@ -128,26 +194,50 @@ class TableInterface:
             FieldDefinition(name, type, description, required, default, options)
         )
 
-    def _validate_data(self, row: dict, replace: dict = None):
-        """Helper function for validating input data and replacing missing fields.
+    def add_alias(
+        self,
+        field_name: str,
+        name: str,
+        type: "typing.Any",
+        description: str,
+        transform: callable = None,
+        reverse_transform: callable = None,
+    ):
+        """Add an alias to the table interface.
+
+        Args:
+            field_name: str
+                The field's name
+            name: str
+                The alias name
+            type: Any
+                The alias type
+            transform: callable (optional)
+                Transform applied to every row of input data to convert the alias value to its corresponding field value.
+                Expects the alias value as the first positional argument, and accepts other field/alias values as keyword arguments.
+                Note: The transform is also applied to the `condition` argument of the `filter` method.
+            reverse_transform: callable (optional)
+                Transform applied to every row of output data to convert the field value to its corresponding alias value.
+                Expects the field value as the first positional argument, and accepts other field/alias values as keyword arguments.
+        """
+        self._aliases.append(
+            FieldAlias(
+                field_name, name, type, description, transform, reverse_transform
+            )
+        )
+
+    def _validate_data(self, row: dict):
+        """Helper function for validating input data.
 
         Args:
             row: dict
                 The input data to be validated
-            replace: dict
-                Values to replace missing fields. Overwrites the individual fields'
-                default values.
 
         Returns:
             validated: dict
-                The validated data, with missing fields replaced.
+                The validated data
         """
-        # replace missing values with provided replacement values or default values
-        validated = {k: v.default for k, v in self.fields_asdict.items()}
-        if replace is not None:
-            validated.update(replace)
-
-        validated.update(row)
+        validated = row
 
         # check for valid field names, valid types, valid values, and that required fields have non-null values
         for k, v in validated.items():
@@ -172,6 +262,59 @@ class TableInterface:
 
         return validated
 
+    def _replace_missing_values(self, row: dict, replace: dict = None):
+        """Helper function for replacing missing fields.
+
+        Args:
+            row: dict
+                The input data to be validated
+            replace: dict
+                Values to replace missing fields. Overwrites the individual fields'
+                default values.
+
+        Returns:
+            complete_row: dict
+                The data, with missing fields replaced.
+        """
+        complete_row = {k: v.default for k, v in self.fields_asdict.items()}
+        if replace is not None:
+            complete_row.update(replace)
+
+        complete_row.update(row)
+        return complete_row
+
+    def _apply_alias_transforms(self, row: dict) -> dict:
+        """Helper function for transforming alias values to field values.
+        Replaces values and renames keys in the input dictionary.
+        """
+        for alias in self._aliases:
+            if alias.name in row:
+                v = row[alias.name]
+                row[alias.field_name] = alias.transform(v, **row)
+
+        for alias in self._aliases:
+            row.pop(alias.name, None)
+
+        return row
+
+    def _apply_reverse_alias_transforms(
+        self, values: tuple, fields: str | tuple[str] = None, index: bool = False
+    ) -> tuple:
+        """Helper function for transforming field values to alias values.
+        For lists and tuples, the transforms are applied to the individual elements.
+        """
+        row = self.values_asdict(values, fields, index)
+
+        for alias in self._aliases:
+            if alias.field_name in row:
+                v = row[alias.field_name]
+                row[alias.name] = alias.reverse_transform(v, **row)
+
+        for alias in self._aliases:
+            row.pop(alias.field_name, None)
+
+        return tuple(row.values())
+
     def add(self, row: dict):
         """Add an entry to the table
 
@@ -180,7 +323,10 @@ class TableInterface:
                 Input data in the form of a dict, where the keys are the field names
                 and the values are the values to be added to the database.
         """
-        self.backend.add(self._validate_data(row))
+        row = self._apply_alias_transforms(row)
+        row = self._replace_missing_values(row)
+        row = self._validate_data(row)
+        self.backend.add(row)
 
     def set(self, idx: int, row: dict):
         """Modify an existing entry in the table
@@ -191,17 +337,18 @@ class TableInterface:
             row: dict
                 New data to replace the existing data
         """
-        current_values = self.get(idx)[0]
-        replace = {
-            field.name: value for field, value in zip(self.fields, current_values)
-        }
-        self.backend.set(idx, self._validate_data(row, replace))
+        row = self._apply_alias_transforms(row)
+        current_values = self.values_asdict(self.get(idx, alias=False)[0])
+        row = self._replace_missing_values(row, current_values)
+        row = self._validate_data(row)
+        self.backend.set(idx, row)
 
     def get(
         self,
         indices: int | list[int] = None,
         fields: str | list[str] = None,
         return_indices: bool = False,
+        alias: bool = True,
     ) -> list[tuple]:
         """Retrieve data from the table.
 
@@ -212,12 +359,23 @@ class TableInterface:
                 The indices of the entries to be returned. If None, all entries in the table are returned.
             fields: str | list[str]
                 The fields to be returned. If None, all fields are returned.
+            return_indices: bool
+                Whether to also return the indices. If True, indices are inserted at the beginning of each row tuple.
+            alias: bool
+                Whether to apply reverse alias transforms to replace field values by their alias values.
 
         Returns:
-            : list[tuple]
+            data: list[tuple]
                 The data
         """
-        return self.backend.get(indices, fields, return_indices)
+        data = self.backend.get(indices, fields, return_indices)
+        if alias:
+            data = [
+                self._apply_reverse_alias_transforms(values, fields, return_indices)
+                for values in data
+            ]
+
+        return data
 
     def __len__(self) -> int:
         """Number of rows in the table"""
@@ -243,6 +401,7 @@ class TableInterface:
                 return rows[0]
 
     def reset_filter(self):
+        """Reset the search filter"""
         self.indices = None
 
     def filter(self, condition: dict = None, invert: bool = False):
@@ -250,20 +409,46 @@ class TableInterface:
 
         Args:
             condition: dict
-                Search criteria, where the keys are the field names and 
-                the values are the search values. Use tuples to search on 
+                Search criteria, where the keys are the field names and
+                the values are the search values. Use tuples to search on
                 a range of values and lists to search on multiple values.
             invert: bool
                 Invert the search, i.e., exclude values or a range of values.
-        
+
+        Returns:
+            self: TableInterface
+                A reference to this instance
+        """
+        condition = self._apply_alias_transforms(condition)
+        condition = self._validate_condition(condition)
+        self.indices = self.backend.filter(condition, invert, self.indices)
+        return self
+
+    def _validate_condition(self, condition: dict) -> dict:
+        """Helper function for validating filter conditions.
+
+        TODO: implement this method
+
+        Args:
+            condition: dict
+                Search criteria
+
+        Returns:
+            condition: dict
+                The validated criteria
+
+        Raises:
+            ValueError: if the validation fails
         """
         if condition is None:
             condition = dict()
 
-        self.indices = self.backend.filter(condition, invert, self.indices)
+        return condition
 
     def __str__(self) -> str:
         """Nicely formatted summary of the table definition
+
+        TODO: also print summary of aliases
 
         Returns:
             res: str
@@ -283,6 +468,20 @@ class TableInterface:
                 "Required",
                 "Default Value",
                 "Allowed Values",
+            ],
+        )
+
+        if len(self._aliases) == 0:
+            return res
+
+        # aliases
+        res += "\nAliases:\n"
+        res += tabulate(
+            [f.as_tuple_str() for f in self.aliases],
+            headers=[
+                "Field" "Alias",
+                "Type",
+                "Description",
             ],
         )
 
