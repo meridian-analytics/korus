@@ -119,6 +119,7 @@ class TableInterface:
         self._aliases = []
         self._index = -1
         self._count = 0
+        self.indices = None
 
     @property
     def fields(self) -> list[FieldDefinition]:
@@ -153,6 +154,10 @@ class TableInterface:
                 for every field, in the correct ordering.
             index: bool
                 Whether the index has been inserted at the beginning of the value tuple.
+
+        Returns:
+            : dict
+                The values in a dictionary with field names as keys.
         """
         if isinstance(fields, str):
             fields = [fields]

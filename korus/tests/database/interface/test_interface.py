@@ -121,3 +121,29 @@ def test_use_alias(in_memory_table_backend):
     # retrieve field value
     values = i.get(fields="A", alias=False)
     assert values == [(12,), (12,)]
+
+
+def test_filter_data(in_memory_table_backend):
+    """Check that we can filter data in a TableInterface instance"""
+    i = itf.interface.TableInterface("test", in_memory_table_backend)
+
+    i.add_field("A", int, "a test field", default=None)
+    i.add_field("B", str, "another test field", default=None)
+
+    i.add({"A": 11, "B": "x"})
+    i.add({"A": 12, "B": "xy"})
+    i.add({"A": 13, "B": "xyz"})
+
+    # filter with single condition
+    idx = i.filter({"A": 11}).indices
+    assert idx == [0]
+
+    # filter with two conditions
+    i.reset_filter()
+    idx = i.filter({"A": (11, 12), "B": "xy"}).indices
+    assert idx == [1]
+
+    # chained filter
+    i.reset_filter()
+    idx = i.filter({"A": (11, 12)}).filter({"B": "xy"}).indices
+    assert idx == [1]
