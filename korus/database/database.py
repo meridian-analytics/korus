@@ -23,7 +23,9 @@ class Database:
         self.job = JobInterface(self.backend.job)
         self.storage = StorageInterface(self.backend.storage)
         self.taxonomy = TaxonomyInterface(self.backend.taxonomy, self._label)
-        self.annotation = AnnotationInterface(self.backend.annotation, self.taxonomy, self.job)
+        self.annotation = AnnotationInterface(
+            self.backend.annotation, self.taxonomy, self.job
+        )
 
 
 class SQLiteDatabase(Database):

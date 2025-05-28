@@ -9,13 +9,14 @@ class AnnotationInterface(TableInterface):
     """
     TODO: overwrite get() method to provide conversion to ketos/raven formats
     """
+
     def __init__(
-        self, 
-        backend: TableBackend, 
+        self,
+        backend: TableBackend,
         taxonomy_interface: TaxonomyInterface,
         job_interface: JobInterface,
     ):
-        
+
         super().__init__("annotation", backend)
 
         self.taxonomy_interface = taxonomy_interface
@@ -60,9 +61,27 @@ class AnnotationInterface(TableInterface):
 
         # aliases
         self.add_alias("label_id", "label", tuple, self._get_label_id, self._get_label)
-        self.add_alias("tentative_label_id", "tentative_label", tuple, self._get_label_id, self._get_label)
-        self.add_alias("ambiguous_label_id", "ambiguous_label", list, self._get_label_id, self._get_label)
-        self.add_alias("excluded_label_id", "excluded_label", list, self._get_label_id, self._get_label)
+        self.add_alias(
+            "tentative_label_id",
+            "tentative_label",
+            tuple,
+            self._get_label_id,
+            self._get_label,
+        )
+        self.add_alias(
+            "ambiguous_label_id",
+            "ambiguous_label",
+            list,
+            self._get_label_id,
+            self._get_label,
+        )
+        self.add_alias(
+            "excluded_label_id",
+            "excluded_label",
+            list,
+            self._get_label_id,
+            self._get_label,
+        )
 
     def _get_label_id(self, label: tuple | list[tuple], job_id: int) -> int | list[int]:
         """Alias transform: convert labels to label IDs"""
@@ -70,7 +89,6 @@ class AnnotationInterface(TableInterface):
         label_id = self.taxonomy_interface.get_label_id(label, tax_version)
         return label_id
 
-    def _get_label(self, label_id: int | list[int], job_id: int) -> tuple | list[tuple]:
+    def _get_label(self, label_id: int | list[int]) -> tuple | list[tuple]:
         """Reverse alias transform: convert label IDs to labels"""
-        pass
-
+        return self.taxonomy_interface.get_label(label_id)

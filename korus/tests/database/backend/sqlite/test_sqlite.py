@@ -75,7 +75,7 @@ def test_sqlite_backend_file(minimal_sqlite_backend):
     rows = db.file.get(indices=2, fields="sample_rate")
     assert rows[0][0] == 8000
 
-    # filtering 
+    # filtering
     cond = {"filename": "ZYX.FLAC"}
     indices = db.file.filter(cond)
     assert indices == [2]
@@ -91,47 +91,34 @@ def test_sqlite_backend_file(minimal_sqlite_backend):
     cond = {"filename": ["xyz.wav", "ZYX.FLAC"]}
     indices = db.file.filter(cond)
     assert sorted(indices) == [1, 2]
-    indices = db.file.filter(cond, indices=[0,1])
+    indices = db.file.filter(cond, indices=[0, 1])
     assert indices == [1]
     indices = db.file.filter(cond, invert=True)
     assert indices == [0]
 
-    cond = {"sample_rate": (9000,None)}
+    cond = {"sample_rate": (9000, None)}
     indices = db.file.filter(cond)
     assert sorted(indices) == [0, 1]
     indices = db.file.filter(cond, invert=True)
     assert indices == [2]
 
     t = datetime(2022, 12, 2, 2, 0, 0, 123457, tzinfo=timezone.utc)
-    cond = {
-        "sample_rate": 100, 
-        "start_utc": (t, None)
-    }
+    cond = {"sample_rate": 100, "start_utc": (t, None)}
     indices = db.file.filter(cond)
-    assert indices == []    
+    assert indices == []
 
-    cond = {
-        "sample_rate": (100, None), 
-        "start_utc": (t, None)
-    }
+    cond = {"sample_rate": (100, None), "start_utc": (t, None)}
     indices = db.file.filter(cond)
-    assert indices == [2]    
+    assert indices == [2]
 
     t = datetime(2022, 12, 2, 2, 0, 0, 123455)
-    cond = {
-        "sample_rate": (100, None), 
-        "start_utc": (t, None)
-    }
+    cond = {"sample_rate": (100, None), "start_utc": (t, None)}
     indices = db.file.filter(cond)
-    assert sorted(indices) == [1,2]    
+    assert sorted(indices) == [1, 2]
 
     # filtering on JSON columns
-    db.annotation.add({
-        "deployment_id": 0, "job_id": 0, "excluded_label_id": [0, 1]
-    })
-    db.annotation.add({
-        "deployment_id": 0, "job_id": 0, "excluded_label_id": [0, 2]
-    })
+    db.annotation.add({"deployment_id": 0, "job_id": 0, "excluded_label_id": [0, 1]})
+    db.annotation.add({"deployment_id": 0, "job_id": 0, "excluded_label_id": [0, 2]})
     cond = {"excluded_label_id": 0}
     indices = db.annotation.filter(cond)
     assert sorted(indices) == [1, 2]

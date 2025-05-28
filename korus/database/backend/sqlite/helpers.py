@@ -52,10 +52,7 @@ class SQLiteTableBackend(TableBackend):
         return [tuple(list(row.values())) for row in rows]
 
     def filter(
-        self, 
-        condition: dict = None, 
-        invert: bool = False, 
-        indices: list[int] = None
+        self, condition: dict = None, invert: bool = False, indices: list[int] = None
     ) -> list[int]:
         indices = self.codec.encode(indices, self.name, "id")
         cond = encode_condition(self.name, condition, self.codec.encode)
@@ -157,20 +154,20 @@ def get_row_count(conn, table_name):
 
 def encode_condition(table_name, condition, encoder):
     encoded_condition = {}
-    for name,values in condition.items():      
-        is_tuple = isinstance(values, tuple) 
+    for name, values in condition.items():
+        is_tuple = isinstance(values, tuple)
 
-        if not isinstance(values, (list,tuple)):
+        if not isinstance(values, (list, tuple)):
             values = [values]
 
         values = [encoder(v, table_name, name) for v in values]
-        
+
         if is_tuple:
-            values = tuple(values) 
+            values = tuple(values)
 
         encoded_condition[name] = values
 
-    return encoded_condition        
+    return encoded_condition
 
 
 def where_condition(conn, table_name, condition, invert):
@@ -186,13 +183,13 @@ def where_condition(conn, table_name, condition, invert):
 
     # WHERE conditions
     where_conds = []
-    for name,values in condition.items():        
+    for name, values in condition.items():
         x = f"{name}"
         if col_types[name] == "JSON":
             x += ".value"
 
         if isinstance(values, tuple):
-            a,b = values
+            a, b = values
             if isinstance(a, str):
                 a = f"'{a}'"
             if isinstance(b, str):
@@ -200,13 +197,17 @@ def where_condition(conn, table_name, condition, invert):
 
             cond = []
             if invert:
-                if a is not None: cond.append(f"{x} < {a}")
-                if b is not None: cond.append(f"{x} > {b}")
+                if a is not None:
+                    cond.append(f"{x} < {a}")
+                if b is not None:
+                    cond.append(f"{x} > {b}")
                 cond = " OR ".join(cond)
 
             else:
-                if a is not None: cond.append(f"{x} >= {a}")
-                if b is not None: cond.append(f"{x} <= {b}")
+                if a is not None:
+                    cond.append(f"{x} >= {a}")
+                if b is not None:
+                    cond.append(f"{x} <= {b}")
                 cond = " AND ".join(cond)
 
         else:
@@ -216,7 +217,7 @@ def where_condition(conn, table_name, condition, invert):
                 cond = f"{x} IN {to_str(values)}"
 
         where_conds.append(cond)
-    
+
     if len(where_conds) > 0:
         return left_joins + " WHERE " + " AND ".join(where_conds)
 
@@ -232,7 +233,7 @@ def search_table(conn, table_name, condition=None, indices=None):
 
         if condition is None:
             condition = id_cond
-        
+
         else:
             condition = condition.replace("WHERE", id_cond + " AND")
 
