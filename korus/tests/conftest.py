@@ -1,123 +1,16 @@
 import os
 import pytest
 import json
-import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 import korus.tax as kx
 import korus.db as kdb
-from korus.database.backend import TableBackend
 from korus.database.backend.sqlite import SQLiteBackend
+from korus.database import SQLiteDatabase
+from korus.tests.helpers import InMemoryTableBackend
 
 path_to_assets = os.path.join(os.path.dirname(__file__), "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
-
-
-class InMemoryTableBackend(TableBackend):
-    """Stores data as a list of dicts.
-
-    Attrs:
-        rows: list[dict]
-            The rows of data added to the database
-        fields: list[str]
-            The field/column names
-    """
-
-    def __init__(self):
-        super().__init__("in_memory")
-        self.rows = []
-        self.fields = []
-
-    def __len__(self):
-        return len(self.rows)
-
-    def get(self, indices=None, fields=None, return_indices=False):
-        if len(self.rows) == 0:
-            return []
-
-        if indices is None:
-            indices = [i for i in range(len(self.rows))]
-
-        if fields is None:
-            fields = self.fields
-
-        if np.ndim(indices) == 0:
-            indices = [indices]
-
-        if np.ndim(fields) == 0:
-            fields = [fields]
-
-        if return_indices:
-            fields = ["id"] + fields
-            rows = self.rows.copy()
-            for i in range(len(rows)):
-                rows[i]["id"] = i
-        else:
-            rows = self.rows
-
-        return [
-            tuple([row.get(field, None) for field in fields])
-            for idx, row in enumerate(rows)
-            if idx in indices
-        ]
-
-    def add(self, row):
-        self.fields += [k for k in row.keys() if k not in self.fields]
-        self.rows.append(row)
-
-    def set(self, idx, row):
-        self.rows[idx] = row
-
-    def filter(self, condition=None, invert=False, indices=None):
-        if condition is None:
-            condition = dict()
-
-        filtered_indices = []
-        for idx, row in enumerate(self.rows):
-
-            accept = True
-            for name, values in condition.items():
-                if name not in row:
-                    continue
-
-                xs = row[name]
-
-                if not isinstance(xs, (list, tuple)):
-                    xs = [xs]
-
-                if not isinstance(values, (tuple, list)):
-                    values = [values]
-
-                # accept, if any element in xs fulfills the condition
-                for x in xs:
-                    accept_x = False
-
-                    if isinstance(values, tuple):
-                        a, b = values
-                        if invert:
-                            accept_x = x < a or x > b
-                        else:
-                            accept_x = x >= a and x <= b
-
-                    else:
-                        if invert:
-                            accept_x = x not in values
-                        else:
-                            accept_x = x in values
-
-                    if accept_x:
-                        break
-
-                accept *= accept_x
-
-            # passes all conditions
-            if accept:
-                filtered_indices.append(idx)
-
-        if indices is not None:
-            filtered_indices = [idx for idx in filtered_indices if idx in indices]
-
-        return filtered_indices
 
 
 @pytest.fixture
@@ -130,18 +23,16 @@ def in_memory_table_backend():
 def minimal_sqlite_backend():
     """Yields an SQLite database backend with every table populated with a single entry
     where only the required fields have non-null values.
-
-    TODO: finish implemeting this fixture
     """
     path = os.path.join(path_to_tmp, "test.sqlite")
     if os.path.exists(path):
         os.remove(path)
 
-    db = SQLiteBackend(path)
+    backend = SQLiteBackend(path)
 
-    db.deployment.add({"name": "MyDeployment"})
-    db.storage.add({"name": "MyFileStorage"})
-    db.file.add(
+    backend.deployment.add({"name": "MyDeployment"})
+    backend.storage.add({"name": "MyFileStorage"})
+    backend.file.add(
         {
             "deployment_id": 0,
             "storage_id": 0,
@@ -150,15 +41,76 @@ def minimal_sqlite_backend():
             "num_samples": 960000,
         }
     )
-    db.taxonomy.add({"name": "MyTaxonomy", "tree": dict(), "labels": list()})
-    db.job.add({"taxonomy_id": 0})
-    db.annotation.add({"deployment_id": 0, "job_id": 0})
+    backend.taxonomy.add({"name": "MyTaxonomy", "tree": dict(), "labels": list()})
+    backend.job.add({"taxonomy_id": 0})
+    backend.annotation.add({"deployment_id": 0, "job_id": 0})
+
+    yield backend
+
+    backend.close()
+    if os.path.exists(path):
+        os.remove(path)
+
+
+@pytest.fixture
+def sqlite_database_with_taxonomy():
+    """Yields a Korus database with SQLite backend and a small, but realistic taxonomy."""
+    path = os.path.join(path_to_tmp, "db_with_tax.sqlite")
+    if os.path.exists(path):
+        os.remove(path)
+
+    db = SQLiteDatabase(SQLiteBackend(path))
+
+    # create a fairly simple acoustic taxonomy
+    tax = db.taxonomy.draft
+
+    # add sources
+    tax.create_sound_source("Bio", name="Biological sound source")
+    tax.create_sound_source("Mammal", parent="Bio", name="Any mammal")
+    tax.create_sound_source("KW", parent="Mammal")
+    tax.create_sound_source("Dolphin", parent="Mammal")
+    tax.create_sound_source("HW", parent="Mammal")
+
+    # add sound types
+    tax.create_sound_type("TC", "Mammal", name="Tonal Call")
+    tax.create_sound_type("CK", "Dolphin", name="Click")
+    tax.create_sound_type("CK", "KW", name="Click")
+    tax.create_sound_type("PC", "KW", name="Pulsed Call")
+    tax.create_sound_type("W", "KW", name="Whistle")
+
+    # release version 1
+    db.taxonomy.release(comment="this is the first version")
+
+    # add another source and some more sound types
+    tax.create_sound_source("SRKW", parent="KW")
+    tax.create_sound_type("S01", "SRKW", parent="PC", name="S1 call")
+    tax.create_sound_type("S02", "SRKW", parent="PC", name="S2 call")
+    tax.create_sound_source("NRKW", parent="KW")
+    tax.create_sound_type("N01", "NRKW", parent="PC", name="N1 call")
+
+    # version 2
+    db.taxonomy.release("added SRKW and NRKW")
+
+    # remove NRKW again
+    tax.remove_node("NRKW")
+
+    # version 3
+    db.taxonomy.release("removed NRKW")
+
+    # link past KW
+    tax.link_past_node("KW")
+
+    # version 4
+    db.taxonomy.release("linked past KW")
 
     yield db
 
-    db.close()
+    db.backend.close()
     if os.path.exists(path):
         os.remove(path)
+
+
+# --- old fixtures below this point ---
 
 
 @pytest.fixture

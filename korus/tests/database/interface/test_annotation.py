@@ -8,7 +8,7 @@ from korus.database.interface import (
     TagInterface,
     GranularityInterface,
 )
-from korus.tests.conftest import InMemoryTableBackend
+from korus.tests.helpers import InMemoryTableBackend
 
 
 def test_add_get_set_data():

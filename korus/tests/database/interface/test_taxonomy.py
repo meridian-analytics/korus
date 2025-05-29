@@ -4,7 +4,7 @@ from copy import copy
 from datetime import datetime, timezone
 from korus.database.interface import TaxonomyInterface, LabelInterface
 from korus.taxonomy import AcousticTaxonomy
-from korus.tests.conftest import InMemoryTableBackend
+from korus.tests.helpers import InMemoryTableBackend
 
 
 def test_taxonomy_interface():
