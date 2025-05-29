@@ -5,6 +5,8 @@ from korus.database.interface import (
     JobInterface,
     TaxonomyInterface,
     LabelInterface,
+    TagInterface,
+    GranularityInterface,
 )
 from korus.tests.conftest import InMemoryTableBackend
 
@@ -12,29 +14,26 @@ from korus.tests.conftest import InMemoryTableBackend
 def test_add_get_set_data():
     """Check that we can add data to, retrieve data from, and modify data in an AnnotationInterface instance"""
 
-    jb = InMemoryTableBackend()
-    tb = InMemoryTableBackend()
-    ab = InMemoryTableBackend()
-    lb = InMemoryTableBackend()
-
-    li = LabelInterface(lb)
-    ji = JobInterface(jb)
-    ti = TaxonomyInterface(tb, li)
-    ai = AnnotationInterface(ab, ti, ji)
+    label = LabelInterface(InMemoryTableBackend())
+    job = JobInterface(InMemoryTableBackend())
+    tax = TaxonomyInterface(InMemoryTableBackend(), label)
+    tag = TagInterface(InMemoryTableBackend())
+    gran = GranularityInterface(InMemoryTableBackend())
+    annot = AnnotationInterface(InMemoryTableBackend(), tax, job, tag, gran)
 
     # create a small taxonomy
-    ti.draft.create_sound_source("Whale", parent="Unknown")
-    ti.draft.create_sound_source("KW", parent="Whale")
-    ti.draft.create_sound_source("SRKW", parent="KW")
-    ti.draft.create_sound_type("TC", "Whale", "Unknown")
-    ti.draft.create_sound_type("PC", "KW", "TC")
-    ti.draft.create_sound_type("S01", "SRKW", "PC")
-    ti.release()
+    tax.draft.create_sound_source("Whale", parent="Unknown")
+    tax.draft.create_sound_source("KW", parent="Whale")
+    tax.draft.create_sound_source("SRKW", parent="KW")
+    tax.draft.create_sound_type("TC", "Whale", "Unknown")
+    tax.draft.create_sound_type("PC", "KW", "TC")
+    tax.draft.create_sound_type("S01", "SRKW", "PC")
+    tax.release()
 
     # add a job
-    ji.add({"taxonomy_id": 0})
+    job.add({"taxonomy_id": 0})
 
-    # add a couple of annotations
+    # attempt to add an annotation with invalid tags fails
     row = {
         "deployment_id": 0,
         "job_id": 0,
@@ -42,8 +41,20 @@ def test_add_get_set_data():
         "start_utc": datetime(2022, 1, 1),
         "duration": 3.0,
         "start": 17.1,
+        "tag": ["loud", "pretty"],
     }
-    ai.add(row)
+    with pytest.raises(ValueError):
+        annot.add(row)
+
+    # add the tags
+    tag.add({"name": "loud", "description": "a loud sound"})
+    tag.add({"name": "pretty", "description": "a pretty sound"})
+    tag.add({"name": "faint", "description": "a faint sound"})
+
+    # try again
+    annot.add(row)
+
+    # add another annotation
     row = {
         "deployment_id": 0,
         "job_id": 0,
@@ -51,9 +62,17 @@ def test_add_get_set_data():
         "start_utc": datetime(2023, 1, 1),
         "duration": 2.0,
         "start": 18.1,
+        "tag": "faint",
+        "granularity": "batch",
     }
-    ai.add(row)
+    annot.add(row)
 
     # filter
-    idx = ai.filter({"label": ("SRKW", "*")}).indices
+    idx = annot.reset_filter().filter({"label": ("SRKW", "*")}).indices
+    assert idx == [0]
+
+    idx = annot.reset_filter().filter({"granularity": "batch"}).indices
+    assert idx == [1]
+
+    idx = annot.reset_filter().filter({"tag": "pretty"}).indices
     assert idx == [0]

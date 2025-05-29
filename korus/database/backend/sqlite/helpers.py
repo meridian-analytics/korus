@@ -251,6 +251,8 @@ def fetch_row(
 ):
     c = conn.cursor()
 
+    left_joins = []
+
     if isinstance(fields, str):
         fields = [fields]
 
@@ -259,9 +261,21 @@ def fetch_row(
 
     else:
         fields = ["id"] + fields
+
+        # left joins
+        for field in fields:
+            if "." in field:
+                tbl = field.split(".")[0]
+                left_joins.append(
+                    f" LEFT JOIN {tbl} ON {table_name}.{tbl}_id = {tbl}.id"
+                )
+
         fields_str = ",".join(fields)
 
     q = f"SELECT {fields_str} FROM {table_name}"
+
+    for left_join in left_joins:
+        q += left_join
 
     if indices is not None:
         q += f" WHERE id IN {to_str(indices)}"
@@ -272,7 +286,7 @@ def fetch_row(
     if not return_indices:
         rows = [row[1:] for row in rows]
 
-    # preserve ordering
+    # preserve index ordering
     if indices is not None and np.ndim(indices) > 0:
         idx = np.argsort(np.argsort(indices))
         rows = [rows[i] for i in idx]

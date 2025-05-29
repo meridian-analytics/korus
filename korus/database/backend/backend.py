@@ -66,3 +66,13 @@ class DatabaseBackend:
     @property
     def label(self) -> TableBackend:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "label"))
+
+    @property
+    def tag(self) -> TableBackend:
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "tag"))
+
+    @property
+    def granularity(self) -> TableBackend:
+        raise NotImplementedError(
+            not_impl_err_msg(self.__class__.__name__, "granularity")
+        )

@@ -3,6 +3,24 @@ from korus.database.backend import TableBackend
 from .interface import TableInterface
 from .taxonomy import TaxonomyInterface
 from .job import JobInterface
+from .tag import TagInterface
+from .granularity import GranularityInterface
+
+
+def _id_from_name(interface: TableInterface, name: str | list[str]) -> list[int]:
+    """Helper function for mapping tag/granularity names to indices.
+    Raises ValueError if an invalid name is specified.
+    """
+    names = name if isinstance(name, list) else [name]
+    indices = []
+    for name in names:
+        idx = interface.reset_filter().filter({"name": name}).indices
+        if len(idx) == 0:
+            raise ValueError(f"Unrecognized {interface.name}: {name}")
+
+        indices += idx
+
+    return indices
 
 
 class AnnotationInterface(TableInterface):
@@ -15,12 +33,17 @@ class AnnotationInterface(TableInterface):
         backend: TableBackend,
         taxonomy_interface: TaxonomyInterface,
         job_interface: JobInterface,
+        tag_interface: TagInterface,
+        granularity_interface: GranularityInterface,
     ):
 
         super().__init__("annotation", backend)
 
-        self.taxonomy_interface = taxonomy_interface
-        self.job_interface = job_interface
+        # linked interfaces
+        self._taxonomy = taxonomy_interface
+        self._job = job_interface
+        self._tag = tag_interface
+        self._granularity = granularity_interface
 
         # fields
         self.add_field("deployment_id", int, "Deployment index")
@@ -78,6 +101,25 @@ class AnnotationInterface(TableInterface):
             lambda x, **_: float(x) / 1e3,
         )
 
+        # tag and granularity aliases
+        self.add_alias(
+            "tag_id",
+            "tag",
+            list,
+            "Tag name",
+            self._get_tag_id,
+            self._get_tag,
+        )
+
+        self.add_alias(
+            "granularity_id",
+            "granularity",
+            str,
+            "Granularity level",
+            self._get_granularity_id,
+            self._get_granularity,
+        )
+
         # label aliases
         alias_description = "Specify label tuples in place of label IDs"
         self.add_alias(
@@ -114,21 +156,36 @@ class AnnotationInterface(TableInterface):
         )
 
     def _get_label_id(self, label: tuple | list[tuple], **kwargs) -> int | list[int]:
-        """Alias transform: convert labels to label IDs"""
+        """Alias transform: convert label to label ID"""
         if "job_id" in kwargs:
-            tax_version = self.job_interface.get(
-                indices=kwargs["job_id"], fields="taxonomy_id"
-            )[0][0]
-
+            tax_version = self._job.get(kwargs["job_id"], "taxonomy_id")[0][0]
         else:
             tax_version = kwargs.get("taxonomy_version", None)
 
-        label_id = self.taxonomy_interface.get_label_id(label, tax_version)
+        label_id = self._taxonomy.get_label_id(label, tax_version)
         return label_id
 
     def _get_label(self, label_id: int | list[int], **_) -> tuple | list[tuple]:
-        """Reverse alias transform: convert label IDs to labels"""
-        return self.taxonomy_interface.get_label(label_id)
+        """Reverse alias transform: convert label ID to label"""
+        return self._taxonomy.get_label(label_id)
+
+    def _get_tag_id(self, name: str | list[str], **kwargs) -> list[int]:
+        """Alias transform: convert tag to tag ID"""
+        return _id_from_name(self._tag, name)
+
+    def _get_tag(self, id: int | list[int], **kwargs) -> str | list[str]:
+        """Reverse alias transform: convert tag ID to tag"""
+        return self._tag.get(id, "name", always_tuple=False)
+
+    def _get_granularity_id(self, name: str | list[str], **kwargs) -> int | list[int]:
+        """Alias transform: convert granularity to granularity ID"""
+        indices = _id_from_name(self._granularity, name)
+        return indices if isinstance(name, list) else indices[0]
+
+    def _get_granularity(self, id: int | list[int], **kwargs) -> str | list[str]:
+        """Reverse alias transform: convert granularity ID to granularity"""
+        values = self._granularity.get(id, "name", always_tuple=False)
+        return values if isinstance(id, list) else values[0]
 
     def filter(self, condition: dict = None, invert: bool = False, **kwargs):
         """Search the table.

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from tabulate import tabulate
 from korus.database.backend import TableBackend
+import pandas as pd
 
 
 @dataclass
@@ -324,6 +325,7 @@ class TableInterface:
                 Input data in the form of a dict, where the keys are the field names
                 and the values are the values to be added to the database.
         """
+        row = row.copy()
         row = self._apply_alias_transforms(row)
         row = self._replace_missing_values(row)
         row = self._validate_data(row)
@@ -338,6 +340,7 @@ class TableInterface:
             row: dict
                 New data to replace the existing data
         """
+        row = row.copy()
         row = self._apply_alias_transforms(row)
         current_values = self.values_asdict(self.get(idx, alias=False)[0])
         row = self._replace_missing_values(row, current_values)
@@ -350,6 +353,8 @@ class TableInterface:
         fields: str | list[str] = None,
         return_indices: bool = False,
         alias: bool = True,
+        always_tuple: bool = True,
+        as_pandas: bool = False,
     ) -> list[tuple]:
         """Retrieve data from the table.
 
@@ -364,17 +369,31 @@ class TableInterface:
                 Whether to also return the indices. If True, indices are inserted at the beginning of each row tuple.
             alias: bool
                 Whether to apply reverse alias transforms to replace field values by their alias values.
+            always_tuple: bool
+                If False, and there is only 1 field, return a list of values instead of tuples.
+            as_pandas: bool
+                Return data in the form of a Pandas DataFrame.
 
         Returns:
             data: list[tuple]
                 The data
         """
+        if fields is None:
+            fields = self.names
+
         data = self.backend.get(indices, fields, return_indices)
+
         if alias:
             data = [
                 self._apply_reverse_alias_transforms(values, fields, return_indices)
                 for values in data
             ]
+
+        if not as_pandas and not always_tuple and len(data) >= 1 and len(data[0]) == 1:
+            data = [values[0] for values in data]
+
+        if as_pandas:
+            data = self._as_pandas(data, fields, return_indices)
 
         return data
 
@@ -404,6 +423,7 @@ class TableInterface:
     def reset_filter(self):
         """Reset the search filter"""
         self.indices = None
+        return self
 
     def filter(self, condition: dict = None, invert: bool = False, **kwargs):
         """Search the table.
@@ -490,3 +510,17 @@ class TableInterface:
         )
 
         return res
+
+
+def _as_pandas(data: list[tuple], columns: list[str], index: bool) -> pd.DataFrame:
+    """Helper function for converting retrieved data to a Pandas DataFrame"""
+    if index:
+        columns = ["index"] + columns
+
+    df = pd.DataFrame(data, columns=columns)
+
+    if index:
+        df.set_index("index", inplace=True)
+        df.index.name = "index"
+
+    return df

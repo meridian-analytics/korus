@@ -75,31 +75,43 @@ class InMemoryTableBackend(TableBackend):
         filtered_indices = []
         for idx, row in enumerate(self.rows):
 
-            accepted = True
+            accept = True
             for name, values in condition.items():
                 if name not in row:
                     continue
 
-                x = row[name]
+                xs = row[name]
+
+                if not isinstance(xs, (list, tuple)):
+                    xs = [xs]
 
                 if not isinstance(values, (tuple, list)):
                     values = [values]
 
-                if isinstance(values, tuple):
-                    a, b = values
-                    if invert:
-                        accepted *= x < a or x > b
-                    else:
-                        accepted *= x >= a and x <= b
+                # accept, if any element in xs fulfills the condition
+                for x in xs:
+                    accept_x = False
 
-                else:
-                    if invert:
-                        accepted *= x not in values
+                    if isinstance(values, tuple):
+                        a, b = values
+                        if invert:
+                            accept_x = x < a or x > b
+                        else:
+                            accept_x = x >= a and x <= b
+
                     else:
-                        accepted *= x in values
+                        if invert:
+                            accept_x = x not in values
+                        else:
+                            accept_x = x in values
+
+                    if accept_x:
+                        break
+
+                accept *= accept_x
 
             # passes all conditions
-            if accepted:
+            if accept:
                 filtered_indices.append(idx)
 
         if indices is not None:

@@ -6,6 +6,8 @@ from .interface import (
     StorageInterface,
     TaxonomyInterface,
     LabelInterface,
+    TagInterface,
+    GranularityInterface,
 )
 from .backend import DatabaseBackend
 from .backend.sqlite import SQLiteBackend
@@ -23,8 +25,10 @@ class Database:
         self.job = JobInterface(self.backend.job)
         self.storage = StorageInterface(self.backend.storage)
         self.taxonomy = TaxonomyInterface(self.backend.taxonomy, self._label)
+        self.tag = TagInterface(self.backend.tag)
+        self.granularity = GranularityInterface(self.backend.granularity)
         self.annotation = AnnotationInterface(
-            self.backend.annotation, self.taxonomy, self.job
+            self.backend.annotation, self.taxonomy, self.job, self.tag, self.granularity
         )
 
 

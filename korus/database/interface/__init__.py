@@ -6,3 +6,5 @@ from .job import JobInterface
 from .storage import StorageInterface
 from .taxonomy import TaxonomyInterface
 from .label import LabelInterface
+from .tag import TagInterface
+from .granularity import GranularityInterface
