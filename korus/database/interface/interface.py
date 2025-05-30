@@ -403,7 +403,7 @@ class TableInterface:
             data = [values[0] for values in data]
 
         if as_pandas:
-            data = self._as_pandas(data, fields, return_indices)
+            data = _as_pandas_dataframe(data, fields, return_indices)
 
         return data
 
@@ -522,7 +522,7 @@ class TableInterface:
         return res
 
 
-def _as_pandas(data: list[tuple], columns: list[str], index: bool) -> pd.DataFrame:
+def _as_pandas_dataframe(data: list[tuple], columns: list[str], index: bool) -> pd.DataFrame:
     """Helper function for converting retrieved data to a Pandas DataFrame"""
     if index:
         columns = ["index"] + columns
