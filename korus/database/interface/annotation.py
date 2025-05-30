@@ -190,8 +190,9 @@ class AnnotationInterface(TableInterface):
     def filter(self, *conditions: dict, invert: bool = False, **kwargs):
         """Search the table.
 
-        Note that search criteria specified by keyword arguments
-        take priority over criteria in the `condition` dict.
+        Note: Search criteria specified by keyword arguments take priority over search criteria
+        specified using the positional arguments. Specifically, keyword search criteria are
+        inserted in the first condition dict replacing existing criteria for the same field.
 
         TODO: complete implementation and test
 
@@ -265,10 +266,13 @@ class AnnotationInterface(TableInterface):
         if file:
             raise NotImplementedError("`file` filter condition not yet implemented")
 
-        # if keyword args matches field or alias name, add it to the condition dict
-        # for k, v in kwargs.items():
-        #    if k in self.field_names + self.alias_names:
-        #        condition[k] = v
+        conditions = conditions if len(conditions) > 0 else [dict()]
+
+        # if keyword arg matches field or alias name, add it to the first condition dict,
+        # overwriting existing search criteria if present
+        for k, v in kwargs.items():
+            if k in self.field_names + self.alias_names:
+                conditions[0][k] = v
 
         # if select is not None:
         #    condition["label"] = select

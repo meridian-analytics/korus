@@ -57,50 +57,53 @@ class InMemoryTableBackend(TableBackend):
     def set(self, idx, row):
         self.rows[idx] = row
 
-    def filter(self, condition=None, invert=False, indices=None):
-        if condition is None:
-            condition = dict()
-
+    def filter(self, *conditions, invert=False, indices=None):
         filtered_indices = []
         for idx, row in enumerate(self.rows):
 
-            accept = True
-            for name, values in condition.items():
-                if name not in row:
-                    continue
+            results = []
+            for condition in conditions:
 
-                xs = row[name]
+                result = True
+                for name, values in condition.items():
+                    if name not in row:
+                        continue
 
-                if not isinstance(xs, (list, tuple)):
-                    xs = [xs]
+                    xs = row[name]
 
-                if not isinstance(values, (tuple, list)):
-                    values = [values]
+                    if not isinstance(xs, (list, tuple)):
+                        xs = [xs]
 
-                # accept, if any element in xs fulfills the condition
-                for x in xs:
-                    accept_x = False
+                    if not isinstance(values, (tuple, list)):
+                        values = [values]
 
-                    if isinstance(values, tuple):
-                        a, b = values
-                        if invert:
-                            accept_x = x < a or x > b
+                    # accept, if any element in xs fulfills the condition
+                    for x in xs:
+                        accept_x = False
+
+                        if isinstance(values, tuple):
+                            a, b = values
+                            if invert:
+                                accept_x = x < a or x > b
+                            else:
+                                accept_x = x >= a and x <= b
+
                         else:
-                            accept_x = x >= a and x <= b
+                            if invert:
+                                accept_x = x not in values
+                            else:
+                                accept_x = x in values
 
-                    else:
-                        if invert:
-                            accept_x = x not in values
-                        else:
-                            accept_x = x in values
+                        if accept_x:
+                            break
 
-                    if accept_x:
-                        break
+                    # logical AND
+                    result *= accept_x
 
-                accept *= accept_x
+                results.append(result)
 
-            # passes all conditions
-            if accept:
+            # logical OR
+            if np.sum(results) > 0:
                 filtered_indices.append(idx)
 
         if indices is not None:
