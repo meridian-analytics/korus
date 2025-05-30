@@ -190,7 +190,10 @@ class AnnotationInterface(TableInterface):
     def filter(self, condition: dict = None, invert: bool = False, **kwargs):
         """Search the table.
 
-        TODO: extend method interface to mimic db.filter_annotation
+        Note that search criteria specified by keyword arguments
+        take priority over criteria in the `condition` dict.
+
+        TODO: complete implementation and test
 
         Args:
             condition: dict
@@ -199,9 +202,75 @@ class AnnotationInterface(TableInterface):
                 a range of values and lists to search on multiple values.
             invert: bool
                 Invert the search, i.e., exclude values or a range of values.
+                With invert=True annotations with the (source,type) specified by the `select`
+                argument are excluded rather than selected.
+                By default both ancestral and descendant nodes in the taxonomy tree are considered
+                when performing an inverted search. Use the `strict` argument to change this behaviour.
+
+        Keyword args:
+            select: tuple, list(tuple)
+                Select annotations with this (source,type) label.
+                The character '*' can be used as wildcard.
+                Accepts both a single tuple and a list of tuples.
+                By default all descendant nodes in the taxonomy tree are also considered. Use
+                the `strict` argument to change this behaviour.
+            exclude: tuple, list(tuple)
+                Exclude annotations with this (source,type) label, but select annotations with
+                this (source,type) *excluded_label*.
+                The character '*' can be used as wildcard.
+                Accepts both a single tuple and a list of tuples.
+                By default all descendant nodes in the taxonomy tree are also considered. Use
+                the `strict` argument to change this behaviour.
+            strict: bool
+                Whether to interpret labels 'strictly', meaning that ancestral/descendant nodes
+                in the taxonomy tree are not considered. For example, when filtering on 'KW'
+                annotations labelled as 'SRKW' will *not* be selected if `strict` is set to True.
+                Default is False. NOT YET IMPLEMENTED.
+            tentative: bool
+                Whether to filter on tentative label assignments, when available. Default is False.
+            ambiguous: bool
+                Whether to also filter on ambiguous label assignments. Default is False.
+            file: bool
+                If True, only include annotations pertaining to audio files in the database.
+                Default is False. NOT YET IMPLEMENTED.
+            taxonomy_version: int
+                Acoustic taxonomy that the (source,type) label arguments refer to. If not specified,
+                the latest version will be used.
+            tag: str,list(str)
+                Select annotations with this tag.
+            granularity: str, list(str)
+                Annotation granularity. Options are 'unit', 'window', 'file', 'batch', 'encounter'.
+            valid: bool
+                If True, exclude annotations with invalid data or flagged as requiring review.
+                Default is False.
+            job_id: int, list(int)
+                Restrict search to the specified annotation job(s).
+            deployment_id: int, list(int)
+                Restrict search to the specified deployment(s).
 
         Returns:
             self: TableInterface
                 A reference to this instance
         """
+        select = kwargs.pop("select", None)
+        exclude = kwargs.pop("exclude", None)
+        strict = kwargs.pop("strict", False)
+        tentative = kwargs.pop("tentative", False)
+        ambiguous = kwargs.pop("ambiguous", False)
+        file = kwargs.pop("file", False)
+
+        if strict:
+            raise NotImplementedError("`strict` filter condition not yet implemented")
+
+        if file:
+            raise NotImplementedError("`file` filter condition not yet implemented")
+
+        # if keyword args matches field or alias name, add it to the condition dict
+        for k, v in kwargs.items():
+            if k in self.field_names + self.alias_names:
+                condition[k] = v
+
+        if select is not None:
+            condition["label"] = select
+
         return super().filter(condition, invert, **kwargs)

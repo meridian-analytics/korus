@@ -128,19 +128,29 @@ class TableInterface:
         return self._fields
 
     @property
-    def aliases(self) -> list[FieldAlias]:
-        """The field aliases"""
-        return self._aliases
-
-    @property
     def names(self) -> list[str]:
         """The names of the fields in the table"""
         return [field.name for field in self._fields]
 
     @property
+    def field_names(self) -> list[str]:
+        """The names of the fields in the table"""
+        return self.names
+
+    @property
     def fields_asdict(self) -> dict[str, FieldDefinition]:
         """The definitions of the table's fields as a dict"""
         return {field.name: field for field in self._fields}
+
+    @property
+    def aliases(self) -> list[FieldAlias]:
+        """The field aliases"""
+        return self._aliases
+
+    @property
+    def alias_names(self) -> list[str]:
+        """The names of the table aliases"""
+        return [alias.name for alias in self.aliases]
 
     def values_asdict(
         self, values: tuple, fields: str | list[str] = None, index: bool = False
@@ -522,7 +532,9 @@ class TableInterface:
         return res
 
 
-def _as_pandas_dataframe(data: list[tuple], columns: list[str], index: bool) -> pd.DataFrame:
+def _as_pandas_dataframe(
+    data: list[tuple], columns: list[str], index: bool
+) -> pd.DataFrame:
     """Helper function for converting retrieved data to a Pandas DataFrame"""
     if index:
         columns = ["index"] + columns
