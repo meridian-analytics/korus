@@ -1,90 +1,18 @@
 import numpy as np
-import sqlite3
-from korus.database.backend import TableBackend
-from korus.database.backend.sqlite.encode import Codec, get_sqlite_type, encode_key
 
 
-class SQLiteTableBackend(TableBackend):
-    """Generic SQLite table backend.
+def get_sqlite_type(x: "typing.Any"):
+    if x in [int, bool]:
+        return "INTEGER"
 
-    Args:
-        conn: sqlite3.Connection
-            The database connection
-        name: str
-            The table name
-        codec: korus.database.backend.sqlite.encode.Codec
-            Encoder-decoder for inserting and retrieving data from the database
-    """
+    elif x == float:
+        return "REAL"
 
-    def __init__(self, conn: sqlite3.Connection, name: str, codec: Codec):
-        super().__init__(name)
-        self.conn = conn
-        self.codec = codec
+    elif x in [tuple, list, dict]:
+        return "JSON"
 
-    def __len__(self):
-        return get_row_count(self.conn, self.name)
-
-    def add(self, row: dict):
-        insert_row(self.conn, self.name, self.codec.encode(row, self.name))
-        self.conn.commit()
-
-    def set(self, idx: int, row: dict):
-        update_row(
-            self.conn, self.name, encode_key(idx), self.codec.encode(row, self.name)
-        )
-        self.conn.commit()
-
-    def get(
-        self,
-        indices: int | list[int] = None,
-        fields: str | list[str] = None,
-        return_indices: bool = False,
-    ) -> list[tuple]:
-        rows = fetch_row(
-            self.conn,
-            self.name,
-            encode_key(indices),
-            fields,
-            as_dict=True,
-            return_indices=return_indices,
-        )
-        rows = [self.codec.decode(row, self.name) for row in rows]
-        return [tuple(list(row.values())) for row in rows]
-
-    def filter(
-        self,
-        condition: dict = None,
-        invert: bool = False,
-        indices: list[int] = None,
-        **kwargs,
-    ) -> list[int]:
-        indices = self.codec.encode(indices, self.name, "id")
-        cond = encode_condition(self.name, condition, self.codec.encode)
-        cond = where_condition(self.conn, self.name, cond, invert)
-        indices = search_table(self.conn, self.name, cond, indices)
-        indices = self.codec.decode(indices, self.name, "id")
-        return indices
-
-    def add_field(
-        self,
-        name: str,
-        type: "typing.Any",
-        default: "typing.Any" = None,
-        required: bool = True,
-    ):
-        sqlite_type = get_sqlite_type(type)
-        sqlite_default = self.codec.encode(default, self.name, name)
-
-        add_column(
-            self.conn,
-            self.name,
-            name,
-            sqlite_type,
-            required,
-            sqlite_default,
-        )
-
-        self.conn.commit()
+    else:
+        return "TEXT"
 
 
 def to_str(x):
@@ -154,24 +82,6 @@ def get_row_count(conn, table_name):
     q = f"SELECT count({col_name}) FROM {table_name}"
     n = conn.execute(q).fetchall()[0][0]
     return n
-
-
-def encode_condition(table_name, condition, encoder):
-    encoded_condition = {}
-    for name, values in condition.items():
-        is_tuple = isinstance(values, tuple)
-
-        if not isinstance(values, (list, tuple)):
-            values = [values]
-
-        values = [encoder(v, table_name, name) for v in values]
-
-        if is_tuple:
-            values = tuple(values)
-
-        encoded_condition[name] = values
-
-    return encoded_condition
 
 
 def where_condition(conn, table_name, condition, invert):

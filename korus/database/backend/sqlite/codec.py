@@ -1,24 +1,27 @@
 import json
-import numpy as np
 from datetime import datetime, timezone
-import korus.database.backend.sqlite.helpers as help
+import korus.database.backend.sqlite.query as qy
 
 
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 
-def get_sqlite_type(x: "typing.Any"):
-    if x in [int, bool]:
-        return "INTEGER"
+def encode_condition(table_name, condition, encoder):
+    encoded_condition = {}
+    for name, values in condition.items():
+        is_tuple = isinstance(values, tuple)
 
-    elif x == float:
-        return "REAL"
+        if not isinstance(values, (list, tuple)):
+            values = [values]
 
-    elif x in [tuple, list, dict]:
-        return "JSON"
+        values = [encoder(v, table_name, name) for v in values]
 
-    else:
-        return "TEXT"
+        if is_tuple:
+            values = tuple(values)
+
+        encoded_condition[name] = values
+
+    return encoded_condition
 
 
 def encode_key(v: int | list[int]):
@@ -183,7 +186,7 @@ def create_codec(conn):
     codec.decoder.add_rule("annotation", "file_id_list", decode_key)
 
     # encode & decode table keys
-    table_names = help.get_table_names(conn)
+    table_names = qy.get_table_names(conn)
     for table_name in table_names:
         # primary keys
         codec.encoder.add_rule(table_name, "id", encode_key)

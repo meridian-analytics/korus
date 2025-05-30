@@ -1,4 +1,4 @@
-from korus.database.backend.sqlite.helpers import table_exists
+from .query import table_exists
 
 
 def create_tables(conn):

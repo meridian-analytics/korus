@@ -1,6 +1,5 @@
 import os
 from datetime import datetime, timezone
-from korus.database.backend.sqlite import SQLiteBackend
 
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
