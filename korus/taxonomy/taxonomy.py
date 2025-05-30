@@ -129,14 +129,14 @@ class Taxonomy(Tree):
             Tag for the root node. If specified, the root node will be automatically created at initialisation.
 
     Attrs & Properties:
-        name:
-        version:
-        timestamp:
-        comment:
-        changes:
-        created_nodes:
+        name: str
+        version: int
+        timestamp: datetime.datetime
+        comment: str
+        changes: list[str]
+        created_nodes: dict
             maps created_node_uuid -> (precursor_node_uuid(s), is_equivalent)
-        removed_nodes:
+        removed_nodes: dict
             maps removed_node_uuid -> (inheritor_node_uuid(s), is_equivalent)
     """
 

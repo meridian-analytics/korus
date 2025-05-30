@@ -1,4 +1,5 @@
 import pytest
+import pandas as pd
 import pandas.testing
 from copy import copy
 from datetime import datetime, timezone
@@ -8,7 +9,7 @@ from korus.tests.helpers import InMemoryTableBackend
 
 
 def test_taxonomy_interface():
-    """Check that TaxonomyInterface behaves as it should"""
+    """Check that TaxonomyInterface behaves as it should with a super-simple, toy taxonomy"""
     taxonomy_backend = InMemoryTableBackend()
     label_backend = InMemoryTableBackend()
 
@@ -89,3 +90,63 @@ def test_taxonomy_interface():
     )
     diff = first_release_labels_upon_load - first_release_labels
     assert diff == set()
+
+
+def test_get_label_id_acoustic_taxonomy(sqlite_database_with_taxonomy):
+    """Test that we can use get_label_id function to retrieve correct label IDs for
+    a small, but realistic acoustic taxonomy.
+    """
+    db = sqlite_database_with_taxonomy
+
+    version = 2
+
+    # fetch data from the `label` helper table for taxonomy version 2
+    indices = db._label.filter({"taxonomy_id": 2}).indices
+    data = db._label.get(
+        indices=indices,
+        fields=["sound_source_tag", "sound_type_tag"],
+        return_indices=True,
+    )
+    # put fetched data in a DataFrame
+    df = pd.DataFrame(
+        {
+            "id": [r[0] for r in data],
+            "ss": [r[1] for r in data],
+            "st": [r[2] for r in data],
+        }
+    )
+    df.set_index("id", inplace=True)
+
+    l = db.taxonomy.get_label_id(("SRKW", "S01"), version, ascend=False, descend=False)
+    assert df.loc[l].ss == "SRKW"
+    assert df.loc[l].st == "S01"
+
+    l_list = db.taxonomy.get_label_id(
+        ("SRKW", "*"), version, ascend=False, descend=False
+    )
+    for l in l_list:
+        assert df.loc[l].ss == "SRKW"
+        assert df.loc[l].st in ["S01", "S02", "PC", "CK", "W", "TC", "Unknown"]
+
+    l_list = db.taxonomy.get_label_id(
+        ("SRKW", "S01"), version, ascend=True, descend=False
+    )
+    for l in l_list:
+        assert df.loc[l].ss in ["SRKW", "KW", "Mammal", "Bio", "Unknown"]
+        assert df.loc[l].st in ["S01", "PC", "TC", "Unknown"]
+
+    l_list = db.taxonomy.get_label_id(("KW", "PC"), version, ascend=False, descend=True)
+    for l in l_list:
+        assert df.loc[l].ss in ["KW", "SRKW", "NRKW"]
+        assert df.loc[l].st in ["PC", "S01", "S02", "N01"]
+
+    with pytest.raises(ValueError):
+        db.taxonomy.get_label_id(("Fish", "PC"), version, ascend=False, descend=True)
+
+    with pytest.raises(ValueError):
+        db.taxonomy.get_label_id(("Fish", "*"), version, ascend=False, descend=True)
+
+    with pytest.raises(ValueError):
+        db.taxonomy.get_label_id(
+            ("*", "LoudSound"), version, ascend=False, descend=True
+        )

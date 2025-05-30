@@ -180,12 +180,13 @@ def create_codec(conn):
     codec.decoder.add_rule("deployment", "start_utc", decode_datetime)
     codec.decoder.add_rule("deployment", "end_utc", decode_datetime)
     codec.decoder.add_rule("file", "start_utc", decode_datetime)
+    codec.decoder.add_rule("taxonomy", "timestamp", decode_datetime)
 
-    # file_id_list field in annotation table
+    # encode & decode file_id_list field in annotation table
     codec.encoder.add_rule("annotation", "file_id_list", encode_key)
     codec.decoder.add_rule("annotation", "file_id_list", decode_key)
 
-    # encode & decode table keys
+    # encode & decode all fields named *_id
     table_names = qy.get_table_names(conn)
     for table_name in table_names:
         # primary keys

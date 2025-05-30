@@ -59,7 +59,7 @@ def sqlite_database_with_taxonomy():
     if os.path.exists(path):
         os.remove(path)
 
-    db = SQLiteDatabase(SQLiteBackend(path))
+    db = SQLiteDatabase(path)
 
     # create a fairly simple acoustic taxonomy
     tax = db.taxonomy.draft

@@ -272,7 +272,9 @@ def update_row(conn, table_name, idx, row):
     assert has_id(conn, table_name), assert_msg
 
     c = conn.cursor()
-    values = ", ".join([f"{k} = {v}" for k, v in row.items()])
+    values = ", ".join(
+        [f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}" for k, v in row.items()]
+    )
     q = f"UPDATE {table_name} SET {values} WHERE id = {idx}"
     c.execute(q)
     return c

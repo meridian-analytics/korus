@@ -419,7 +419,6 @@ def create_taxonomy_table(conn):
                 name TEXT NOT NULL,
                 version INTEGER,
                 tree JSON NOT NULL,
-                labels JSON NOT NULL,
                 timestamp TEXT,
                 comment TEXT,
                 changes JSON,
