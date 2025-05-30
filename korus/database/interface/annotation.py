@@ -275,6 +275,6 @@ class AnnotationInterface(TableInterface):
                 conditions[0][k] = v
 
         # if select is not None:
-        #    condition["label"] = select
+        conditions["label"] = select
 
         return super().filter(*conditions, invert=invert, **kwargs)
