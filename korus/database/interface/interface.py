@@ -445,17 +445,19 @@ class TableInterface:
         self.indices = None
         return self
 
-    def filter(self, condition: dict = None, invert: bool = False, **kwargs):
+    def filter(self, *conditions, invert: bool = False, **kwargs):
         """Search the table.
 
         If the backend's filtering method accepts additional keyword arguments,
         these can be passed as keyword arguments to this method.
 
         Args:
-            condition: dict
+            conditions: sequence of dict
                 Search criteria, where the keys are the field names and
                 the values are the search values. Use tuples to search on
                 a range of values and lists to search on multiple values.
+                Multiple dicts are joined by a logical OR.
+                Within each dict, search criteria are joined by a logical AND.
             invert: bool
                 Invert the search, i.e., exclude values or a range of values.
 
@@ -463,9 +465,17 @@ class TableInterface:
             self: TableInterface
                 A reference to this instance
         """
-        condition = self._apply_alias_transforms(condition, **kwargs)
-        condition = self._validate_condition(condition)
-        self.indices = self.backend.filter(condition, invert, self.indices, **kwargs)
+        # apply alias transforms and validation conditions
+        conditions = [
+            self._validate_condition(self._apply_alias_transforms(c, **kwargs))
+            for c in conditions
+        ]
+
+        # pass to backend
+        self.indices = self.backend.filter(
+            *conditions, invert=invert, indices=self.indices, **kwargs
+        )
+
         return self
 
     def _validate_condition(self, condition: dict) -> dict:

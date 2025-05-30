@@ -187,7 +187,7 @@ class AnnotationInterface(TableInterface):
         values = self._granularity.get(id, "name", always_tuple=False)
         return values if isinstance(id, list) else values[0]
 
-    def filter(self, condition: dict = None, invert: bool = False, **kwargs):
+    def filter(self, *conditions: dict, invert: bool = False, **kwargs):
         """Search the table.
 
         Note that search criteria specified by keyword arguments
@@ -196,7 +196,7 @@ class AnnotationInterface(TableInterface):
         TODO: complete implementation and test
 
         Args:
-            condition: dict
+            conditions: sequence of dict
                 Search criteria, where the keys are the field names and
                 the values are the search values. Use tuples to search on
                 a range of values and lists to search on multiple values.
@@ -266,11 +266,11 @@ class AnnotationInterface(TableInterface):
             raise NotImplementedError("`file` filter condition not yet implemented")
 
         # if keyword args matches field or alias name, add it to the condition dict
-        for k, v in kwargs.items():
-            if k in self.field_names + self.alias_names:
-                condition[k] = v
+        # for k, v in kwargs.items():
+        #    if k in self.field_names + self.alias_names:
+        #        condition[k] = v
 
-        if select is not None:
-            condition["label"] = select
+        # if select is not None:
+        #    condition["label"] = select
 
-        return super().filter(condition, invert, **kwargs)
+        return super().filter(*conditions, invert=invert, **kwargs)

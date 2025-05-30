@@ -64,15 +64,17 @@ class SQLiteTableBackend(TableBackend):
 
     def filter(
         self,
-        condition: dict = None,
+        *conditions: dict,
         invert: bool = False,
         indices: list[int] = None,
         **kwargs,
     ) -> list[int]:
         indices = self.codec.encode(indices, self.name, "id")
-        cond = encode_condition(self.name, condition, self.codec.encode)
-        cond = where_condition(self.conn, self.name, cond, invert)
-        indices = search_table(self.conn, self.name, cond, indices)
+        conditions = [
+            encode_condition(self.name, c, self.codec.encode) for c in conditions
+        ]
+        condition = where_condition(self.conn, self.name, conditions, invert)
+        indices = search_table(self.conn, self.name, condition, indices)
         indices = self.codec.decode(indices, self.name, "id")
         return indices
 

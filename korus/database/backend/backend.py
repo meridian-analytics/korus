@@ -22,7 +22,7 @@ class TableBackend:
 
     def filter(
         self,
-        condition: dict = None,
+        *conditions: dict,
         invert: bool = False,
         indices: list[int] = None,
         **kwargs

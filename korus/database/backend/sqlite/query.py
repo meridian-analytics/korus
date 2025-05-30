@@ -84,56 +84,63 @@ def get_row_count(conn, table_name):
     return n
 
 
-def where_condition(conn, table_name, condition, invert):
+def where_condition(conn, table_name, conditions, invert):
     col_types = get_column_types(conn, table_name)
 
     # left joins on JSON columns
     left_joins = []
-    for name in condition.keys():
-        if col_types[name] == "JSON":
-            left_joins.append(f"LEFT JOIN json_each('{table_name}'.'{name}') AS {name}")
+    for condition in conditions:
+        for name in condition.keys():
+            if col_types[name] == "JSON":
+                left_joins.append(
+                    f"LEFT JOIN json_each('{table_name}'.'{name}') AS {name}"
+                )
 
     left_joins = " ".join(left_joins)
 
     # WHERE conditions
-    where_conds = []
-    for name, values in condition.items():
-        x = f"{name}"
-        if col_types[name] == "JSON":
-            x += ".value"
+    logical_or = []
+    for condition in conditions:
+        logical_and = []
+        for name, values in condition.items():
+            x = f"{name}"
+            if col_types[name] == "JSON":
+                x += ".value"
 
-        if isinstance(values, tuple):
-            a, b = values
-            if isinstance(a, str):
-                a = f"'{a}'"
-            if isinstance(b, str):
-                b = f"'{b}'"
+            if isinstance(values, tuple):
+                a, b = values
+                if isinstance(a, str):
+                    a = f"'{a}'"
+                if isinstance(b, str):
+                    b = f"'{b}'"
 
-            cond = []
-            if invert:
-                if a is not None:
-                    cond.append(f"{x} < {a}")
-                if b is not None:
-                    cond.append(f"{x} > {b}")
-                cond = " OR ".join(cond)
+                cond = []
+                if invert:
+                    if a is not None:
+                        cond.append(f"{x} < {a}")
+                    if b is not None:
+                        cond.append(f"{x} > {b}")
+                    cond = " OR ".join(cond)
+
+                else:
+                    if a is not None:
+                        cond.append(f"{x} >= {a}")
+                    if b is not None:
+                        cond.append(f"{x} <= {b}")
+                    cond = " AND ".join(cond)
 
             else:
-                if a is not None:
-                    cond.append(f"{x} >= {a}")
-                if b is not None:
-                    cond.append(f"{x} <= {b}")
-                cond = " AND ".join(cond)
+                if invert:
+                    cond = f"{x} NOT IN {to_str(values)}"
+                else:
+                    cond = f"{x} IN {to_str(values)}"
 
-        else:
-            if invert:
-                cond = f"{x} NOT IN {to_str(values)}"
-            else:
-                cond = f"{x} IN {to_str(values)}"
+            logical_and.append(cond)
 
-        where_conds.append(cond)
+        logical_or.append("(" + " AND ".join(logical_and) + ")")
 
-    if len(where_conds) > 0:
-        return left_joins + " WHERE " + " AND ".join(where_conds)
+    if len(logical_or) > 0:
+        return left_joins + " WHERE " + " OR ".join(logical_or)
 
     else:
         return None

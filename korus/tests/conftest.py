@@ -41,7 +41,7 @@ def minimal_sqlite_backend():
             "num_samples": 960000,
         }
     )
-    backend.taxonomy.add({"name": "MyTaxonomy", "tree": dict(), "labels": list()})
+    backend.taxonomy.add({"name": "MyTaxonomy", "tree": dict()})
     backend.job.add({"taxonomy_id": 0})
     backend.annotation.add({"deployment_id": 0, "job_id": 0})
 
