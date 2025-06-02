@@ -354,7 +354,7 @@ class AnnotationInterface(TableInterface):
 
         # crosswalk labels to other taxonomies, including only ascendant nodes and not requiring equivalency
         exclude_id = self._taxonomy.crosswalk_label_id(
-            id, tax_version, ascend=True, descend=True, equivalent_only=False
+            id, tax_version, ascend=True, equivalent_only=False
         )
 
         # crosswalk labels to other taxonomies, including ascendant and descendant nodes
@@ -380,5 +380,9 @@ class AnnotationInterface(TableInterface):
         # ambiguous
         if ambiguous:
             conds[1]["ambiguous_label_id~"] = select_id
+
+        print(exclude)
+        print(select_id)
+        print(self._taxonomy.get_label(select_id))
 
         return conds
