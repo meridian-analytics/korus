@@ -1,6 +1,6 @@
 import sqlite3
 from korus.database.backend import TableBackend, DatabaseBackend
-from .codec import Codec, encode_key, encode_condition
+from .codec import Codec, encode_key, encode_condition, decode_key
 from .tables import create_tables
 from .codec import create_codec
 from .query import (
@@ -31,9 +31,16 @@ class SQLiteTableBackend(TableBackend):
         super().__init__(name)
         self.conn = conn
         self.codec = codec
+        self.reset_cursor()
 
     def __len__(self):
         return get_row_count(self.conn, self.name)
+
+    def __next__(self):
+        return decode_key(next(self._cursor)[0])
+
+    def reset_cursor(self):
+        self._cursor = self.conn.cursor().execute(f"SELECT id FROM {self.name}")
 
     def add(self, row: dict):
         insert_row(self.conn, self.name, self.codec.encode(row, self.name))

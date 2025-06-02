@@ -16,9 +16,20 @@ class InMemoryTableBackend(TableBackend):
         super().__init__("in_memory")
         self.rows = []
         self.fields = []
+        self.reset_cursor()
 
     def __len__(self):
         return len(self.rows)
+
+    def reset_cursor(self):
+        self._idx = -1
+
+    def __next__(self):
+        self._idx += 1
+        if self._idx >= len(self):
+            raise StopIteration
+
+        return self._idx
 
     def get(self, indices=None, fields=None, return_indices=False):
         if len(self.rows) == 0:

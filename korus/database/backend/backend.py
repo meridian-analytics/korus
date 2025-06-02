@@ -32,6 +32,14 @@ class TableBackend:
     def __len__(self):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "__len__"))
 
+    def __next__(self):
+        """Should raise StopIteration when end of table is reached"""
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "__len__"))
+
+    def reset_cursor(self):
+        """Return to first row"""
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "__len__"))
+
 
 class DatabaseBackend:
 

@@ -49,18 +49,38 @@ class AnnotationInterface(TableInterface):
         self.add_field("deployment_id", int, "Deployment index")
         self.add_field("job_id", int, "Job index")
         self.add_field("file_id", int, "File index", required=False)
-        self.add_field("label_id", int, "Label index", required=False)
         self.add_field(
-            "tentative_label_id", int, "Tentative label index", required=False
+            "label_id", int, "Label index for confident classification", required=False
         )
         self.add_field(
-            "ambiguous_label_id", list, "Ambiguous label indices", required=False
+            "tentative_label_id",
+            int,
+            "Label index for tentative classification",
+            required=False,
         )
         self.add_field(
-            "excluded_label_id", list, "Excluded label indices", required=False
+            "ambiguous_label_id",
+            list,
+            "Label indices for ambiguous classification",
+            required=False,
+        )
+        self.add_field(
+            "excluded_label_id",
+            list,
+            "Label indices for excluded classes",
+            required=False,
+        )
+        self.add_field(
+            "multiple_label_id",
+            list,
+            "Label indices for multiple (batch) classification",
+            required=False,
         )
         self.add_field("tag_id", list, "Tag indices", required=False)
         self.add_field("granularity_id", int, "Granularity index", default=1)
+        self.add_field(
+            "auto_negative", bool, "Automatically generated negative", default=False
+        )
         self.add_field("num_files", int, "Number of audio files", default=1)
         self.add_field("file_id_list", list, "File indices", required=False)
         self.add_field("start_utc", datetime.datetime, "UTC start time", required=False)
@@ -149,6 +169,14 @@ class AnnotationInterface(TableInterface):
         self.add_alias(
             "excluded_label_id",
             "excluded_label",
+            list,
+            alias_description,
+            self._get_label_id,
+            self._get_label,
+        )
+        self.add_alias(
+            "multiple_label_id",
+            "multiple_label",
             list,
             alias_description,
             self._get_label_id,
@@ -275,6 +303,6 @@ class AnnotationInterface(TableInterface):
                 conditions[0][k] = v
 
         # if select is not None:
-        conditions["label"] = select
+        # conditions["label"] = select
 
         return super().filter(*conditions, invert=invert, **kwargs)

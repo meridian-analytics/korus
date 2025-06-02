@@ -423,22 +423,12 @@ class TableInterface:
 
     def __iter__(self):
         """Iterate through the table"""
-        self._count = 0
-        self._index = -1
+        self.backend.reset_cursor()
         return self
 
     def __next__(self):
         """Get the next row from the table"""
-        self._count += 1
-
-        if self._count > len(self):
-            raise StopIteration
-
-        while True:
-            self._index += 1
-            rows = self.get(self._index)
-            if len(rows) > 0:
-                return rows[0]
+        return self.get(next(self.backend))[0]
 
     def reset_filter(self):
         """Reset the search filter"""
