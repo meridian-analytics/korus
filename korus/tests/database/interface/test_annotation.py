@@ -67,6 +67,10 @@ def test_add_get_set_filter_data():
     }
     annot.add(row)
 
+    # no condition
+    idx = annot.reset_filter().filter().indices
+    assert idx == [0, 1]
+
     # --- filter using condition ---
     idx = annot.reset_filter().filter({"label": ("SRKW", "*")}).indices
     assert idx == [0]

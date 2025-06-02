@@ -91,6 +91,7 @@ def where_condition(conn, table_name, conditions):
     left_joins = []
     for condition in conditions:
         for name in condition.keys():
+            name = name.replace("~", "")
             if col_types[name] == "JSON":
                 left_joins.append(
                     f"LEFT JOIN json_each('{table_name}'.'{name}') AS {name}"

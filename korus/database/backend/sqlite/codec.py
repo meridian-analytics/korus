@@ -14,7 +14,7 @@ def encode_condition(table_name, condition, encoder):
         if not isinstance(values, (list, tuple)):
             values = [values]
 
-        values = [encoder(v, table_name, name) for v in values]
+        values = [encoder(v, table_name, name.replace("~", "")) for v in values]
 
         if is_tuple:
             values = tuple(values)
