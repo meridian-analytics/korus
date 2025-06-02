@@ -220,7 +220,7 @@ class AnnotationInterface(TableInterface):
 
         Note: Search criteria specified by keyword arguments take priority over search criteria
         specified using the positional arguments. Specifically, keyword search criteria are
-        inserted in the first condition dict replacing existing criteria for the same field.
+        inserted into every condition dict replacing any pre-existing criteria for the same field.
 
         TODO: complete implementation and test
 
@@ -237,13 +237,13 @@ class AnnotationInterface(TableInterface):
                 when performing an inverted search. Use the `strict` argument to change this behaviour.
 
         Keyword args:
-            select: tuple, list(tuple)
+            select: tuple | list[tuple]
                 Select annotations with this (source,type) label.
                 The character '*' can be used as wildcard.
                 Accepts both a single tuple and a list of tuples.
                 By default all descendant nodes in the taxonomy tree are also considered. Use
                 the `strict` argument to change this behaviour.
-            exclude: tuple, list(tuple)
+            exclude: tuple | list[tuple]
                 Exclude annotations with this (source,type) label, but select annotations with
                 this (source,type) *excluded_label*.
                 The character '*' can be used as wildcard.
@@ -265,44 +265,120 @@ class AnnotationInterface(TableInterface):
             taxonomy_version: int
                 Acoustic taxonomy that the (source,type) label arguments refer to. If not specified,
                 the latest version will be used.
-            tag: str,list(str)
-                Select annotations with this tag.
-            granularity: str, list(str)
-                Annotation granularity. Options are 'unit', 'window', 'file', 'batch', 'encounter'.
-            valid: bool
-                If True, exclude annotations with invalid data or flagged as requiring review.
-                Default is False.
-            job_id: int, list(int)
-                Restrict search to the specified annotation job(s).
-            deployment_id: int, list(int)
-                Restrict search to the specified deployment(s).
 
         Returns:
             self: TableInterface
                 A reference to this instance
         """
-        select = kwargs.pop("select", None)
-        exclude = kwargs.pop("exclude", None)
-        strict = kwargs.pop("strict", False)
-        tentative = kwargs.pop("tentative", False)
-        ambiguous = kwargs.pop("ambiguous", False)
-        file = kwargs.pop("file", False)
-
-        if strict:
+        if kwargs.pop("strict", False):
             raise NotImplementedError("`strict` filter condition not yet implemented")
 
-        if file:
+        if kwargs.pop("file", False):
             raise NotImplementedError("`file` filter condition not yet implemented")
 
-        conditions = conditions if len(conditions) > 0 else [dict()]
+        conditions = list(conditions).copy() if len(conditions) > 0 else [dict()]
 
-        # if keyword arg matches field or alias name, add it to the first condition dict,
-        # overwriting existing search criteria if present
+        # perform `select` search
+        select_conditions = []
+        for cond in conditions:
+            select_conditions += self._create_select_condition(cond, **kwargs)
+
+        super().filter(*select_conditions, invert=invert, **kwargs)
+
+        # perform `exclude` search
+        if "exclude" in kwargs:
+            exclude_conditions = []
+            for cond in conditions:
+                exclude_conditions += self._create_exclude_condition(cond, **kwargs)
+
+            super().filter(*exclude_conditions, invert=invert, **kwargs)
+
+        return self
+
+    def _create_select_condition(self, condition: dict, **kwargs) -> list[dict]:
+        """Helper function for inserting `select` search criteria into condition dict"""
+        select = kwargs.get("select", None)
+        tentative = kwargs.get("tentative", False)
+        ambiguous = kwargs.get("ambiguous", False)
+        tax_version = kwargs.get("taxonomy_version", None)
+
+        # if keyword arg matches field or alias name, insert into dict, overwriting existing field if present
         for k, v in kwargs.items():
             if k in self.field_names + self.alias_names:
-                conditions[0][k] = v
+                condition[k] = v
 
-        # if select is not None:
-        # conditions["label"] = select
+        conds = [condition]
 
-        return super().filter(*conditions, invert=invert, **kwargs)
+        # selected labels
+        if select is not None:
+
+            id = self._taxonomy.get_label_id(select, tax_version)
+
+            # crosswalk labels to other taxonomies, including descendant nodes
+            id = self._taxonomy.crosswalk_label_id(
+                id, tax_version, descend=True, equivalent_only=True
+            )
+
+            # confident
+            conds[len(conds) - 1]["label_id"] = id
+
+            # multiple
+            conds.append(condition.copy())
+            conds[len(conds) - 1]["multiple_label_id"] = id
+
+            # tentative
+            if tentative:
+                conds.append(condition.copy())
+                conds[len(conds) - 1]["tentative_label_id"] = id
+
+            # ambiguous
+            if ambiguous:
+                conds.append(condition.copy())
+                conds[len(conds) - 1]["ambiguous_label_id"] = id
+
+        return conds
+
+    def _create_exclude_condition(self, condition: dict, **kwargs) -> list[dict]:
+        """Helper function for inserting `exclude` search criteria into condition dict"""
+        exclude = kwargs.get("exclude", None)
+        tentative = kwargs.get("tentative", False)
+        ambiguous = kwargs.get("ambiguous", False)
+        tax_version = kwargs.get("taxonomy_version", None)
+
+        # if keyword arg matches field or alias name, insert into dict, overwriting existing field if present
+        for k, v in kwargs.items():
+            if k in self.field_names + self.alias_names:
+                condition[k] = v
+
+        id = self._taxonomy.get_label_id(exclude, tax_version)
+
+        # crosswalk labels to other taxonomies, including only ascendant nodes and not requiring equivalency
+        exclude_id = self._taxonomy.crosswalk_label_id(
+            id, tax_version, ascend=True, descend=True, equivalent_only=False
+        )
+
+        # crosswalk labels to other taxonomies, including ascendant and descendant nodes
+        select_id = self._taxonomy.crosswalk_label_id(
+            id, tax_version, ascend=True, descend=True, equivalent_only=True
+        )
+
+        conds = [condition.copy(), condition.copy()]
+
+        # exclude
+        conds[0]["excluded_label_id"] = exclude_id
+
+        # confident
+        conds[1]["label_id~"] = select_id
+
+        # multiple
+        conds[1]["multiple_label_id~"] = select_id
+
+        # tentative
+        if tentative:
+            conds[1]["tentative_label_id~"] = select_id
+
+        # ambiguous
+        if ambiguous:
+            conds[1]["ambiguous_label_id~"] = select_id
+
+        return conds

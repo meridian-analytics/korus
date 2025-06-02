@@ -154,7 +154,10 @@ class TaxonomyManager:
         """
         ids = []
 
-        tax = self.current if version is None else self.releases[version - 1]
+        if version is None:
+            version = self.version
+
+        tax = self.releases[version - 1]
 
         # convert label IDs to (version, node identifier) tuples
         inputs = self.labels.get_label(label_id, return_nid=True, always_list=True)
@@ -163,7 +166,7 @@ class TaxonomyManager:
         for src_version, nid in inputs:
 
             # get closest relatives
-            mode = "b" if src_version > version else "f"
+            mode = "b" if src_version > tax.version else "f"
             relatives, equiv = self.get_closest_relative(nid, version, mode)
 
             if equivalent_only and not equiv:

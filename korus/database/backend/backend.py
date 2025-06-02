@@ -21,11 +21,7 @@ class TableBackend:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "set"))
 
     def filter(
-        self,
-        *conditions: dict,
-        invert: bool = False,
-        indices: list[int] = None,
-        **kwargs
+        self, *conditions: dict, indices: list[int] = None, **kwargs
     ) -> list[int]:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
 

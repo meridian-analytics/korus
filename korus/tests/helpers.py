@@ -68,7 +68,7 @@ class InMemoryTableBackend(TableBackend):
     def set(self, idx, row):
         self.rows[idx] = row
 
-    def filter(self, *conditions, invert=False, indices=None):
+    def filter(self, *conditions, indices=None, **_):
         filtered_indices = []
         for idx, row in enumerate(self.rows):
 
@@ -77,6 +77,12 @@ class InMemoryTableBackend(TableBackend):
 
                 result = True
                 for name, values in condition.items():
+                    if name[-1] == "~":
+                        name = name[:-1]
+                        invert = True
+                    else:
+                        invert = False
+
                     if name not in row:
                         continue
 

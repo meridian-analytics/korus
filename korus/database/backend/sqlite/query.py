@@ -84,7 +84,7 @@ def get_row_count(conn, table_name):
     return n
 
 
-def where_condition(conn, table_name, conditions, invert):
+def where_condition(conn, table_name, conditions):
     col_types = get_column_types(conn, table_name)
 
     # left joins on JSON columns
@@ -101,8 +101,17 @@ def where_condition(conn, table_name, conditions, invert):
     # WHERE conditions
     logical_or = []
     for condition in conditions:
+
         logical_and = []
         for name, values in condition.items():
+
+            # inverted search
+            if name[-1] == "~":
+                name = name[:-1]
+                invert = True
+            else:
+                invert = False
+
             x = f"{name}"
             if col_types[name] == "JSON":
                 x += ".value"

@@ -304,11 +304,12 @@ class TableInterface:
         Replaces values and renames keys in the input dictionary.
         """
         for alias in self._aliases:
-            if alias.name in row:
-                v = row.pop(alias.name)
-                _kwargs = kwargs.copy()
-                _kwargs.update(row)
-                row[alias.field_name] = alias.transform(v, **_kwargs)
+            for append in ["", "~"]:
+                if alias.name + append in row:
+                    v = row.pop(alias.name + append)
+                    _kwargs = kwargs.copy()
+                    _kwargs.update(row)
+                    row[alias.field_name + append] = alias.transform(v, **_kwargs)
 
         return row
 
@@ -435,7 +436,7 @@ class TableInterface:
         self.indices = None
         return self
 
-    def filter(self, *conditions, invert: bool = False, **kwargs):
+    def filter(self, *conditions, **kwargs):
         """Search the table.
 
         If the backend's filtering method accepts additional keyword arguments,
@@ -446,10 +447,10 @@ class TableInterface:
                 Search criteria, where the keys are the field names and
                 the values are the search values. Use tuples to search on
                 a range of values and lists to search on multiple values.
+                Append `~` to the field name to invert the search criteria,
+                i.e., to exclude values or a range of values.
                 Multiple dicts are joined by a logical OR.
                 Within each dict, search criteria are joined by a logical AND.
-            invert: bool
-                Invert the search, i.e., exclude values or a range of values.
 
         Returns:
             self: TableInterface
@@ -462,9 +463,7 @@ class TableInterface:
         ]
 
         # pass to backend
-        self.indices = self.backend.filter(
-            *conditions, invert=invert, indices=self.indices, **kwargs
-        )
+        self.indices = self.backend.filter(*conditions, indices=self.indices, **kwargs)
 
         return self
 

@@ -11,7 +11,7 @@ from korus.database.interface import (
 from korus.tests.helpers import InMemoryTableBackend
 
 
-def test_add_get_set_data():
+def test_add_get_set_filter_data():
     """Check that we can add data to, retrieve data from, and modify data in an AnnotationInterface instance"""
 
     label = LabelInterface(InMemoryTableBackend())
@@ -67,7 +67,7 @@ def test_add_get_set_data():
     }
     annot.add(row)
 
-    # filter
+    # --- filter using condition ---
     idx = annot.reset_filter().filter({"label": ("SRKW", "*")}).indices
     assert idx == [0]
 
@@ -76,3 +76,14 @@ def test_add_get_set_data():
 
     idx = annot.reset_filter().filter({"tag": "pretty"}).indices
     assert idx == [0]
+
+    # --- filter using keyword args ---
+    idx = annot.reset_filter().filter(select=("SRKW", "*")).indices
+    assert idx == [0]
+
+    # note: finds descendant nodes too
+    idx = annot.reset_filter().filter(select=("KW", "PC")).indices
+    assert idx == [0, 1]
+
+    idx = annot.reset_filter().filter(exclude=("SRKW", "*")).indices
+    assert idx == [1]
