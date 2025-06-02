@@ -381,8 +381,4 @@ class AnnotationInterface(TableInterface):
         if ambiguous:
             conds[1]["ambiguous_label_id~"] = select_id
 
-        print(exclude)
-        print(select_id)
-        print(self._taxonomy.get_label(select_id))
-
         return conds

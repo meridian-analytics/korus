@@ -90,4 +90,7 @@ def test_add_get_set_filter_data():
     assert idx == [0, 1]
 
     idx = annot.reset_filter().filter(exclude=("SRKW", "*")).indices
-    # assert idx == [1]
+    assert idx == []
+
+    idx = annot.reset_filter().filter(exclude=("SRKW", "S01")).indices
+    assert idx == []
