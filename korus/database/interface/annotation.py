@@ -215,14 +215,15 @@ class AnnotationInterface(TableInterface):
         values = self._granularity.get(id, "name", always_tuple=False)
         return values if isinstance(id, list) else values[0]
 
+    def generate_negatives(self, job_id):
+        pass
+
     def filter(self, *conditions: dict, invert: bool = False, **kwargs):
         """Search the table.
 
         Note: Search criteria specified by keyword arguments take priority over search criteria
         specified using the positional arguments. Specifically, keyword search criteria are
         inserted into every condition dict replacing any pre-existing criteria for the same field.
-
-        TODO: complete implementation and test
 
         Args:
             conditions: sequence of dict
