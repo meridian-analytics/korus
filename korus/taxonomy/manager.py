@@ -125,7 +125,7 @@ class TaxonomyManager:
 
         return ids
 
-    def crosswalk_label_id(
+    def crosswalk(
         self,
         label_id: int | list[int],
         version: int = None,

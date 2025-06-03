@@ -9,7 +9,7 @@ path_to_assets = os.path.join(file_dir, "..", "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
-def test_crosswalk_label_id():
+def test_crosswalk():
     lm = LabelManager()
     tax = Taxonomy()
     m = TaxonomyManager(tax, lm)
@@ -27,13 +27,13 @@ def test_crosswalk_label_id():
     m.release()  # 5th release
 
     id = m.get_label_id("A-BC", 4)
-    xid = m.crosswalk_label_id(id, 3)
+    xid = m.crosswalk(id, 3)
     assert m.labels.get_label(xid) == [(3, ("A-B",)), (3, ("A-C",))]
 
-    xid = m.crosswalk_label_id(id, 5)
+    xid = m.crosswalk(id, 5)
     assert m.labels.get_label(xid) == (5, ("A",))
 
-    xid = m.crosswalk_label_id(id, 5, equivalent_only=True)
+    xid = m.crosswalk(id, 5, equivalent_only=True)
     assert len(xid) == 0
 
 

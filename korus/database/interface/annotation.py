@@ -79,7 +79,7 @@ class AnnotationInterface(TableInterface):
         self.add_field("tag_id", list, "Tag indices", required=False)
         self.add_field("granularity_id", int, "Granularity index", default=1)
         self.add_field(
-            "auto_negative", bool, "Automatically generated negative", default=False
+            "negative", bool, "Automatically generated negative", default=False
         )
         self.add_field("num_files", int, "Number of audio files", default=1)
         self.add_field("file_id_list", list, "File indices", required=False)
@@ -315,7 +315,7 @@ class AnnotationInterface(TableInterface):
             id = self._taxonomy.get_label_id(select, tax_version)
 
             # crosswalk labels to other taxonomies, including descendant nodes
-            id = self._taxonomy.crosswalk_label_id(
+            id = self._taxonomy.crosswalk(
                 id, tax_version, descend=True, equivalent_only=True
             )
 
@@ -353,12 +353,12 @@ class AnnotationInterface(TableInterface):
         id = self._taxonomy.get_label_id(exclude, tax_version)
 
         # crosswalk labels to other taxonomies, including only ascendant nodes and not requiring equivalency
-        exclude_id = self._taxonomy.crosswalk_label_id(
+        exclude_id = self._taxonomy.crosswalk(
             id, tax_version, ascend=True, equivalent_only=False
         )
 
         # crosswalk labels to other taxonomies, including ascendant and descendant nodes
-        select_id = self._taxonomy.crosswalk_label_id(
+        select_id = self._taxonomy.crosswalk(
             id, tax_version, ascend=True, descend=True, equivalent_only=True
         )
 
