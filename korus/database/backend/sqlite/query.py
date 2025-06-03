@@ -85,6 +85,9 @@ def get_row_count(conn, table_name):
 
 
 def where_condition(conn, table_name, conditions):
+    if isinstance(conditions, dict):
+        conditions = [conditions]
+
     col_types = get_column_types(conn, table_name)
 
     # left joins on JSON columns
@@ -156,7 +159,7 @@ def where_condition(conn, table_name, conditions):
         return None
 
 
-def search_table(conn, table_name, condition=None, indices=None):
+def query_table(conn, table_name, condition=None, indices=None):
     c = conn.cursor()
 
     if indices is not None:
@@ -180,10 +183,13 @@ def fetch_row(
 
     left_joins = []
 
+    if fields is None:
+        fields = []
+
     if isinstance(fields, str):
         fields = [fields]
 
-    if fields is None:
+    if len(fields) == 0 and not return_indices:
         fields_str = "*"
 
     else:
@@ -219,7 +225,7 @@ def fetch_row(
         rows = [rows[i] for i in idx]
 
     if as_dict:
-        if fields is None:
+        if len(fields) == 0:
             fields = get_column_names(conn, table_name)
 
         if not return_indices:

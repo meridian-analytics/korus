@@ -10,7 +10,7 @@ from .query import (
     fetch_row,
     get_sqlite_type,
     where_condition,
-    search_table,
+    query_table,
     add_column,
 )
 
@@ -80,7 +80,7 @@ class SQLiteTableBackend(TableBackend):
             encode_condition(self.name, c, self.codec.encode) for c in conditions
         ]
         condition = where_condition(self.conn, self.name, conditions)
-        indices = search_table(self.conn, self.name, condition, indices)
+        indices = query_table(self.conn, self.name, condition, indices)
         indices = self.codec.decode(indices, self.name, "id")
         return indices
 
@@ -106,6 +106,37 @@ class SQLiteTableBackend(TableBackend):
         self.conn.commit()
 
 
+class SQLiteJobBackend(SQLiteTableBackend):
+    def __init__(self, conn: sqlite3.Connection, codec: Codec):
+        super().__init__(conn, "job", codec)
+
+    def add_file(self, job_id: int, file_id: int):
+        tbl_name = "file_job_relation"
+        row = {"job_id": job_id, "file_id": file_id}
+        insert_row(self.conn, tbl_name, self.codec.encode(row, tbl_name))
+        self.conn.commit()
+
+    def get_files(self, job_id: int | list[int]) -> list[int]:
+        tbl_name = "file_job_relation"
+
+        # query condition
+        cond = {"job_id": job_id}
+        cond = encode_condition(tbl_name, cond, self.codec.encode)
+        cond = where_condition(self.conn, tbl_name, cond)
+
+        # perform query
+        indices = query_table(self.conn, tbl_name, cond)
+
+        # retrieve file IDs
+        rows = fetch_row(self.conn, tbl_name, indices, fields="file_id")
+        file_ids = [self.codec.decode(row[0], tbl_name, "file_id") for row in rows]
+
+        # unique, sorted list
+        file_ids = sorted(list(set(file_ids)))
+
+        return file_ids
+
+
 class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
     def __init__(self, *args, **kwargs):
 
@@ -128,7 +159,7 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
         self._annotation = SQLiteTableBackend(self, "annotation", self.codec)
         self._deployment = SQLiteTableBackend(self, "deployment", self.codec)
         self._file = SQLiteTableBackend(self, "file", self.codec)
-        self._job = SQLiteTableBackend(self, "job", self.codec)
+        self._job = SQLiteJobBackend(self, self.codec)
         self._storage = SQLiteTableBackend(self, "storage", self.codec)
         self._taxonomy = SQLiteTableBackend(self, "taxonomy", self.codec)
         self._label = SQLiteTableBackend(self, "label", self.codec)

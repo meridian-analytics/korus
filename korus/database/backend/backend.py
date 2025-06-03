@@ -30,11 +30,21 @@ class TableBackend:
 
     def __next__(self):
         """Should raise StopIteration when end of table is reached"""
-        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "__len__"))
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "__next__"))
 
     def reset_cursor(self):
         """Return to first row"""
-        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "__len__"))
+        raise NotImplementedError(
+            not_impl_err_msg(self.__class__.__name__, "reset_cursor")
+        )
+
+
+class JobBackend(TableBackend):
+    def add_file(self, job_id: int, file_id: int):
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "add_file"))
+
+    def get_files(self, job_id: int | list[int]) -> list[int]:
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "get_file"))
 
 
 class DatabaseBackend:
@@ -56,7 +66,7 @@ class DatabaseBackend:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "file"))
 
     @property
-    def job(self) -> TableBackend:
+    def job(self) -> JobBackend:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "job"))
 
     @property

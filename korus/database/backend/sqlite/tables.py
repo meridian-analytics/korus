@@ -294,9 +294,11 @@ def create_file_job_relation_table(conn):
     tbl_def = """
         CREATE TABLE
             file_job_relation(
+                id INTEGER NOT NULL,
                 job_id INTEGER NOT NULL,
                 file_id INTEGER NOT NULL,
                 channel INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (id),
                 FOREIGN KEY (job_id) REFERENCES job (id),
                 FOREIGN KEY (file_id) REFERENCES file (id),
                 UNIQUE (job_id, file_id, channel)

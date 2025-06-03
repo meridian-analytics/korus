@@ -64,12 +64,32 @@ class JobInterface(TableInterface):
         )
         self.add_field("comments", str, "Additional observations", required=False)
 
-    def link_file(self, file_id: int):
-        #TODO: implement this method
-        pass
+    def add_file(self, job_id: int, file_id: int):
+        """Add an audio file to an annotation job
+
+        Args:
+            job_id: int
+                The job index
+            file_id: int
+                The audiofile index
+        """
+        self.backend.add_file(job_id, file_id)
+
+    def get_files(self, job_id: int | list[int]) -> list[int]:
+        """Retrieve the IDs of all the files associated with an annotation job or multiple jobs.
+
+        Args:
+            job_id: int | list[int]
+                The job indices
+
+        Returns:
+            : list[int]
+                The file IDs.
+        """
+        return self.backend.get_file(job_id)
 
     def file_table(self, job_id: int | list[int]):
-        #TODO: implement this method
+        # TODO: implement this method
         """Returns a table of the audio files that were inspected as part of an annotation job or a set of jobs.
 
         The table has the following columns,
