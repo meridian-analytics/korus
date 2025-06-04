@@ -1,20 +1,12 @@
 import datetime
 from .interface import TableInterface
-from .file import FileInterface
 
 
 class JobInterface(TableInterface):
-    def __init__(
-        self, 
-        backend,
-        file_interface: FileInterface,        
-    ):
+    def __init__(self, backend):
         super().__init__("job", backend)
 
-        # linked interfaces
-        self._file = file_interface
-
-        # fields        
+        # fields
         self.add_field("taxonomy_id", int, "Taxonomy index", required=False)
         self.add_field("model_id", int, "Model index", required=False)
         self.add_field(

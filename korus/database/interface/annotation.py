@@ -2,6 +2,7 @@ import datetime
 from korus.database.backend import TableBackend
 from .interface import TableInterface
 from .taxonomy import TaxonomyInterface
+from .file import FileInterface
 from .job import JobInterface
 from .tag import TagInterface
 from .granularity import GranularityInterface
@@ -32,6 +33,7 @@ class AnnotationInterface(TableInterface):
         self,
         backend: TableBackend,
         taxonomy_interface: TaxonomyInterface,
+        file_interface: FileInterface,
         job_interface: JobInterface,
         tag_interface: TagInterface,
         granularity_interface: GranularityInterface,
@@ -41,6 +43,7 @@ class AnnotationInterface(TableInterface):
 
         # linked interfaces
         self._taxonomy = taxonomy_interface
+        self._file = file_interface
         self._job = job_interface
         self._tag = tag_interface
         self._granularity = granularity_interface
@@ -214,6 +217,13 @@ class AnnotationInterface(TableInterface):
         """Reverse alias transform: convert granularity ID to granularity"""
         values = self._granularity.get(id, "name", always_tuple=False)
         return values if isinstance(id, list) else values[0]
+
+    def _get_file_data(self, job_id):
+        # TODO: finish implemeting this
+        files = self._job.get_files(job_id)
+        indices, channels = zip(*files)
+        data = self._file.get(indices=indices)
+        # etc.
 
     def generate_negatives(self, job_id):
         pass
