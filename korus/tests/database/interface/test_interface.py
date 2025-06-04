@@ -147,3 +147,37 @@ def test_filter_data(in_memory_table_backend):
     i.reset_filter()
     idx = i.filter({"A": (11, 12)}).filter({"B": "xy"}).indices
     assert idx == [1]
+
+
+def test_get_as_pandas(in_memory_table_backend):
+    """Check that we can get data as a Pandas DataFrame"""
+    i = itf.interface.TableInterface("test", in_memory_table_backend)
+
+    i.add_field("A", int, "a test field")
+    i.add_field("B", datetime, "anoter test field")
+    i.add_field("C", list, "yet another test field")
+    i.add_field("D", dict, "the last test field")
+
+    row = {
+        "A": 11,
+        "B": datetime(2022,12,2),
+        "C": ["x", "y"],
+        "D": {"alpha": 1, "beta": 2}
+    }
+    i.add(row)
+
+    row = {
+        "A": 12,
+        "B": datetime(2022,12,3),
+        "C": ["xx", "yy", "zz"],
+        "D": {"gamma": 3}
+    }
+    i.add(row)
+
+    df = i.get(as_pandas=True, return_indices=True)
+
+    expected = """        A          B             C                        D
+index                                                      
+0      11 2022-12-02        [x, y]  {'alpha': 1, 'beta': 2}
+1      12 2022-12-03  [xx, yy, zz]             {'gamma': 3}"""
+    assert df.to_string() == expected

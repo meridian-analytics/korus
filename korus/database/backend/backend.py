@@ -40,7 +40,7 @@ class TableBackend:
 
 
 class JobBackend(TableBackend):
-    def add_file(self, job_id: int, file_id: int):
+    def add_file(self, job_id: int, file_id: int, channel: int = 0):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "add_file"))
 
     def get_files(self, job_id: int | list[int]) -> list[int]:

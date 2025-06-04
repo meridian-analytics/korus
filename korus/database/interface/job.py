@@ -64,7 +64,7 @@ class JobInterface(TableInterface):
         )
         self.add_field("comments", str, "Additional observations", required=False)
 
-    def add_file(self, job_id: int, file_id: int):
+    def add_file(self, job_id: int, file_id: int, channel: int = 0):
         """Add an audio file to an annotation job
 
         Args:
@@ -72,8 +72,10 @@ class JobInterface(TableInterface):
                 The job index
             file_id: int
                 The audiofile index
+            channe: int
+                Stereo channel, 0,1,...
         """
-        self.backend.add_file(job_id, file_id)
+        self.backend.add_file(job_id, file_id, channel)
 
     def get_files(self, job_id: int | list[int]) -> list[int]:
         """Retrieve the IDs of all the files associated with an annotation job or multiple jobs.
@@ -87,30 +89,3 @@ class JobInterface(TableInterface):
                 The file IDs.
         """
         return self.backend.get_file(job_id)
-
-    def file_table(self, job_id: int | list[int]):
-        # TODO: implement this method
-        """Returns a table of the audio files that were inspected as part of an annotation job or a set of jobs.
-
-        The table has the following columns,
-
-        * deployment_id (int): deployment index
-        * job_id (int): job index
-        * file_id (int): audio file index
-        * filename (str): audio filename
-        * relative_path (str): path to audio file relative to the base directory
-        * base_path (str): absolute path to the base directory
-        * sample_rate (int): sampling rate in samples/s
-        * start_utc (datetime): file UTC start time
-        * end_utc (datetime): file UTC end time
-        * channel (str): the channel that was inspected (0;1;...)
-
-        Args:
-            job_id: int | list[int]
-                Annotation job indices
-
-        Returns:
-            file_tbl: pandas.DataFrame
-                File table
-        """
-        pass

@@ -110,9 +110,9 @@ class SQLiteJobBackend(SQLiteTableBackend):
     def __init__(self, conn: sqlite3.Connection, codec: Codec):
         super().__init__(conn, "job", codec)
 
-    def add_file(self, job_id: int, file_id: int):
+    def add_file(self, job_id: int, file_id: int, channel: int = 0):
         tbl_name = "file_job_relation"
-        row = {"job_id": job_id, "file_id": file_id}
+        row = {"job_id": job_id, "file_id": file_id, "channel": channel}
         insert_row(self.conn, tbl_name, self.codec.encode(row, tbl_name))
         self.conn.commit()
 
