@@ -1,11 +1,20 @@
 import datetime
 from .interface import TableInterface
+from .file import FileInterface
 
 
 class JobInterface(TableInterface):
-    def __init__(self, backend):
+    def __init__(
+        self, 
+        backend,
+        file_interface: FileInterface,        
+    ):
         super().__init__("job", backend)
 
+        # linked interfaces
+        self._file = file_interface
+
+        # fields        
         self.add_field("taxonomy_id", int, "Taxonomy index", required=False)
         self.add_field("model_id", int, "Model index", required=False)
         self.add_field(
@@ -88,4 +97,4 @@ class JobInterface(TableInterface):
             : list[tuple[int,int]]
                 The file IDs and channel numbers.
         """
-        return self.backend.get_file(job_id)
+        return self.backend.get_files(job_id)

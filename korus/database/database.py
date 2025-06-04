@@ -22,7 +22,7 @@ class Database:
 
         self.deployment = DeploymentInterface(self.backend.deployment)
         self.file = FileInterface(self.backend.file)
-        self.job = JobInterface(self.backend.job)
+        self.job = JobInterface(self.backend.job, self.file)
         self.storage = StorageInterface(self.backend.storage)
         self.taxonomy = TaxonomyInterface(self.backend.taxonomy, self._label)
         self.tag = TagInterface(self.backend.tag)
