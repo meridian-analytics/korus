@@ -22,18 +22,17 @@ class Database:
 
         self.deployment = DeploymentInterface(self.backend.deployment)
         self.file = FileInterface(self.backend.file)
-        self.job = JobInterface(self.backend.job)
+        self.job = JobInterface(self.backend.job, self.file)
         self.storage = StorageInterface(self.backend.storage)
         self.taxonomy = TaxonomyInterface(self.backend.taxonomy, self._label)
         self.tag = TagInterface(self.backend.tag)
         self.granularity = GranularityInterface(self.backend.granularity)
         self.annotation = AnnotationInterface(
             self.backend.annotation,
-            self.taxonomy,
-            self.file,
-            self.job,
-            self.tag,
-            self.granularity,
+            taxonomy=self.taxonomy,
+            job=self.job,
+            tag=self.tag,
+            granularity=self.granularity,
         )
 
 

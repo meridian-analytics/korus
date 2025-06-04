@@ -1,10 +1,15 @@
 import datetime
+import pandas as pd
 from .interface import TableInterface
+from .file import FileInterface
 
 
 class JobInterface(TableInterface):
-    def __init__(self, backend):
+    def __init__(self, backend, file):
         super().__init__("job", backend)
+
+        # linked interfaces
+        self._file = file
 
         # fields
         self.add_field("taxonomy_id", int, "Taxonomy index", required=False)
@@ -90,3 +95,10 @@ class JobInterface(TableInterface):
                 The file IDs and channel numbers.
         """
         return self.backend.get_files(job_id)
+
+    def get_file_data(self, job_id: int | list[int]) -> pd.DataFrame:
+        # TODO: finish implemeting this
+        files = self._job.get_files(job_id)
+        indices, channels = zip(*files)
+        data = self._file.get(indices=indices)
+        # etc.

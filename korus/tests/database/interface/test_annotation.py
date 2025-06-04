@@ -17,11 +17,11 @@ def test_add_get_set_filter_data():
 
     label = LabelInterface(InMemoryTableBackend())
     file = FileInterface(InMemoryTableBackend())
-    job = JobInterface(InMemoryTableBackend())
+    job = JobInterface(InMemoryTableBackend(), file)
     tax = TaxonomyInterface(InMemoryTableBackend(), label)
     tag = TagInterface(InMemoryTableBackend())
     gran = GranularityInterface(InMemoryTableBackend())
-    annot = AnnotationInterface(InMemoryTableBackend(), tax, file, job, tag, gran)
+    annot = AnnotationInterface(InMemoryTableBackend(), tax, job, tag, gran)
 
     # create a small taxonomy
     tax.draft.create_sound_source("Whale", parent="Unknown")
