@@ -2,6 +2,7 @@ import pytest
 from datetime import datetime
 from korus.database.interface import (
     AnnotationInterface,
+    FileInterface,
     JobInterface,
     TaxonomyInterface,
     LabelInterface,
@@ -15,7 +16,8 @@ def test_add_get_set_filter_data():
     """Check that we can add data to, retrieve data from, and modify data in an AnnotationInterface instance"""
 
     label = LabelInterface(InMemoryTableBackend())
-    job = JobInterface(InMemoryTableBackend())
+    file = FileInterface(InMemoryTableBackend())
+    job = JobInterface(InMemoryTableBackend(), file)
     tax = TaxonomyInterface(InMemoryTableBackend(), label)
     tag = TagInterface(InMemoryTableBackend())
     gran = GranularityInterface(InMemoryTableBackend())
