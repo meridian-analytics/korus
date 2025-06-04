@@ -65,27 +65,27 @@ class JobInterface(TableInterface):
         self.add_field("comments", str, "Additional observations", required=False)
 
     def add_file(self, job_id: int, file_id: int, channel: int = 0):
-        """Add an audio file to an annotation job
+        """Add an audio-file channel to an annotation job.
 
         Args:
             job_id: int
                 The job index
             file_id: int
                 The audiofile index
-            channe: int
+            channel: int
                 Stereo channel, 0,1,...
         """
         self.backend.add_file(job_id, file_id, channel)
 
-    def get_files(self, job_id: int | list[int]) -> list[int]:
-        """Retrieve the IDs of all the files associated with an annotation job or multiple jobs.
+    def get_files(self, job_id: int | list[int]) -> list[tuple[int, int]]:
+        """Retrieve the audio-file channels associated with an annotation job or a set of jobs.
 
         Args:
             job_id: int | list[int]
-                The job indices
+                The job index or indices
 
         Returns:
-            : list[int]
-                The file IDs.
+            : list[tuple[int,int]]
+                The file IDs and channel numbers.
         """
         return self.backend.get_file(job_id)

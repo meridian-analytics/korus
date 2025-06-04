@@ -116,7 +116,7 @@ class SQLiteJobBackend(SQLiteTableBackend):
         insert_row(self.conn, tbl_name, self.codec.encode(row, tbl_name))
         self.conn.commit()
 
-    def get_files(self, job_id: int | list[int]) -> list[int]:
+    def get_files(self, job_id: int | list[int]) -> list[tuple[int, int]]:
         tbl_name = "file_job_relation"
 
         # query condition
@@ -127,14 +127,17 @@ class SQLiteJobBackend(SQLiteTableBackend):
         # perform query
         indices = query_table(self.conn, tbl_name, cond)
 
-        # retrieve file IDs
-        rows = fetch_row(self.conn, tbl_name, indices, fields="file_id")
-        file_ids = [self.codec.decode(row[0], tbl_name, "file_id") for row in rows]
+        # retrieve row data
+        rows = fetch_row(
+            self.conn, tbl_name, indices, fields=["file_id", "channel"], as_dict=True
+        )
+        rows = [self.codec.decode(row, self.name) for row in rows]
+        rows = [tuple(list(row.values())) for row in rows]
 
         # unique, sorted list
-        file_ids = sorted(list(set(file_ids)))
+        rows = sorted(list(set(rows)))
 
-        return file_ids
+        return rows
 
 
 class SQLiteBackend(DatabaseBackend, sqlite3.Connection):

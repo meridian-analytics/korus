@@ -160,17 +160,17 @@ def test_get_as_pandas(in_memory_table_backend):
 
     row = {
         "A": 11,
-        "B": datetime(2022,12,2),
+        "B": datetime(2022, 12, 2),
         "C": ["x", "y"],
-        "D": {"alpha": 1, "beta": 2}
+        "D": {"alpha": 1, "beta": 2},
     }
     i.add(row)
 
     row = {
         "A": 12,
-        "B": datetime(2022,12,3),
+        "B": datetime(2022, 12, 3),
         "C": ["xx", "yy", "zz"],
-        "D": {"gamma": 3}
+        "D": {"gamma": 3},
     }
     i.add(row)
 

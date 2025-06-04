@@ -25,20 +25,24 @@ def test_add_file_to_job(minimal_sqlite_backend):
         }
     )
 
-    # link 1st file to the 2nd job
+    # link 1st file (channel 0) to the 2nd job
     backend.job.add_file(1, 0)
 
-    # link 2nd file to both jobs
-    backend.job.add_file(0, 1)
-    backend.job.add_file(1, 1)
+    # link 2nd file (channel 14) to both jobs
+    backend.job.add_file(0, 1, 14)
+    backend.job.add_file(1, 1, 14)
 
-    # verify that files were linked
-    file_ids = backend.job.get_files(0)
-    assert file_ids == [1]
-    file_ids = backend.job.get_files(1)
-    assert file_ids == [0, 1]
-    file_ids = backend.job.get_files([0, 1])
-    assert file_ids == [0, 1]
+    # verify that the 2nd file was linked to the 1st job
+    rows = backend.job.get_files(0)
+    assert rows == [(1, 14)]
+
+    # verify that both files were linked to the 2nd job
+    rows = backend.job.get_files(1)
+    assert rows == [(0, 0), (1, 14)]
+
+    # query multiple jobs
+    rows = backend.job.get_files([0, 1])
+    assert rows == [(0, 0), (1, 14)]
 
 
 def test_table_backend(minimal_sqlite_backend):
