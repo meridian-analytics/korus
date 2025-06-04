@@ -127,3 +127,18 @@ class InMemoryTableBackend(TableBackend):
             filtered_indices = [idx for idx in filtered_indices if idx in indices]
 
         return filtered_indices
+
+
+class InMemoryJobBackend(InMemoryTableBackend):
+    def __init__(self):
+        super().__init__()
+        self.files = []
+
+    def add_file(self, job_id: int, file_id: int, channel: int = 0):
+        self.files.append((job_id, file_id, channel))
+
+    def get_files(self, job_id: int | list[int]) -> list[tuple[int, int]]:
+        if isinstance(job_id, int):
+            job_id = [job_id]
+
+        return [row[1:] for row in self.files if row[0] in job_id]

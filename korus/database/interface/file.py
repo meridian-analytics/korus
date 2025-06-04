@@ -14,6 +14,11 @@ class FileInterface(TableInterface):
         self.add_field("relative_path", str, "Directory path", default="")
         self.add_field("sample_rate", int, "Sampling rate in Hz")
         self.add_field("num_samples", int, "Number of samples")
-        self.add_field("start_utc", datetime.datetime, "Start time of recording (UTC)")
-        self.add_field("format", str, "Audio format")
-        self.add_field("codec", str, "Audio codec")
+        self.add_field(
+            "start_utc",
+            datetime.datetime,
+            "Start time of recording (UTC)",
+            required=False,
+        )
+        self.add_field("format", str, "Audio format", required=False)
+        self.add_field("codec", str, "Audio codec", required=False)

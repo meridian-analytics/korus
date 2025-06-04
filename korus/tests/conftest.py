@@ -7,7 +7,8 @@ import korus.tax as kx
 import korus.db as kdb
 from korus.database.backend.sqlite import SQLiteBackend
 from korus.database import SQLiteDatabase
-from korus.tests.helpers import InMemoryTableBackend
+from korus.tests.helpers import InMemoryTableBackend, InMemoryJobBackend
+from korus.database.interface import FileInterface, JobInterface
 
 path_to_assets = os.path.join(os.path.dirname(__file__), "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
@@ -17,6 +18,47 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 def in_memory_table_backend():
     """Instance of TableBackend that stores data in memory"""
     yield InMemoryTableBackend()
+
+
+@pytest.fixture
+def job_interface_with_data():
+    """Yields a JobInterface with two jobs and two files"""
+
+    file = FileInterface(InMemoryTableBackend())
+    job = JobInterface(InMemoryJobBackend(), file)
+
+    # add two jobs
+    job.add({"taxonomy_id": 0})
+    job.add({"taxonomy_id": 0})
+
+    # add two files
+    file.add(
+        {
+            "deployment_id": 0,
+            "storage_id": 0,
+            "filename": "xyz.flac",
+            "sample_rate": 2000,
+            "num_samples": 20000,
+        }
+    )
+    file.add(
+        {
+            "deployment_id": 0,
+            "storage_id": 0,
+            "filename": "abc.wav",
+            "sample_rate": 4000,
+            "num_samples": 40000,
+        }
+    )
+
+    # link 1st file (channel 0) to the 2nd job
+    job.add_file(1, 0)
+
+    # link 2nd file (channel 14) to both jobs
+    job.add_file(0, 1, 14)
+    job.add_file(1, 1, 14)
+
+    yield job
 
 
 @pytest.fixture

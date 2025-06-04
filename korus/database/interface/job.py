@@ -1,11 +1,12 @@
-import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 from .interface import TableInterface
+from korus.database.backend import TableBackend
 from .file import FileInterface
 
 
 class JobInterface(TableInterface):
-    def __init__(self, backend, file):
+    def __init__(self, backend: TableBackend, file: FileInterface):
         super().__init__("job", backend)
 
         # linked interfaces
@@ -43,13 +44,13 @@ class JobInterface(TableInterface):
         )
         self.add_field(
             "start_utc",
-            datetime.datetime,
+            datetime,
             "Start time of the annotation effort",
             required=False,
         )
         self.add_field(
             "end_utc",
-            datetime.datetime,
+            datetime,
             "End time of the annotation effort",
             required=False,
         )
@@ -97,8 +98,44 @@ class JobInterface(TableInterface):
         return self.backend.get_files(job_id)
 
     def get_file_data(self, job_id: int | list[int]) -> pd.DataFrame:
-        # TODO: finish implemeting this
-        files = self._job.get_files(job_id)
-        indices, channels = zip(*files)
-        data = self._file.get(indices=indices)
-        # etc.
+        # TODO: finish implemeting and testing this
+        # TODO: docstring
+
+        # get file IDs and channel numbers
+        rows = self.get_files(job_id)
+
+        # unique file IDs
+        indices = [row[0] for row in rows]
+        unique_indices = list(set(indices))
+
+        # file ID: int -> channel numbers: list[int]
+        channels = {i: [] for i in unique_indices}
+        for i, c in zip(unique_indices, channels):
+            channels[i].append(c)
+
+        # get file data
+        df = self._file.get(
+            indices=unique_indices, return_indices=True, as_pandas=True
+        ).reset_index()
+
+        # rename index column
+        df.rename(columns={"index": "file_id"}, inplace=True)
+
+        # add end time
+        def end_time(row):
+            if row.start_utc is None:
+                return None
+            else:
+                return row.start_utc + timedelta(
+                    microseconds=row.num_samples / row.sample_rate * 1e6
+                )
+
+        df["end_utc"] = df.apply(lambda r: end_time(r), axis=1)
+
+        # add channel (dtype=object)
+        df["channel"] = df.file_id.apply(lambda x: channels[x])
+
+        # sort according to deployment and time, in that order
+        df.sort_values(by=["deployment_id", "start_utc", "end_utc"], inplace=True)
+
+        return df
