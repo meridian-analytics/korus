@@ -270,7 +270,7 @@ def create_file_table(conn):
         CREATE INDEX
             deployment_time_index
         ON
-            file(deployment_id, start_utc, end_utc)
+            file(deployment_id, start_utc)
     """
     )
 
