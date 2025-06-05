@@ -140,6 +140,9 @@ def find_empty_periods(
             Inter-annotation gaps are allowed to span multiple audio files provided the temporal gap between the files is below this value.
 
     Returns:
+        df: pd.DataFrame
+            Time periods without annotations.
+            TODO: list column names and dtypes
     """
     # make copies so we don't modify the input args
     files = files.copy()
@@ -221,5 +224,17 @@ def find_empty_periods(
                 p.end(file_end_utc)
                 periods.append(p)
 
-        # TODO: prep return table
-        data = [()]    
+        # prep return table
+        data = [
+            (p.deployment_id, p.file_ids[0], p.file_ids, p.channel, p.start_utc, (p.end_utc - p.start_utc).total_seconds())
+            for p in periods
+        ]    
+        df = pd.DataFrame(data, columns=["deployment_id", "file_id", "file_id_list", "channel", "start_utc", "duration"])
+
+        # add `start` column
+        files = files.reset_index().set_index("file_id")
+        df["start"] = df.apply(
+            lambda r: (r.start_utc - files.loc[r.file_id].start_utc).total_seconds(), axis=1,
+        )
+
+        return df
