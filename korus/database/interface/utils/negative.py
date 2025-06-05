@@ -4,7 +4,7 @@ import pandas as pd
 
 
 @dataclass
-class MonoPeriod:
+class MonoTimePeriod:
     """TODO: docstring"""
 
     file_id: int
@@ -24,10 +24,10 @@ class MonoPeriod:
 
 
 @dataclass
-class StereoPeriod:
+class StereoTimePeriod:
     """TODO: docstring"""
 
-    mono_periods: dict[int, MonoPeriod]
+    mono_periods: dict[int, MonoTimePeriod]
 
     def update(
         self,
@@ -36,7 +36,7 @@ class StereoPeriod:
         channel: int,
         filename: str,
         file_start_utc: datetime,
-    ) -> MonoPeriod:
+    ) -> MonoTimePeriod:
         if channel in self.mono_periods:
             p = self.mono_periods[channel]
             p.update(filename, file_start_utc)
@@ -44,7 +44,7 @@ class StereoPeriod:
                 return p
 
         else:
-            self.mono_periods[channel] = MonoPeriod(
+            self.mono_periods[channel] = MonoTimePeriod(
                 file_id=file_id,
                 deployment_id=deployment_id,
                 channel=channel,
