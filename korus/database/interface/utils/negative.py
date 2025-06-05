@@ -224,3 +224,6 @@ def find_empty_periods(
             if not p.has_ended:
                 p.end(file_end_utc)
                 periods.append(p)
+
+        # TODO: prep return table
+        data = [()]    
