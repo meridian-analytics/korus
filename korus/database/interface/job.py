@@ -85,7 +85,7 @@ class JobInterface(TableInterface):
         self.backend.add_file(job_id, file_id, channel)
 
     def get_files(self, job_id: int | list[int]) -> list[tuple[int, int]]:
-        """Retrieve the audio-file channels associated with an annotation job or a set of jobs.
+        """Get the audio-file channels associated with an annotation job or a set of jobs.
 
         Args:
             job_id: int | list[int]
@@ -98,9 +98,19 @@ class JobInterface(TableInterface):
         return self.backend.get_files(job_id)
 
     def get_filedata(self, job_id: int | list[int]) -> pd.DataFrame:
-        # TODO: finish implemeting and testing this
-        # TODO: docstring
+        """Returns a Pandas DataFrame with metadata about the audio files associated with the specified job(s).
 
+        TODO: add example table with column names to this docstring
+        https://sublime-and-sphinx-guide.readthedocs.io/en/latest/tables.html#csv-files
+        
+        Args:
+            job_id: int | list[int]
+                The job index or indices
+
+        Returns:
+            df: pd.DataFrame
+                The audiofile metadata.                        
+        """
         # get file IDs and channel numbers
         rows = self.get_files(job_id)
 

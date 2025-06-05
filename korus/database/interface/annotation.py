@@ -384,3 +384,6 @@ class AnnotationInterface(TableInterface):
             conds[1]["ambiguous_label_id~"] = select_id
 
         return conds
+
+def find_gaps():
+    pass
