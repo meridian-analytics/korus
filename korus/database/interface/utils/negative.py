@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import pandas as pd
+import numpy as np
 
 
 @dataclass
@@ -13,6 +14,7 @@ class MonoTimePeriod:
     filename: str
     file_start_utc: datetime
     start_utc: datetime
+    max_file_gap: float
     prev_file_end_utc: datetime = None
     end_utc: datetime = None
 
@@ -20,12 +22,27 @@ class MonoTimePeriod:
     def has_ended(self):
         return self.end_utc is not None
 
+    def file_gap(self, file_start_utc):
+        if self.prev_file_end_utc:
+            return (file_start_utc - self.prev_file_end_utc).total_seconds()
+        else:
+            return np.inf
+
     def update(self, filename: str, file_start_utc: datetime) -> bool:
-        pass
+        # if periods starts after file, update `file_start_utc` and `filename` attributes
+        if self.start_utc >= file_start_utc:
+            self.filename = filename
+            self.file_start_utc = file_start_utc
+
+        # if temporal gap to previous file exceeds the maximum allowed gap, 
+        # end the time period by setting its `end_utc` attribute
+        if self.file_gap(file_start_utc) > self.max_file_gap:
+            self.end_utc = self.prev_file_end_utc
 
 
 class StereoTimePeriod:
-    def __init__(self):
+    def __init__(self, max_file_gap):
+        self.max_file_gap = max_file_gap
         self.mono_periods = dict()
 
     def update(
@@ -50,6 +67,7 @@ class StereoTimePeriod:
                 filename=filename,
                 file_start_utc=file_start_utc,
                 start_utc=file_start_utc,
+                max_file_gap=self.max_file_gap,
             )
 
 
@@ -104,12 +122,18 @@ def find_empty_periods(
     for deploy_id, files_deploy in files.groupby(level=0):
         annots_deploy = annots.loc[deploy_id]
 
-        stereo_period = StereoTimePeriod()
+        stereo_period = StereoTimePeriod(max_file_gap)
 
         # loop over files
         for (_, file_start_utc), file_row in files_deploy.iterrows():
 
             # loop over channels
-            for chan in file_row.channel:
+            for channel in file_row.channel:
 
-                pass
+                stereo_period.update(
+                    file_id = file_row.file_id,
+                    deployment_id = deploy_id,
+                    channel = channel,
+                    filename = file_row.filename,
+                    file_start_utc = file_start_utc,                    
+                )
