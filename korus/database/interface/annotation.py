@@ -7,6 +7,7 @@ from .file import FileInterface
 from .job import JobInterface
 from .tag import TagInterface
 from .granularity import GranularityInterface
+from .utils.negative import find_gaps
 
 
 def _id_from_name(interface: TableInterface, name: str | list[str]) -> list[int]:
@@ -224,7 +225,7 @@ class AnnotationInterface(TableInterface):
             return
 
         annots = self.get(as_pandas=True)
-        negatives = _find_negatives(files, annots)
+        negatives = find_gaps(files, annots)
 
     def filter(self, *conditions: dict, invert: bool = False, **kwargs):
         """Search the table.
@@ -391,40 +392,3 @@ class AnnotationInterface(TableInterface):
             conds[1]["ambiguous_label_id~"] = select_id
 
         return conds
-
-
-def _find_negatives(
-    files: pd.DataFrame, annots: pd.DataFrame, max_file_gap: float = 0.1
-):
-    """Helper function for finding time periods without annotations, referred to as `negatives`.
-
-    OBS: Expects all files to have known UTC start times.
-
-    Args:
-        files: pandas.DataFrame
-            Table of audio files.
-        annots: pandas.DataFrame
-            Table of annotations.
-        max_file_gap: float
-            Maximum temporal gap between audiofiles in seconds.
-            Negatives are allowed to span multiple audio files (from the same deployment) provided
-            the temporal gap between the files is below this value.
-
-    Returns:
-    """
-    # make copies so we don't modify the input args
-    files = files.copy()
-    annots = annots.copy()
-
-    # set index for file table
-    files = files.reset_index().set_index("filename")
-
-    # add start and end times to annotation table
-    annots["start_utc"] = annots.apply(
-        lambda r: files.loc[r.filename].start_utc
-        + timedelta(microseconds=r.start_ms * 1e3),
-        axis=1,
-    )
-    annots["end_utc"] = annots.apply(
-        lambda r: r.start_utc + timedelta(microseconds=r.duration_ms * 1e3), axis=1
-    )
