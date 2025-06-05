@@ -13,6 +13,7 @@ class MonoTimePeriod:
     filename: str
     file_start_utc: datetime
     start_utc: datetime
+    prev_file_end_utc: datetime = None
     end_utc: datetime = None
 
     @property
@@ -23,11 +24,9 @@ class MonoTimePeriod:
         pass
 
 
-@dataclass
 class StereoTimePeriod:
-    """TODO: docstring"""
-
-    mono_periods: dict[int, MonoTimePeriod]
+    def __init__(self):
+        self.mono_periods = dict()
 
     def update(
         self,
@@ -98,3 +97,19 @@ def find_empty_periods(
     annots = annots.reset_index().annots.set_index(
         ["deployment_id", "channel", "start_utc"]
     )
+
+    periods = []
+
+    # loop over deployments
+    for deploy_id, files_deploy in files.groupby(level=0):
+        annots_deploy = annots.loc[deploy_id]
+
+        stereo_period = StereoTimePeriod()
+
+        # loop over files
+        for (_, file_start_utc), file_row in files_deploy.iterrows():
+
+            # loop over channels
+            for chan in file_row.channel:
+
+                pass
