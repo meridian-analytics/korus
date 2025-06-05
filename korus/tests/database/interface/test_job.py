@@ -30,4 +30,6 @@ def test_get_file_data(job_interface_with_data):
 
     expected = """  channel codec  deployment_id end_utc  file_id filename format  num_samples relative_path  sample_rate start_utc  storage_id
 0     [1]  None              0    None        1  abc.wav   None        40000                       4000      None           0"""
-    assert str(df[sorted(df.columns)]) == expected
+    answer = str(df[sorted(df.columns)])
+
+    assert answer == expected
