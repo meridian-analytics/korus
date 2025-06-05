@@ -8,7 +8,15 @@ import korus.db as kdb
 from korus.database.backend.sqlite import SQLiteBackend
 from korus.database import SQLiteDatabase
 from korus.tests.helpers import InMemoryTableBackend, InMemoryJobBackend
-from korus.database.interface import FileInterface, JobInterface
+from korus.database.interface import (
+    AnnotationInterface,
+    FileInterface,
+    JobInterface,
+    TaxonomyInterface,
+    LabelInterface,
+    TagInterface,
+    GranularityInterface,
+)
 
 path_to_assets = os.path.join(os.path.dirname(__file__), "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
@@ -18,6 +26,36 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 def in_memory_table_backend():
     """Instance of TableBackend that stores data in memory"""
     yield InMemoryTableBackend()
+
+
+@pytest.fixture
+def interfaces_with_taxonomy():
+    """Yields a dict of table interfaces with a small, but realistic taxonomy"""
+    label = LabelInterface(InMemoryTableBackend())
+    file = FileInterface(InMemoryTableBackend())
+    job = JobInterface(InMemoryJobBackend(), file)
+    tax = TaxonomyInterface(InMemoryTableBackend(), label)
+    tag = TagInterface(InMemoryTableBackend())
+    gran = GranularityInterface(InMemoryTableBackend())
+    annot = AnnotationInterface(InMemoryTableBackend(), tax, job, tag, gran)
+
+    # create a small taxonomy
+    tax.draft.create_sound_source("Whale", parent="Unknown")
+    tax.draft.create_sound_source("KW", parent="Whale")
+    tax.draft.create_sound_source("SRKW", parent="KW")
+    tax.draft.create_sound_type("TC", "Whale", "Unknown")
+    tax.draft.create_sound_type("PC", "KW", "TC")
+    tax.draft.create_sound_type("S01", "SRKW", "PC")
+    tax.release()
+
+    yield {
+        "file": file,
+        "job": job,
+        "taxonomy": tax,
+        "tag": tag,
+        "granularity": gran,
+        "annotation": annot,
+    }
 
 
 @pytest.fixture

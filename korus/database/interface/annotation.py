@@ -1,4 +1,5 @@
-import datetime
+from datetime import datetime, timedelta
+import pandas as pd
 from korus.database.backend import TableBackend
 from .interface import TableInterface
 from .taxonomy import TaxonomyInterface
@@ -84,7 +85,7 @@ class AnnotationInterface(TableInterface):
         )
         self.add_field("num_files", int, "Number of audio files", default=1)
         self.add_field("file_id_list", list, "File indices", required=False)
-        self.add_field("start_utc", datetime.datetime, "UTC start time", required=False)
+        self.add_field("start_utc", datetime, "UTC start time", required=False)
         self.add_field("duration_ms", int, "Duration in milliseconds", required=False)
         self.add_field(
             "start_ms",
@@ -217,7 +218,13 @@ class AnnotationInterface(TableInterface):
         return values if isinstance(id, list) else values[0]
 
     def generate_negatives(self, job_id):
-        pass
+        # TODO: implement this
+        files = self._job.get_filedata(job_id)
+        if len(files) == 0:
+            return
+
+        annots = self.get(as_pandas=True)
+        negatives = _find_negatives(files, annots)
 
     def filter(self, *conditions: dict, invert: bool = False, **kwargs):
         """Search the table.
@@ -385,5 +392,39 @@ class AnnotationInterface(TableInterface):
 
         return conds
 
-def find_gaps():
-    pass
+
+def _find_negatives(
+    files: pd.DataFrame, annots: pd.DataFrame, max_file_gap: float = 0.1
+):
+    """Helper function for finding time periods without annotations, referred to as `negatives`.
+
+    OBS: Expects all files to have known UTC start times.
+
+    Args:
+        files: pandas.DataFrame
+            Table of audio files.
+        annots: pandas.DataFrame
+            Table of annotations.
+        max_file_gap: float
+            Maximum temporal gap between audiofiles in seconds.
+            Negatives are allowed to span multiple audio files (from the same deployment) provided
+            the temporal gap between the files is below this value.
+
+    Returns:
+    """
+    # make copies so we don't modify the input args
+    files = files.copy()
+    annots = annots.copy()
+
+    # set index for file table
+    files = files.reset_index().set_index("filename")
+
+    # add start and end times to annotation table
+    annots["start_utc"] = annots.apply(
+        lambda r: files.loc[r.filename].start_utc
+        + timedelta(microseconds=r.start_ms * 1e3),
+        axis=1,
+    )
+    annots["end_utc"] = annots.apply(
+        lambda r: r.start_utc + timedelta(microseconds=r.duration_ms * 1e3), axis=1
+    )

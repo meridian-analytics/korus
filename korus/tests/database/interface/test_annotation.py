@@ -1,36 +1,18 @@
 import pytest
 from datetime import datetime
-from korus.database.interface import (
-    AnnotationInterface,
-    FileInterface,
-    JobInterface,
-    TaxonomyInterface,
-    LabelInterface,
-    TagInterface,
-    GranularityInterface,
-)
-from korus.tests.helpers import InMemoryTableBackend
 
 
-def test_add_get_set_filter_data():
+def test_generate_negatives(interfaces_with_taxonomy):
+    annot = interfaces_with_taxonomy["annotation"]
+    annot.generate_negatives(0)
+
+
+def test_add_get_set_filter_data(interfaces_with_taxonomy):
     """Check that we can add data to, retrieve data from, and modify data in an AnnotationInterface instance"""
 
-    label = LabelInterface(InMemoryTableBackend())
-    file = FileInterface(InMemoryTableBackend())
-    job = JobInterface(InMemoryTableBackend(), file)
-    tax = TaxonomyInterface(InMemoryTableBackend(), label)
-    tag = TagInterface(InMemoryTableBackend())
-    gran = GranularityInterface(InMemoryTableBackend())
-    annot = AnnotationInterface(InMemoryTableBackend(), tax, job, tag, gran)
-
-    # create a small taxonomy
-    tax.draft.create_sound_source("Whale", parent="Unknown")
-    tax.draft.create_sound_source("KW", parent="Whale")
-    tax.draft.create_sound_source("SRKW", parent="KW")
-    tax.draft.create_sound_type("TC", "Whale", "Unknown")
-    tax.draft.create_sound_type("PC", "KW", "TC")
-    tax.draft.create_sound_type("S01", "SRKW", "PC")
-    tax.release()
+    job = interfaces_with_taxonomy["job"]
+    tag = interfaces_with_taxonomy["tag"]
+    annot = interfaces_with_taxonomy["annotation"]
 
     # add a job
     job.add({"taxonomy_id": 0})

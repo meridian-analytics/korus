@@ -102,14 +102,14 @@ class JobInterface(TableInterface):
 
         TODO: add example table with column names to this docstring
         https://sublime-and-sphinx-guide.readthedocs.io/en/latest/tables.html#csv-files
-        
+
         Args:
             job_id: int | list[int]
                 The job index or indices
 
         Returns:
             df: pd.DataFrame
-                The audiofile metadata.                        
+                The audiofile metadata.
         """
         # get file IDs and channel numbers
         rows = self.get_files(job_id)
@@ -132,7 +132,8 @@ class JobInterface(TableInterface):
         df.rename(columns={"index": "file_id"}, inplace=True)
 
         # add end time
-        def end_time(row):
+        def endtime_fcn(row):
+            """Helper function for computing file end time"""
             if row.start_utc is None:
                 return None
             else:
@@ -140,7 +141,11 @@ class JobInterface(TableInterface):
                     microseconds=row.num_samples / row.sample_rate * 1e6
                 )
 
-        df["end_utc"] = df.apply(lambda r: end_time(r), axis=1)
+        if len(df) == 0:
+            df["end_utc"] = df["start_utc"]
+
+        else:
+            df["end_utc"] = df.apply(lambda r: endtime_fcn(r), axis=1)
 
         # add channel (dtype=object)
         df["channel"] = df.file_id.apply(lambda x: channels[x])
