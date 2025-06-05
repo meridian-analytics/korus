@@ -26,13 +26,16 @@ class MonoTimePeriod:
             return (file_start_utc - self.file_end_utc).total_seconds()
         else:
             return np.inf
+        
+    def end(self, end_utc):
+        self.end_utc = end_utc
 
     def new_annotation(self, annot_start_utc, annot_end_utc):
         if annot_start_utc <= self.start_utc:
             self.start_utc = max(annot_end_utc, self.start_utc)
 
         else:
-            self.end_utc = annot_start_utc
+            self.end(annot_start_utc)
 
     def new_file(
         self,
@@ -53,7 +56,7 @@ class MonoTimePeriod:
 
         # if the temporal gap to the previous file exceeds the maximum allowed gap, update the period's `end_utc` attribute
         elif self.file_gap(file_start_utc) > self.max_file_gap:
-            self.end_utc = self.file_end_utc
+            self.end(self.file_end_utc)
 
 
 class StereoTimePeriod:
@@ -61,6 +64,9 @@ class StereoTimePeriod:
         self.deployment_id = deployment_id
         self.max_file_gap = max_file_gap
         self.mono_periods = dict()
+
+    def __iter__(self):
+        return self.mono_periods.items()       
 
     def new_annotation(
         self,
@@ -163,12 +169,13 @@ def find_empty_periods(
         ["deployment_id", "channel", "start_utc", "end_utc"]
     )
 
+    # container for collecting inter-annotation time periods
     periods = []
 
     # loop over deployments
     for deployment_id, files_deploy in files.groupby(level=0):
-        annots_deploy = annots.loc[deployment_id]
 
+        # start new stereo, inter-annotation time period
         stereo_period = StereoTimePeriod(deployment_id, max_file_gap)
 
         # loop over files
@@ -178,7 +185,7 @@ def find_empty_periods(
             for channel in file_row.channel:
 
                 # update the current stereo period with the new file
-                mono_period = stereo_period.new_file(
+                p = stereo_period.new_file(
                     channel=channel,
                     file_id=file_row.file_id,
                     filename=file_row.filename,
@@ -187,27 +194,33 @@ def find_empty_periods(
                 )
 
                 # if the period has ended, save it to the list
-                if mono_period.has_ended:
-                    periods.append(mono_period)
+                if p.has_ended:
+                    periods.append(p)
 
                 try:
-                    # select annotations for current channel
-                    annots_chan = annots_deploy.loc[channel]
+                    # select annotations for current deployment and channel
+                    annots_dc = annots.loc[deployment_id, channel]
 
                 except KeyError:
                     # if there are none, proceed to the next channel
                     continue
 
                 # select annotations that have start time within current file
-                annots_file = annots_chan.loc[
-                    (annots_chan.index >= file_start_utc)
-                    & (annots_chan.index < file_end_utc)
+                annots_file = annots_dc.loc[
+                    (annots_dc.index >= file_start_utc)
+                    & (annots_dc.index < file_end_utc)
                 ]
 
                 # loop over annotations
                 for (start_utc, end_utc), _ in annots_file.iterrows():
-                    mono_period = stereo_period.new_annotation(start_utc, end_utc)
+                    p = stereo_period.new_annotation(start_utc, end_utc)
 
                     # if the period has ended, save it to the list
-                    if mono_period.has_ended:
-                        periods.append(mono_period)
+                    if p.has_ended:
+                        periods.append(p)
+
+        # end and save any periods that are still open
+        for _, p in iter(stereo_period):
+            if not p.has_ended:
+                p.end(file_end_utc)
+                periods.append(p)
