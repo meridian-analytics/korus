@@ -53,13 +53,14 @@ class StereoTimePeriod:
         filename: str,
         file_start_utc: datetime,
     ) -> MonoTimePeriod:
-        if channel in self.mono_periods:
-            p = self.mono_periods[channel]
-            p.update(filename, file_start_utc)
-            if p.has_ended:
-                return p
+        # update the current mono time-period
+        p = self.mono_periods.get(channel, None)
+        if p and not p.has_ended:
+            self.mono_periods[channel].update(filename, file_start_utc)
 
-        else:
+        # start a new mono time-period, if there is none or the current one has ended
+        p = self.mono_periods.get(channel, None)
+        if not p or p.has_ended:
             self.mono_periods[channel] = MonoTimePeriod(
                 file_id=file_id,
                 deployment_id=deployment_id,
@@ -70,6 +71,8 @@ class StereoTimePeriod:
                 max_file_gap=self.max_file_gap,
             )
 
+        # return the current mono time-period (*not* the new one, if a new one was created)
+        return p
 
 def find_empty_periods(
     files: pd.DataFrame, annots: pd.DataFrame, max_file_gap: float = 0.1
@@ -130,10 +133,13 @@ def find_empty_periods(
             # loop over channels
             for channel in file_row.channel:
 
-                stereo_period.update(
+                mono_period = stereo_period.update(
                     file_id = file_row.file_id,
                     deployment_id = deploy_id,
                     channel = channel,
                     filename = file_row.filename,
                     file_start_utc = file_start_utc,                    
                 )
+
+                if mono_period.has_ended:
+                    periods.append(mono_period)
