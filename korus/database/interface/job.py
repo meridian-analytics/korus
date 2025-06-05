@@ -97,7 +97,7 @@ class JobInterface(TableInterface):
         """
         return self.backend.get_files(job_id)
 
-    def get_file_data(self, job_id: int | list[int]) -> pd.DataFrame:
+    def get_filedata(self, job_id: int | list[int]) -> pd.DataFrame:
         # TODO: finish implemeting and testing this
         # TODO: docstring
 

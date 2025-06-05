@@ -20,16 +20,15 @@ def test_get_files(job_interface_with_data):
     assert rows == [(0, 0), (1, 14)]
 
 
-def test_get_file_data(job_interface_with_data):
+def test_get_filedata(job_interface_with_data):
     """Check that the get_file_data method works as it should"""
 
     job = job_interface_with_data
 
     # get file data
-    df = job.get_file_data(0)
+    df = job.get_filedata(0)
 
     expected = """  channel codec  deployment_id end_utc  file_id filename format  num_samples relative_path  sample_rate start_utc  storage_id
 0     [1]  None              0    None        1  abc.wav   None        40000                       4000      None           0"""
-    answer = str(df[sorted(df.columns)])
-
+    answer = df[sorted(df.columns)].to_string()
     assert answer == expected
