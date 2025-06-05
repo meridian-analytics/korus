@@ -9,9 +9,8 @@ class MonoTimePeriod:
     """TODO: docstring"""
 
     deployment_id: int
-    file_id: int
+    file_ids: list[int]
     channel: int
-    filename: str
     start_utc: datetime
     file_end_utc: datetime
     max_file_gap: float
@@ -22,7 +21,7 @@ class MonoTimePeriod:
         return self.end_utc is not None
 
     def file_gap(self, file_start_utc):
-        if self.prev_file_end_utc:
+        if self.file_end_utc:
             return (file_start_utc - self.file_end_utc).total_seconds()
         else:
             return np.inf
@@ -40,7 +39,6 @@ class MonoTimePeriod:
     def new_file(
         self,
         file_id: int,
-        filename: str,
         file_start_utc: datetime,
         file_end_utc: datetime,
     ):
@@ -50,13 +48,15 @@ class MonoTimePeriod:
 
         # if the period starts *after* the new file, update its file attributes
         if self.start_utc >= file_start_utc:
-            self.file_id = file_id
-            self.filename = filename
+            self.file_ids = [file_id]
             self.file_end_utc = file_end_utc
 
         # if the temporal gap to the previous file exceeds the maximum allowed gap, update the period's `end_utc` attribute
         elif self.file_gap(file_start_utc) > self.max_file_gap:
             self.end(self.file_end_utc)
+
+        else:
+            self.file_ids.append(file_id)
 
 
 class StereoTimePeriod:
@@ -83,9 +83,8 @@ class StereoTimePeriod:
             self.mono_periods[channel] = MonoTimePeriod(
                 deployment_id=self.deployment_id,
                 max_file_gap=self.max_file_gap,
-                file_id=p.file_id,
+                file_ids=p.file_ids,
                 channel=channel,
-                filename=p.filename,
                 file_end_utc=p.file_end_utc,
                 start_utc=annot_end_utc,
             )
@@ -97,14 +96,13 @@ class StereoTimePeriod:
         self,
         channel: int,
         file_id: int,
-        filename: str,
         file_start_utc: datetime,
         file_end_utc: datetime,
     ) -> MonoTimePeriod:
         # update the current mono time-period
         if channel in self.mono_periods:
             self.mono_periods[channel].new_file(
-                file_id, filename, file_start_utc, file_end_utc
+                file_id, file_start_utc, file_end_utc
             )
 
         # start a new mono time-period, if there is none or the current one has ended
@@ -113,9 +111,8 @@ class StereoTimePeriod:
             self.mono_periods[channel] = MonoTimePeriod(
                 deployment_id=self.deployment_id,
                 max_file_gap=self.max_file_gap,
-                file_id=file_id,
+                file_ids=[file_id],
                 channel=channel,
-                filename=filename,
                 file_end_utc=file_end_utc,
                 start_utc=file_start_utc,
             )
@@ -188,7 +185,6 @@ def find_empty_periods(
                 p = stereo_period.new_file(
                     channel=channel,
                     file_id=file_row.file_id,
-                    filename=file_row.filename,
                     file_start_utc=file_start_utc,
                     file_end_utc=file_end_utc,
                 )
