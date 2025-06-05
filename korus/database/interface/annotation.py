@@ -1,13 +1,11 @@
-from datetime import datetime, timedelta
-import pandas as pd
+from datetime import datetime
 from korus.database.backend import TableBackend
 from .interface import TableInterface
 from .taxonomy import TaxonomyInterface
-from .file import FileInterface
 from .job import JobInterface
 from .tag import TagInterface
 from .granularity import GranularityInterface
-from .utils.negative import find_gaps
+from .utils.negative import find_empty_periods
 
 
 def _id_from_name(interface: TableInterface, name: str | list[str]) -> list[int]:
@@ -218,14 +216,14 @@ class AnnotationInterface(TableInterface):
         values = self._granularity.get(id, "name", always_tuple=False)
         return values if isinstance(id, list) else values[0]
 
-    def generate_negatives(self, job_id):
+    def generate_negatives(self, job_id: int):
         # TODO: implement this
         files = self._job.get_filedata(job_id)
         if len(files) == 0:
             return
 
         annots = self.get(as_pandas=True)
-        negatives = find_gaps(files, annots)
+        negatives = find_empty_periods(files, annots)
 
     def filter(self, *conditions: dict, invert: bool = False, **kwargs):
         """Search the table.
