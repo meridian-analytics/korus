@@ -1,10 +1,54 @@
 import pytest
+import pandas as pd
 from datetime import datetime, timedelta
 from korus.database.interface.utils.negative import (
     MonoTimePeriod,
     StereoTimePeriod,
     find_unannotated_periods,
 )
+
+
+def test_find_unannotated_periods_single_deployment_single_channel():
+    t0 = datetime(2022, 12, 2)
+
+    # three 1-minute long files, spaced apart by 0s and 1s
+    files = pd.DataFrame(
+        {
+            "deployment_id": [0, 0, 0],
+            "file_id": [10, 11, 12],
+            "channel": [[0], [0], [0]],
+            "start_utc": [
+                t0,
+                t0 + timedelta(minutes=1),
+                t0 + timedelta(minutes=2, seconds=1),
+            ],
+            "end_utc": [
+                t0 + timedelta(minutes=1),
+                t0 + timedelta(minutes=2),
+                t0 + timedelta(minutes=3, seconds=1),
+            ],
+        }
+    )
+
+    # two short annotations in the 1st file
+    annots = pd.DataFrame(
+        {
+            "deployment_id": [0, 0],
+            "file_id": [10, 10],
+            "channel": [0, 0],
+            "start": [10.0, 20.0],
+            "duration": [3.0, 4.0],
+        }
+    )
+
+    negatives = find_unannotated_periods(files, annots)
+
+    expected = """   deployment_id  file_id file_id_list  channel           start_utc  duration  start
+0              0       10         [10]        0 2022-12-02 00:00:00      10.0    0.0
+1              0       10         [10]        0 2022-12-02 00:00:13       7.0   13.0
+2              0       10     [10, 11]        0 2022-12-02 00:00:24      96.0   24.0
+3              0       12         [12]        0 2022-12-02 00:02:01      60.0    0.0"""
+    assert negatives.to_string() == expected
 
 
 def test_stereo_time_period():

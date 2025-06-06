@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
+from copy import deepcopy
 
 
 @dataclass
@@ -57,6 +58,7 @@ class MonoTimePeriod:
 
         else:
             self.file_ids.append(file_id)
+            self.file_end_utc = file_end_utc
 
 
 class StereoTimePeriod:
@@ -64,9 +66,6 @@ class StereoTimePeriod:
         self.deployment_id = deployment_id
         self.max_file_gap = max_file_gap
         self.mono_periods = dict()
-
-    def __iter__(self):
-        return self.mono_periods.items()
 
     def new_annotation(
         self,
@@ -94,7 +93,7 @@ class StereoTimePeriod:
             )
 
         # return the updated mono time-period (*not* the new one, if a new one was created)
-        return p
+        return deepcopy(p)
 
     def new_file(
         self,
@@ -123,7 +122,7 @@ class StereoTimePeriod:
                 p = self.mono_periods[channel]
 
         # return the updated mono time-period
-        return p
+        return deepcopy(p)
 
 
 def find_unannotated_periods(
@@ -133,13 +132,13 @@ def find_unannotated_periods(
 
     Notes:
      - Expects all files to have known UTC start times.
-     - Annotation UTC start times are derived by adding the within-file start time (`start_ms`) to the file UTC start time
+     - Annotation UTC start times are derived by adding the within-file start time (`start`) to the file UTC start time
 
     Args:
         files: pandas.DataFrame
-            Table of audio files.
+            Table of audio files. Must have columns `deployment_id`, `file_id`, `channel`, `start_utc`, `end_utc`.
         annots: pandas.DataFrame
-            Table of annotations.
+            Table of annotations. Must have columns `deployment_id`, `file_id`, `channel`, `start`, `duration`.
         max_file_gap: float
             Maximum temporal gap between audiofiles in seconds.
             Inter-annotation gaps are allowed to span multiple audio files provided the temporal gap between the files is below this value.
@@ -154,9 +153,9 @@ def find_unannotated_periods(
     annots = annots.copy()
 
     # add start and end times to annotation table
-    files = files.reset_index().set_index("filename")
+    files = files.reset_index().set_index("file_id")
     annots["start_utc"] = annots.apply(
-        lambda r: files.loc[r.filename].start_utc
+        lambda r: files.loc[r.file_id].start_utc
         + timedelta(microseconds=r.start * 1e6),
         axis=1,
     )
@@ -170,9 +169,7 @@ def find_unannotated_periods(
 
     # reindex
     files = files.reset_index().set_index(["deployment_id", "start_utc", "end_utc"])
-    annots = annots.reset_index().annots.set_index(
-        ["deployment_id", "channel", "start_utc", "end_utc"]
-    )
+    annots = annots.reset_index().set_index(["deployment_id", "channel", "start_utc"])
 
     # container for collecting inter-annotation time periods
     periods = []
@@ -216,48 +213,48 @@ def find_unannotated_periods(
                 ]
 
                 # loop over annotations
-                for (start_utc, end_utc), _ in annots_file.iterrows():
-                    p = stereo_period.new_annotation(start_utc, end_utc)
+                for start_utc, row in annots_file.iterrows():
+                    p = stereo_period.new_annotation(channel, start_utc, row.end_utc)
 
                     # if the period has ended, save it to the list
                     if p.has_ended:
                         periods.append(p)
 
         # end and save any periods that are still open
-        for _, p in iter(stereo_period):
+        for _, p in stereo_period.mono_periods.items():
             if not p.has_ended:
                 p.end(file_end_utc)
                 periods.append(p)
 
-        # prep return table
-        data = [
-            (
-                p.deployment_id,
-                p.file_ids[0],
-                p.file_ids,
-                p.channel,
-                p.start_utc,
-                (p.end_utc - p.start_utc).total_seconds(),
-            )
-            for p in periods
-        ]
-        df = pd.DataFrame(
-            data,
-            columns=[
-                "deployment_id",
-                "file_id",
-                "file_id_list",
-                "channel",
-                "start_utc",
-                "duration",
-            ],
+    # prep return table
+    data = [
+        (
+            p.deployment_id,
+            p.file_ids[0],
+            p.file_ids,
+            p.channel,
+            p.start_utc,
+            (p.end_utc - p.start_utc).total_seconds(),
         )
+        for p in periods
+    ]
+    df = pd.DataFrame(
+        data,
+        columns=[
+            "deployment_id",
+            "file_id",
+            "file_id_list",
+            "channel",
+            "start_utc",
+            "duration",
+        ],
+    )
 
-        # add `start` column
-        files = files.reset_index().set_index("file_id")
-        df["start"] = df.apply(
-            lambda r: (r.start_utc - files.loc[r.file_id].start_utc).total_seconds(),
-            axis=1,
-        )
+    # add `start` column
+    files = files.reset_index().set_index("file_id")
+    df["start"] = df.apply(
+        lambda r: (r.start_utc - files.loc[r.file_id].start_utc).total_seconds(),
+        axis=1,
+    )
 
-        return df
+    return df
