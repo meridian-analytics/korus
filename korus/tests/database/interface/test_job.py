@@ -29,6 +29,7 @@ def test_get_filedata(job_interface_with_data):
     df = job.get_filedata(0)
 
     expected = """  channel codec  deployment_id end_utc  file_id filename format  num_samples relative_path  sample_rate start_utc  storage_id
-0     [1]  None              0    None        1  abc.wav   None        40000                       4000      None           0"""
+0    [14]  None              0     NaT        1  abc.wav   None        40000                       4000       NaT           0"""
     answer = df[sorted(df.columns)].to_string()
     assert answer == expected
+    

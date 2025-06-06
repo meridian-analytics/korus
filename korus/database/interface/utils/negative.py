@@ -44,8 +44,6 @@ class MonoTimePeriod:
         file_end_utc: datetime,
     ):
         # if the period has ended, do nothing
-        print(self.file_gap(file_start_utc), self.has_ended)
-
         if self.has_ended:
             return
 
