@@ -12,6 +12,7 @@ from .query import (
     where_condition,
     query_table,
     add_column,
+    delete_row,
 )
 
 
@@ -44,6 +45,10 @@ class SQLiteTableBackend(TableBackend):
 
     def add(self, row: dict):
         insert_row(self.conn, self.name, self.codec.encode(row, self.name))
+        self.conn.commit()
+
+    def remove(self, indices: int | list[int] = None):
+        delete_row(self.conn, self.name, encode_key(indices))
         self.conn.commit()
 
     def set(self, idx: int, row: dict):

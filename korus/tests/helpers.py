@@ -65,6 +65,18 @@ class InMemoryTableBackend(TableBackend):
         self.fields += [k for k in row.keys() if k not in self.fields]
         self.rows.append(row)
 
+    def remove(self, indices=None):
+        if isinstance(indices, int):
+            indices = [indices]
+
+        if indices is None:
+            self.rows = []
+
+        else:
+            indices = sorted(indices, reverse=True)
+            for idx in indices:
+                del self.rows[idx]
+
     def set(self, idx, row):
         self.rows[idx] = row
 

@@ -251,7 +251,11 @@ class AnnotationInterface(TableInterface):
         # set excluded label
         negatives["excluded_label"] = targets
 
-        # add negatives to table
+        # remove all pre-existing negatives for this job
+        indices = self.reset_filter().filter(job_id=job_id, negative=True).indices
+        self.remove(indices)
+
+        # add new negatives to table
         for idx, row in negatives.iterrows():
             self.add(row.to_dict())
 

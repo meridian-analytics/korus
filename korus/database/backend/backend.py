@@ -17,6 +17,9 @@ class TableBackend:
     def add(self, row: dict):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "add"))
 
+    def remove(self, indices: int | list[int] = None):
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "remove"))
+
     def set(self, idx: int, row: dict):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "set"))
 

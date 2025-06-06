@@ -74,6 +74,10 @@ class StereoTimePeriod:
         annot_start_utc,
         annot_end_utc,
     ):
+        assert (
+            channel in self.mono_periods
+        ), "`new_file` must be called before `new_annotation`"
+
         # update the current mono time-period
         self.mono_periods[channel].new_annotation(annot_start_utc, annot_end_utc)
 
@@ -115,7 +119,10 @@ class StereoTimePeriod:
                 start_utc=file_start_utc,
             )
 
-        # return the updated mono time-period (*not* the new one, if a new one was created)
+            if p is None:
+                p = self.mono_periods[channel]
+
+        # return the updated mono time-period
         return p
 
 

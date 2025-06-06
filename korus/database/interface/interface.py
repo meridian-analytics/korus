@@ -347,6 +347,15 @@ class TableInterface:
             err.args = (err_msg,) + err.args
             raise
 
+    def remove(self, indices: int | list[int] = None):
+        """Remove entries from the table.
+
+        Args:
+            indices: int | list[int]
+                The indices of the entries to be removed. If None, all entries will be removed.
+        """
+        self.backend.remove(indices)
+
     def set(self, idx: int, row: dict):
         """Modify an existing entry in the table
 

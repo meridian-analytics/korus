@@ -176,6 +176,15 @@ def query_table(conn, table_name, condition=None, indices=None):
     return [row[0] for row in rows]
 
 
+def delete_row(conn, table_name, indices=None):
+    c = conn.cursor()
+    q = f"DELETE FROM {table_name}"
+    if indices is not None:
+        q += f" WHERE id IN {to_str(indices)}"
+
+    c.execute(q)
+
+
 def fetch_row(
     conn, table_name, indices=None, fields=None, as_dict=False, return_indices=False
 ):
