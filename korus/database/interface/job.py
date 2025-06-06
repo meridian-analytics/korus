@@ -22,7 +22,7 @@ class JobInterface(TableInterface):
             required=False,
         )
         self.add_field(
-            "primary_sound", list, "Systematically annotated sounds", required=False
+            "target", list, "Systematically annotated sounds", required=False
         )
         self.add_field(
             "background_sound",

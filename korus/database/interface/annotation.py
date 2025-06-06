@@ -5,7 +5,7 @@ from .taxonomy import TaxonomyInterface
 from .job import JobInterface
 from .tag import TagInterface
 from .granularity import GranularityInterface
-from .utils.negative import find_empty_periods
+from .utils.negative import find_unannotated_periods
 
 
 def _id_from_name(interface: TableInterface, name: str | list[str]) -> list[int]:
@@ -217,15 +217,45 @@ class AnnotationInterface(TableInterface):
         return values if isinstance(id, list) else values[0]
 
     def generate_negatives(self, job_id: int):
-        # TODO: implement this
+        """Generate negative annotations.
+
+        Here, negatives are understood as (uninterrupted) time periods during which no sounds were annotated.
+
+        Negatives are added to the annotation table with `negative=True`.
+
+        Args:
+            job_id: int
+                Job index
+        """
+        # get file data
         files = self._job.get_filedata(job_id)
+
+        # if there are no files, do nothing
         if len(files) == 0:
             return
 
-        annots = self.get(as_pandas=True)
-        negatives = find_empty_periods(files, annots)
+        # get annotation data
+        annots = self.get(
+            fields=["deployment_id", "channel", "start", "duration"], as_pandas=True
+        )
 
-    def filter(self, *conditions: dict, invert: bool = False, **kwargs):
+        # find time periods without annotations
+        negatives = find_unannotated_periods(files, annots)
+
+        # mark as 'negative'
+        negatives["negative"] = True
+
+        # target sounds for this job
+        targets = self._job.get(job_id, fields="target")[0]
+
+        # set excluded label
+        negatives["excluded_label"] = targets
+
+        # add negatives to table
+        for idx, row in negatives.iterrows():
+            self.add(row.to_dict())
+
+    def filter(self, *conditions: dict, **kwargs):
         """Search the table.
 
         Note: Search criteria specified by keyword arguments take priority over search criteria
@@ -237,12 +267,6 @@ class AnnotationInterface(TableInterface):
                 Search criteria, where the keys are the field names and
                 the values are the search values. Use tuples to search on
                 a range of values and lists to search on multiple values.
-            invert: bool
-                Invert the search, i.e., exclude values or a range of values.
-                With invert=True annotations with the (source,type) specified by the `select`
-                argument are excluded rather than selected.
-                By default both ancestral and descendant nodes in the taxonomy tree are considered
-                when performing an inverted search. Use the `strict` argument to change this behaviour.
 
         Keyword args:
             select: tuple | list[tuple]
@@ -291,7 +315,7 @@ class AnnotationInterface(TableInterface):
         for cond in conditions:
             select_conditions += self._create_select_condition(cond, **kwargs)
 
-        super().filter(*select_conditions, invert=invert, **kwargs)
+        super().filter(*select_conditions, **kwargs)
 
         # perform `exclude` search
         if "exclude" in kwargs:
@@ -299,7 +323,7 @@ class AnnotationInterface(TableInterface):
             for cond in conditions:
                 exclude_conditions += self._create_exclude_condition(cond, **kwargs)
 
-            super().filter(*exclude_conditions, invert=invert, **kwargs)
+            super().filter(*exclude_conditions, **kwargs)
 
         return self
 

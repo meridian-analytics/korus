@@ -25,7 +25,7 @@ class MonoTimePeriod:
             return (file_start_utc - self.file_end_utc).total_seconds()
         else:
             return np.inf
-        
+
     def end(self, end_utc):
         self.end_utc = end_utc
 
@@ -66,7 +66,7 @@ class StereoTimePeriod:
         self.mono_periods = dict()
 
     def __iter__(self):
-        return self.mono_periods.items()       
+        return self.mono_periods.items()
 
     def new_annotation(
         self,
@@ -101,9 +101,7 @@ class StereoTimePeriod:
     ) -> MonoTimePeriod:
         # update the current mono time-period
         if channel in self.mono_periods:
-            self.mono_periods[channel].new_file(
-                file_id, file_start_utc, file_end_utc
-            )
+            self.mono_periods[channel].new_file(file_id, file_start_utc, file_end_utc)
 
         # start a new mono time-period, if there is none or the current one has ended
         p = self.mono_periods.get(channel, None)
@@ -121,7 +119,7 @@ class StereoTimePeriod:
         return p
 
 
-def find_empty_periods(
+def find_unannotated_periods(
     files: pd.DataFrame, annots: pd.DataFrame, max_file_gap: float = 0.1
 ):
     """Find time periods without annotations.
@@ -152,11 +150,11 @@ def find_empty_periods(
     files = files.reset_index().set_index("filename")
     annots["start_utc"] = annots.apply(
         lambda r: files.loc[r.filename].start_utc
-        + timedelta(microseconds=r.start_ms * 1e3),
+        + timedelta(microseconds=r.start * 1e6),
         axis=1,
     )
     annots["end_utc"] = annots.apply(
-        lambda r: r.start_utc + timedelta(microseconds=r.duration_ms * 1e3), axis=1
+        lambda r: r.start_utc + timedelta(microseconds=r.duration * 1e6), axis=1
     )
 
     # sort chronologically
@@ -226,15 +224,33 @@ def find_empty_periods(
 
         # prep return table
         data = [
-            (p.deployment_id, p.file_ids[0], p.file_ids, p.channel, p.start_utc, (p.end_utc - p.start_utc).total_seconds())
+            (
+                p.deployment_id,
+                p.file_ids[0],
+                p.file_ids,
+                p.channel,
+                p.start_utc,
+                (p.end_utc - p.start_utc).total_seconds(),
+            )
             for p in periods
-        ]    
-        df = pd.DataFrame(data, columns=["deployment_id", "file_id", "file_id_list", "channel", "start_utc", "duration"])
+        ]
+        df = pd.DataFrame(
+            data,
+            columns=[
+                "deployment_id",
+                "file_id",
+                "file_id_list",
+                "channel",
+                "start_utc",
+                "duration",
+            ],
+        )
 
         # add `start` column
         files = files.reset_index().set_index("file_id")
         df["start"] = df.apply(
-            lambda r: (r.start_utc - files.loc[r.file_id].start_utc).total_seconds(), axis=1,
+            lambda r: (r.start_utc - files.loc[r.file_id].start_utc).total_seconds(),
+            axis=1,
         )
 
         return df
