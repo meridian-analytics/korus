@@ -43,11 +43,11 @@ def test_find_unannotated_periods_single_deployment_single_channel():
 
     negatives = find_unannotated_periods(files, annots)
 
-    expected = """   deployment_id  file_id file_id_list  channel           start_utc  duration  start
-0              0       10         [10]        0 2022-12-02 00:00:00      10.0    0.0
-1              0       10         [10]        0 2022-12-02 00:00:13       7.0   13.0
-2              0       10     [10, 11]        0 2022-12-02 00:00:24      96.0   24.0
-3              0       12         [12]        0 2022-12-02 00:02:01      60.0    0.0"""
+    expected = """   deployment_id  file_id file_id_list  channel  duration  start
+0              0       10         [10]        0      10.0    0.0
+1              0       10         [10]        0       7.0   13.0
+2              0       10     [10, 11]        0      96.0   24.0
+3              0       12         [12]        0      60.0    0.0"""
     assert negatives.to_string() == expected
 
 

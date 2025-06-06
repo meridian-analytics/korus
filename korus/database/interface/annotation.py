@@ -242,18 +242,21 @@ class AnnotationInterface(TableInterface):
         # find time periods without annotations
         negatives = find_unannotated_periods(files, annots)
 
-        # mark as 'negative'
+        # mark as 'negative' and set job_id
         negatives["negative"] = True
+        negatives["job_id"] = job_id
 
         # target sounds for this job
-        targets = self._job.get(job_id, fields="target")[0]
+        target = self._job.get(job_id, fields="target", always_tuple=False)[0]
 
-        # set excluded label
-        negatives["excluded_label"] = targets
+        # set excluded_label
+        if target is not None:
+            negatives["excluded_label"] = target
 
         # remove all pre-existing negatives for this job
         indices = self.reset_filter().filter(job_id=job_id, negative=True).indices
         self.remove(indices)
+        self.reset_filter()
 
         # add new negatives to table
         for idx, row in negatives.iterrows():

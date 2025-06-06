@@ -44,6 +44,8 @@ class MonoTimePeriod:
         file_end_utc: datetime,
     ):
         # if the period has ended, do nothing
+        print(self.file_gap(file_start_utc), self.has_ended)
+
         if self.has_ended:
             return
 
@@ -108,7 +110,7 @@ class StereoTimePeriod:
 
         # start a new mono time-period, if there is none or the current one has ended
         p = self.mono_periods.get(channel, None)
-        if not p or p.has_ended:
+        if p is None or p.has_ended:
             self.mono_periods[channel] = MonoTimePeriod(
                 deployment_id=self.deployment_id,
                 max_file_gap=self.max_file_gap,
@@ -125,19 +127,46 @@ class StereoTimePeriod:
         return deepcopy(p)
 
 
+def _ensure_utc_start(files: pd.DataFrame, max_file_gap: float) -> pd.DataFrame:
+    """Helper function to ensure all files have valid UTC start and end times"""
+    is_na = files.start_utc.isna()
+
+    # if all files have start and end times, return unchanged
+    if is_na.sum() == 0:
+        return files
+
+    # pick the latest, valid end time
+    end_utc = files.end_utc.max()
+    if pd.isna(end_utc):
+        end_utc = datetime(2000, 1, 1)
+
+    # loop over files without start and end times, assigning them
+    # arbitrary times with sufficient spacing to ensure they don't
+    # get `chained` together
+    gap = max(0.1, 2 * abs(max_file_gap))
+
+    for idx, row in files.loc[is_na].iterrows():
+        start_utc = end_utc + timedelta(seconds=gap)
+        duration = row.num_samples / row.sample_rate
+        end_utc = start_utc + timedelta(seconds=duration)
+        files.loc[idx, "start_utc"] = start_utc
+        files.loc[idx, "end_utc"] = end_utc
+
+    return files
+
+
 def find_unannotated_periods(
-    files: pd.DataFrame, annots: pd.DataFrame, max_file_gap: float = 0.1
+    files: pd.DataFrame, annots: pd.DataFrame = None, max_file_gap: float = 0.1
 ):
     """Find time periods without annotations.
 
     Notes:
-     - Expects all files to have known UTC start times.
      - Annotation UTC start times are derived by adding the within-file start time (`start`) to the file UTC start time
 
     Args:
         files: pandas.DataFrame
             Table of audio files. Must have columns `deployment_id`, `file_id`, `channel`, `start_utc`, `end_utc`.
-        annots: pandas.DataFrame
+        annots: pandas.DataFrame (optional)
             Table of annotations. Must have columns `deployment_id`, `file_id`, `channel`, `start`, `duration`.
         max_file_gap: float
             Maximum temporal gap between audiofiles in seconds.
@@ -150,26 +179,35 @@ def find_unannotated_periods(
     """
     # make copies so we don't modify the input args
     files = files.copy()
-    annots = annots.copy()
+    if annots is not None:
+        annots = annots.copy() if len(annots) > 0 else None
+
+    # ensure all files have UTC start times
+    files = _ensure_utc_start(files, max_file_gap)
 
     # add start and end times to annotation table
-    files = files.reset_index().set_index("file_id")
-    annots["start_utc"] = annots.apply(
-        lambda r: files.loc[r.file_id].start_utc
-        + timedelta(microseconds=r.start * 1e6),
-        axis=1,
-    )
-    annots["end_utc"] = annots.apply(
-        lambda r: r.start_utc + timedelta(microseconds=r.duration * 1e6), axis=1
-    )
+    if annots is not None:
+        files = files.reset_index().set_index("file_id")
+        annots["start_utc"] = annots.apply(
+            lambda r: files.loc[r.file_id].start_utc
+            + timedelta(microseconds=r.start * 1e6),
+            axis=1,
+        )
+        annots["end_utc"] = annots.apply(
+            lambda r: r.start_utc + timedelta(microseconds=r.duration * 1e6), axis=1
+        )
 
     # sort chronologically
     files.sort_values(by="start_utc", inplace=True)
-    annots.sort_values(by="start_utc", inplace=True)
+    if annots is not None:
+        annots.sort_values(by="start_utc", inplace=True)
 
     # reindex
     files = files.reset_index().set_index(["deployment_id", "start_utc", "end_utc"])
-    annots = annots.reset_index().set_index(["deployment_id", "channel", "start_utc"])
+    if annots is not None:
+        annots = annots.reset_index().set_index(
+            ["deployment_id", "channel", "start_utc"]
+        )
 
     # container for collecting inter-annotation time periods
     periods = []
@@ -197,6 +235,9 @@ def find_unannotated_periods(
                 # if the period has ended, save it to the list
                 if p.has_ended:
                     periods.append(p)
+
+                if annots is None:
+                    continue
 
                 try:
                     # select annotations for current deployment and channel
@@ -256,5 +297,8 @@ def find_unannotated_periods(
         lambda r: (r.start_utc - files.loc[r.file_id].start_utc).total_seconds(),
         axis=1,
     )
+
+    # drop `start_utc` column
+    df = df.drop(columns="start_utc")
 
     return df

@@ -152,6 +152,19 @@ class TableInterface:
         """The names of the table aliases"""
         return [alias.name for alias in self.aliases]
 
+    def field_name(self, name: str):
+        """Given field or alias name, return field name"""
+        if name in self.field_names:
+            return name
+
+        elif name in self.alias_names:
+            return self.aliases[self.alias_names.index(name)].field_name
+
+        else:
+            raise ValueError(
+                f"`{name}` does not match any field definitions or aliases"
+            )
+
     def values_asdict(
         self, values: tuple, fields: str | list[str] = None, index: bool = False
     ) -> dict:
@@ -320,13 +333,20 @@ class TableInterface:
         For lists and tuples, the transforms are applied to the individual elements.
         """
         row = self.values_asdict(values, fields, index)
+        order = {field_name: i for i, field_name in enumerate(row.keys())}
 
         for alias in self._aliases:
             if alias.field_name in row:
                 v = row.pop(alias.field_name)
                 row[alias.name] = alias.reverse_transform(v, **row)
+                order[alias.name] = order[alias.field_name]
 
-        return tuple(row.values())
+        # preserve ordering
+        values = [None for _ in values]
+        for name, value in row.items():
+            values[order[name]] = value
+
+        return tuple(values)
 
     def add(self, row: dict):
         """Add an entry to the table
@@ -411,11 +431,19 @@ class TableInterface:
         if fields is None:
             fields = self.names
 
-        data = self.backend.get(indices, fields, return_indices)
+        if isinstance(fields, str):
+            fields = [fields]
+
+        # replace alias names with field names
+        fields_backend = [self.field_name(name) for name in fields]
+
+        data = self.backend.get(indices, fields_backend, return_indices)
 
         if alias:
             data = [
-                self._apply_reverse_alias_transforms(values, fields, return_indices)
+                self._apply_reverse_alias_transforms(
+                    values, fields_backend, return_indices
+                )
                 for values in data
             ]
 
@@ -507,7 +535,7 @@ class TableInterface:
                 Table summary
         """
         # table name and no. entries
-        res = f"Name: {self.name}\nEntries: {len(self)}"
+        res = f"\nName: {self.name}\nEntries: {len(self)}"
 
         # fields
         res += "\nFields:\n"
@@ -531,7 +559,8 @@ class TableInterface:
         res += tabulate(
             [f.as_tuple_str() for f in self.aliases],
             headers=[
-                "Field" "Alias",
+                "Field",
+                "Alias",
                 "Type",
                 "Description",
             ],

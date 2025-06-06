@@ -115,13 +115,13 @@ class JobInterface(TableInterface):
         rows = self.get_files(job_id)
 
         # unique file IDs
-        indices = [row[0] for row in rows]
+        indices, channels = zip(*rows)
         unique_indices = list(set(indices))
 
         # file ID: int -> channel numbers: list[int]
-        channels = {i: [] for i in unique_indices}
-        for i, c in zip(unique_indices, channels):
-            channels[i].append(c)
+        channels_list = {i: [] for i in unique_indices}
+        for i, c in zip(indices, channels):
+            channels_list[i].append(c)
 
         # get file data
         df = self._file.get(
@@ -148,9 +148,12 @@ class JobInterface(TableInterface):
             df["end_utc"] = df.apply(lambda r: endtime_fcn(r), axis=1)
 
         # add channel (dtype=object)
-        df["channel"] = df.file_id.apply(lambda x: channels[x])
+        df["channel"] = df.file_id.apply(lambda x: channels_list[x])
 
         # sort according to deployment and time, in that order
         df.sort_values(by=["deployment_id", "start_utc", "end_utc"], inplace=True)
+
+        # ensure correct dtypes
+        df = df.astype({"start_utc": "datetime64[ns]", "end_utc": "datetime64[ns]"})
 
         return df
