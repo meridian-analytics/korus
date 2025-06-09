@@ -530,9 +530,13 @@ class TableInterface:
             if not isinstance(value, (list, tuple)):
                 value = [value]
 
-            # if negation, add None
-            if negation and isinstance(value, list):
-                value.append(None)
+            if isinstance(value, list):
+                # if negation, add None
+                if negation:
+                    value.append(None)
+
+                # ensure unique values
+                value = list(set(value))
 
             condition[key] = value
 

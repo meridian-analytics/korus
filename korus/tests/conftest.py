@@ -46,6 +46,7 @@ def interfaces_with_taxonomy():
     tax.draft.create_sound_type("TC", "Whale", "Unknown")
     tax.draft.create_sound_type("PC", "KW", "TC")
     tax.draft.create_sound_type("S01", "SRKW", "PC")
+    tax.draft.create_sound_source("HW", parent="Whale")
     tax.release()
 
     yield {

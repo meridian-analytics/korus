@@ -365,8 +365,10 @@ def get_label_id(
     if label is None:
         return None
 
+    is_list = isinstance(label, list)
+
     # recast the `label` argument as list[tuple]
-    labels = [label] if not isinstance(label, list) else label
+    labels = [label] if not is_list else label
     labels = [l if isinstance(l, tuple) else (l,) for l in labels]
 
     # taxonomy version
@@ -386,7 +388,7 @@ def get_label_id(
                 ids += label_manager.get_label_id(v, l, always_list=True)
 
     # recast output
-    if not always_list and len(ids) == 1:
+    if not always_list and len(ids) == 1 and not is_list:
         ids = ids[0]
 
     return ids

@@ -234,9 +234,15 @@ class AnnotationInterface(TableInterface):
         if len(files) == 0:
             return
 
+        # remove all pre-existing negatives for this job
+        indices = self.reset_filter().filter(job_id=job_id, negative=True).indices
+        self.remove(indices)
+        self.reset_filter()
+
         # get annotation data
         annots = self.get(
-            fields=["deployment_id", "channel", "start", "duration"], as_pandas=True
+            fields=["deployment_id", "file_id", "channel", "start", "duration"],
+            as_pandas=True,
         )
 
         # find time periods without annotations
@@ -251,12 +257,7 @@ class AnnotationInterface(TableInterface):
 
         # set excluded_label
         if target is not None:
-            negatives["excluded_label"] = target
-
-        # remove all pre-existing negatives for this job
-        indices = self.reset_filter().filter(job_id=job_id, negative=True).indices
-        self.remove(indices)
-        self.reset_filter()
+            negatives["excluded_label"] = [target for _ in range(len(negatives))]
 
         # add new negatives to table
         for idx, row in negatives.iterrows():
@@ -401,23 +402,28 @@ class AnnotationInterface(TableInterface):
             id, tax_version, ascend=True, descend=True, equivalent_only=True
         )
 
-        conds = [condition.copy(), condition.copy()]
+        conds = []
 
         # exclude
-        conds[0]["excluded_label_id"] = exclude_id
+        conds.append(condition.copy())
+        conds[len(conds) - 1]["excluded_label_id"] = exclude_id
 
         # confident
-        conds[1]["label_id~"] = select_id
+        conds.append(condition.copy())
+        conds[len(conds) - 1]["label_id~"] = select_id
 
         # multiple
-        conds[1]["multiple_label_id~"] = select_id
+        conds.append(condition.copy())
+        conds[len(conds) - 1]["multiple_label_id~"] = select_id
 
         # tentative
         if tentative:
-            conds[1]["tentative_label_id~"] = select_id
+            conds.append(condition.copy())
+            conds[len(conds) - 1]["tentative_label_id~"] = select_id
 
         # ambiguous
         if ambiguous:
-            conds[1]["ambiguous_label_id~"] = select_id
+            conds.append(condition.copy())
+            conds[len(conds) - 1]["ambiguous_label_id~"] = select_id
 
         return conds
