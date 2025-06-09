@@ -362,6 +362,9 @@ def get_label_id(
     Raises:
         ValueError: if the (sound-source, sound-type) label does not exist in the taxonomy
     """
+    if label is None:
+        return None
+
     # recast the `label` argument as list[tuple]
     labels = [label] if not isinstance(label, list) else label
     labels = [l if isinstance(l, tuple) else (l,) for l in labels]

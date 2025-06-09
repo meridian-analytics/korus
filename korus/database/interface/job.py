@@ -129,7 +129,7 @@ class JobInterface(TableInterface):
         ).reset_index()
 
         # rename index column
-        df.rename(columns={"index": "file_id"}, inplace=True)
+        df.rename(columns={"id": "file_id"}, inplace=True)
 
         # add end time
         def endtime_fcn(row):

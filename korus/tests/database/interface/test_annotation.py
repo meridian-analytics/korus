@@ -35,8 +35,14 @@ def test_generate_negatives(interfaces_with_taxonomy):
     assert indices == [0, 1]
 
     # check the annotation data for these two negatives
-    df = annot.get(indices, fields=["duration", "start"], as_pandas=True)
-    print(df)
+    df = annot.get(
+        indices, fields=["duration", "start"], as_pandas=True, return_indices=True
+    )
+    expected = """    duration  start
+id                 
+0       10.0    0.0
+1       10.0    0.0"""
+    assert df.to_string() == expected
 
 
 def test_add_get_set_filter_data(interfaces_with_taxonomy):

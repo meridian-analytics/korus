@@ -94,16 +94,16 @@ def test_get_label_id():
     m.update(1, tax.all_labels)
 
     id = get_label_id("AA", tax, m)
-    assert id == 3
+    assert id == 2
 
     id = get_label_id("AA", tax, m, ascend=True)
-    assert id == [3, 2, 1]
+    assert id == [2, 1, 0]
 
     id = get_label_id("AB", tax, m, descend=True)
-    assert id == [4, 5]
+    assert id == [3, 4]
 
     id = get_label_id("AB", tax, m, ascend=True, descend=True)
-    assert sorted(id) == sorted([1, 2, 4, 5])
+    assert sorted(id) == sorted([0, 1, 3, 4])
 
 
 def test_taxonomy_manager():
@@ -121,16 +121,16 @@ def test_taxonomy_manager():
     m.release()
 
     id = m.get_label_id("AA")
-    assert id == 3
+    assert id == 2
 
     id = m.get_label_id("AA", 1, ascend=True)
-    assert id == [3, 2, 1]
+    assert id == [2, 1, 0]
 
     id = m.get_label_id("AB", descend=True)
-    assert id == [4, 5]
+    assert id == [3, 4]
 
     id = m.get_label_id("AB", ascend=True, descend=True)
-    assert sorted(id) == sorted([1, 2, 4, 5])
+    assert sorted(id) == sorted([0, 1, 3, 4])
 
-    id = m.get_label_id(label_id=4, descend=True)
-    assert id == [4, 5]
+    id = m.get_label_id(label_id=3, descend=True)
+    assert id == [3, 4]

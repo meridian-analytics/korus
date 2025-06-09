@@ -91,9 +91,9 @@ class InMemoryTableBackend(TableBackend):
                 for name, values in condition.items():
                     if name[-1] == "~":
                         name = name[:-1]
-                        invert = True
+                        negation = True
                     else:
-                        invert = False
+                        negation = False
 
                     if name not in row:
                         continue
@@ -110,15 +110,15 @@ class InMemoryTableBackend(TableBackend):
                     for x in xs:
                         accept_x = False
 
-                        if isinstance(values, tuple):
+                        if isinstance(values, tuple) and x is not None:
                             a, b = values
-                            if invert:
+                            if negation:
                                 accept_x = x < a or x > b
                             else:
                                 accept_x = x >= a and x <= b
 
                         else:
-                            if invert:
+                            if negation:
                                 accept_x = x not in values
                             else:
                                 accept_x = x in values

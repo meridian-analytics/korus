@@ -152,6 +152,11 @@ class TableInterface:
         """The names of the table aliases"""
         return [alias.name for alias in self.aliases]
 
+    @property
+    def aliases_asdict(self) -> dict[str, FieldAlias]:
+        """The field aliases as a dict"""
+        return {alias.name: alias for alias in self._aliases}
+
     def field_name(self, name: str):
         """Given field or alias name, return field name"""
         if name in self.field_names:
@@ -178,6 +183,7 @@ class TableInterface:
                 for every field, in the correct ordering.
             index: bool
                 Whether the index has been inserted at the beginning of the value tuple.
+                If True, the index value is added to the dict with the key `id`.
 
         Returns:
             : dict
@@ -333,19 +339,12 @@ class TableInterface:
         For lists and tuples, the transforms are applied to the individual elements.
         """
         row = self.values_asdict(values, fields, index)
-        order = {field_name: i for i, field_name in enumerate(row.keys())}
 
-        for alias in self._aliases:
-            if alias.field_name in row:
-                v = row.pop(alias.field_name)
-                row[alias.name] = alias.reverse_transform(v, **row)
-                order[alias.name] = order[alias.field_name]
-
-        # preserve ordering
-        values = [None for _ in values]
         for name, value in row.items():
-            values[order[name]] = value
+            if name in self.aliases_asdict:
+                row[name] = self.aliases_asdict[name].reverse_transform(value, **row)
 
+        values = [v for v in row.values()]
         return tuple(values)
 
     def add(self, row: dict):
@@ -387,7 +386,7 @@ class TableInterface:
         """
         row = row.copy()
         row = self._apply_alias_transforms(row)
-        current_values = self.values_asdict(self.get(idx, alias=False)[0])
+        current_values = self.values_asdict(self.get(idx)[0])
         row = self._replace_missing_values(row, current_values)
         row = self._validate_data(row)
         try:
@@ -402,7 +401,6 @@ class TableInterface:
         indices: int | list[int] = None,
         fields: str | list[str] = None,
         return_indices: bool = False,
-        alias: bool = True,
         always_tuple: bool = True,
         as_pandas: bool = False,
     ) -> list[tuple]:
@@ -417,8 +415,6 @@ class TableInterface:
                 The fields to be returned. If None, all fields are returned.
             return_indices: bool
                 Whether to also return the indices. If True, indices are inserted at the beginning of each row tuple.
-            alias: bool
-                Whether to apply reverse alias transforms to replace field values by their alias values.
             always_tuple: bool
                 If False, and there is only 1 field, return a list of values instead of tuples.
             as_pandas: bool
@@ -435,21 +431,22 @@ class TableInterface:
             fields = [fields]
 
         # replace alias names with field names
-        fields_backend = [self.field_name(name) for name in fields]
+        fields_noalias = [self.field_name(name) for name in fields]
 
-        data = self.backend.get(indices, fields_backend, return_indices)
+        # pass query to backend
+        data = self.backend.get(indices, fields_noalias, return_indices)
 
-        if alias:
-            data = [
-                self._apply_reverse_alias_transforms(
-                    values, fields_backend, return_indices
-                )
-                for values in data
-            ]
+        # apply reverse alias transforms
+        data = [
+            self._apply_reverse_alias_transforms(values, fields, return_indices)
+            for values in data
+        ]
 
+        # optionally, drop tuple dimension
         if not as_pandas and not always_tuple and len(data) >= 1 and len(data[0]) == 1:
             data = [values[0] for values in data]
 
+        # optionally, reformat output as Pandas DataFrame
         if as_pandas:
             data = _as_pandas_dataframe(data, fields, return_indices)
 
@@ -507,8 +504,6 @@ class TableInterface:
     def _validate_condition(self, condition: dict) -> dict:
         """Helper function for validating filter conditions.
 
-        TODO: implement this method
-
         Args:
             condition: dict
                 Search criteria
@@ -522,6 +517,24 @@ class TableInterface:
         """
         if condition is None:
             condition = dict()
+
+        for key, value in condition.items():
+            negation = key[-1] == "~"
+            name = key[:-1] if negation else key
+
+            assert (
+                name in self.field_names
+            ), f"Invalid field name `{name}` in filter condition"
+
+            # if scalar, recast as list
+            if not isinstance(value, (list, tuple)):
+                value = [value]
+
+            # if negation, add None
+            if negation and isinstance(value, list):
+                value.append(None)
+
+            condition[key] = value
 
         return condition
 
@@ -574,12 +587,12 @@ def _as_pandas_dataframe(
 ) -> pd.DataFrame:
     """Helper function for converting retrieved data to a Pandas DataFrame"""
     if index:
-        columns = ["index"] + columns
+        columns = ["id"] + columns
 
     df = pd.DataFrame(data, columns=columns)
 
     if index:
-        df.set_index("index", inplace=True)
-        df.index.name = "index"
+        df.set_index("id", inplace=True)
+        df.index.name = "id"
 
     return df
