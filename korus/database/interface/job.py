@@ -25,12 +25,6 @@ class JobInterface(TableInterface):
             "target", list, "Systematically annotated sounds", required=False
         )
         self.add_field(
-            "background_sound",
-            list,
-            "Opportunistially annotated sounds",
-            required=False,
-        )
-        self.add_field(
             "is_exhaustive",
             bool,
             "Whether all primary sounds were annotated",
