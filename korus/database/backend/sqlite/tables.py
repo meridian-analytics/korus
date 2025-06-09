@@ -242,7 +242,6 @@ def create_file_table(conn):
                 relative_path TEXT NOT NULL DEFAULT '',
                 sample_rate INTEGER NOT NULL,
                 num_samples INTEGER NOT NULL,
-                downsample TEXT,
                 format TEXT,
                 codec TEXT,
                 start_utc TEXT,

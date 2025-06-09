@@ -191,6 +191,84 @@ def sqlite_database_with_taxonomy():
         os.remove(path)
 
 
+@pytest.fixture
+def one_storage_location():
+    v = {
+        "name": "laptop",
+        "path": "/",
+        "description": "data from my latest deployments",
+    }
+    return v
+
+
+@pytest.fixture
+def one_deployment():
+    lat = 49.780487
+    lon = -122.05154
+    depth = 18.0
+    v = {
+        "owner": "OceanResearch",
+        "name": "WestPoint",
+        "start_utc": datetime(2022, 6, 24),
+        "end_utc": datetime(2022, 10, 3),
+        "location": "Salt Spring Island, BC, Canada",
+        "latitude_deg": lat,
+        "longitude_deg": lon,
+        "depth_m": depth,
+        "latitude_min_deg": lat,
+        "latitude_max_deg": lat,
+        "longitude_min_deg": lon,
+        "longitude_max_deg": lon,
+        "depth_min_m": depth,
+        "depth_max_m": depth,
+        "license": None,
+        "hydrophone": None,
+        "bits_per_sample": None,
+        "sample_rate": 128000,
+        "num_channels": 1,
+        "sensitivity": None,
+        "comments": None,
+    }
+    return v
+
+
+@pytest.fixture
+def two_files():
+
+    def abclisten_timestamp_parser(x):
+        fmt = "_%Y%m%dT%H%M%S.%fZ"
+        p = x.find("_")
+        s = x[p : p + 21]
+        return datetime.strptime(s, fmt)
+
+    fnames = [
+        "ABCLISTENHF1234_20220624T164000.000Z_20220624T164459.996Z.flac",
+        "ABCLISTENHF1234_20220624T164500.023Z_20220624T164959.994Z.flac",
+    ]
+
+    dirpath = "OceanResearch/WestPoint"
+
+    file_data = []
+    for fname in fnames:
+        dt = abclisten_timestamp_parser(fname)
+        dir_path = os.path.join(dirpath, dt.strftime("%Y%m%d"))
+        num_samples, sample_rate = 32000 * 5 * 60, 32000
+        v = {
+            "deployment_id": 0,
+            "storage_id": 0,
+            "filename": fname,
+            "relative_path": dir_path,
+            "sample_rate": sample_rate,
+            "num_samples": num_samples,
+            "format": "FLAC",
+            "codec": "FLAC",
+            "start_utc": dt,
+        }
+        file_data.append(v)
+
+    return file_data
+
+
 # --- old fixtures below this point ---
 
 

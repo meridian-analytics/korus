@@ -190,11 +190,26 @@ def test_add_get_set_filter_data(interfaces_with_taxonomy):
     assert idx == []
 
 
-def test_comprehensive_example(sqlite_database_with_taxonomy):
+def test_comprehensive_example(
+    sqlite_database_with_taxonomy,
+    one_deployment,
+    one_storage_location,
+    two_files,
+):
     """A fairly comprehensive (and rather complex) test that we can add a broad range of
     annotations to the database and search for them using the filter method.
     """
     db = sqlite_database_with_taxonomy
+
+    # add deployment
+    db.deployment.add(one_deployment)
+
+    # add storage location
+    db.storage.add(one_storage_location)
+
+    # add files
+    for file in two_files:
+        db.file.add(file)
 
     # add a job
     target = [("KW", "PC"), ("KW", "W")]
@@ -217,49 +232,6 @@ def test_comprehensive_example(sqlite_database_with_taxonomy):
 
 
 '''
-    (conn, path) = basic_db
-    c = conn.cursor()
-    c = kdb.insert_row(conn, table_name="deployment", values=deploy_data)
-
-    v = {
-        "name": "laptop",
-        "path": "/",
-        "description": "data from my latest deployments",
-    }
-    c = kdb.insert_row(conn, table_name="storage", values=v)
-
-    for v in file_data:
-        kdb.insert_row(conn, table_name="file", values=v)
-
-    # insert job
-    primary_sound = kdb.get_label_id(
-        conn, source_type=[("KW", "PC"), ("KW", "W")], taxonomy_id=2, always_list=True
-    )
-    background_sound = kdb.get_label_id(
-        conn, source_type=("%", "CK"), taxonomy_id=2, always_list=True
-    )
-    v = {
-        "taxonomy_id": 2,
-        "model_id": None,
-        "annotator": "LL",
-        "primary_sound": json.dumps(primary_sound),
-        "background_sound": json.dumps(background_sound),
-        "is_exhaustive": 1,
-        "configuration": None,
-        "start_utc": "2022-10",
-        "end_utc": "2023-03",
-        "by_human": 1,
-        "by_machine": 0,
-        "comments": "Vessel noise annotated opportunistically",
-        "issues": json.dumps(
-            [
-                "start and end times may not always be accurate",
-                "some KW sounds may have been incorrectly labelled as HW",
-            ]
-        ),
-    }
-    c = kdb.insert_row(conn, table_name="job", values=v)
-
     # link files
     # get deployment id
     query = """

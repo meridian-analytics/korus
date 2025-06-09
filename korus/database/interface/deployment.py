@@ -69,6 +69,7 @@ class DeploymentInterface(TableInterface):
             "Maximum depth in meters [mobile deployments only]",
             required=False,
         )
+        self.add_field("hydrophone", str, "Hydrophone make and model", required=False)
         self.add_field("license", str, "Data license", required=False)
         self.add_field("bits_per_sample", int, "Digital resolution", required=False)
         self.add_field("sample_rate", int, "Sampling rate in Hz", required=False)
