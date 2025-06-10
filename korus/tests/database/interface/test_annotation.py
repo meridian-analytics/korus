@@ -266,7 +266,42 @@ def test_comprehensive_example(
     # check that annotation table now has 6 entries
     assert len(db.annotation) == 6
 
-    pass
+    # query the table and check that we get the correct data back
+    fields = ["label","start","duration","tag"]
+    values_list = db.annotation.get(fields=fields)
+    for i,values in enumerate(values_list):
+
+        label,start,duration,tag = values
+        end = start + duration
+
+        if i == 0:
+            assert label == ("KW", "PC")
+            assert start == 30.0
+            assert end == 31.3
+
+        elif i == 1:
+            assert label == ("SRKW", "S01")
+            assert start == 21.2
+            assert end == 321.2
+
+        elif i == 2:
+            assert label == None
+            assert start == 1.0
+            assert end == 1.8
+            assert tag == ["NEGATIVE"]
+
+        elif i > 2:
+            assert label == None
+
+            if i == 3:
+                assert start == 0.0
+                assert end == 1.0
+            elif i == 4:
+                assert start == 1.8
+                assert end == 21.2
+            elif i == 5:
+                assert start == 21.177
+                assert end == 300.0
 
 
 """
