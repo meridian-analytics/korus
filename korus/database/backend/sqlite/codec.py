@@ -24,7 +24,7 @@ def encode_condition(table_name, condition, encoder):
     return encoded_condition
 
 
-def encode_key(v: int | list[int]):
+def index_to_key(v: int | list[int]):
     if v is None:
         return None
 
@@ -32,15 +32,35 @@ def encode_key(v: int | list[int]):
         return v + 1
 
     else:
-        return json.dumps([x + 1 for x in v])
+        return [x + 1 for x in v]
 
 
-def decode_key(v: int | list[int]):
+def key_to_index(v: int | list[int]):
     if isinstance(v, int):
         return v - 1
 
     else:
         return [x - 1 for x in v]
+
+
+def encode_key(v: int | list[int]):
+    v = index_to_key(v)
+    if isinstance(v, (list, tuple, dict)):
+        v = json.dumps(v)
+
+    return v
+
+
+def decode_key(v: int | list[int]):
+    return key_to_index(v)
+
+
+def decode_json(v: str) -> list | tuple | dict:
+    if v is None:
+        return None
+
+    else:
+        return json.loads(v)
 
 
 def decode_datetime(v: str) -> datetime:
@@ -175,6 +195,13 @@ class Codec:
 
 def create_codec(conn):
     codec = Codec()
+
+    # decode JSON columns
+    for tbl_name in qy.get_table_names(conn):
+        col_types = qy.get_column_types(conn, tbl_name)
+        for col_name, col_type in col_types.items():
+            if col_type == "JSON":
+                codec.decoder.add_rule(tbl_name, col_name, decode_json)
 
     # decode timestamps
     codec.decoder.add_rule("deployment", "start_utc", decode_datetime)

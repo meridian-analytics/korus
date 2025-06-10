@@ -267,7 +267,7 @@ class AnnotationInterface(TableInterface):
             negatives["excluded_label"] = [target for _ in range(len(negatives))]
 
         # add new negatives to table
-        for idx, row in negatives.iterrows():
+        for _, row in negatives.iterrows():
             self.add(row.to_dict())
 
     def filter(self, *conditions: dict, **kwargs):

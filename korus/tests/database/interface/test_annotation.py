@@ -259,6 +259,13 @@ def test_comprehensive_example(
         db.annotation.add(row)
 
     assert len(db.annotation) == 3
+
+    # generate negatives
+    db.annotation.generate_negatives(0)
+
+    # check that annotation table now has 6 entries
+    assert len(db.annotation) == 6
+
     pass
 
 

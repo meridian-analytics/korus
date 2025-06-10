@@ -1,6 +1,13 @@
 import sqlite3
 from korus.database.backend import TableBackend, DatabaseBackend
-from .codec import Codec, encode_key, encode_condition, decode_key
+from .codec import (
+    Codec,
+    encode_key,
+    encode_condition,
+    decode_key,
+    index_to_key,
+    key_to_index,
+)
 from .tables import create_tables
 from .codec import create_codec
 from .query import (
@@ -48,12 +55,12 @@ class SQLiteTableBackend(TableBackend):
         self.conn.commit()
 
     def remove(self, indices: int | list[int] = None):
-        delete_row(self.conn, self.name, encode_key(indices))
+        delete_row(self.conn, self.name, index_to_key(indices))
         self.conn.commit()
 
     def set(self, idx: int, row: dict):
         update_row(
-            self.conn, self.name, encode_key(idx), self.codec.encode(row, self.name)
+            self.conn, self.name, index_to_key(idx), self.codec.encode(row, self.name)
         )
         self.conn.commit()
 
@@ -66,7 +73,7 @@ class SQLiteTableBackend(TableBackend):
         rows = fetch_row(
             self.conn,
             self.name,
-            encode_key(indices),
+            index_to_key(indices),
             fields,
             as_dict=True,
             return_indices=return_indices,
@@ -80,13 +87,13 @@ class SQLiteTableBackend(TableBackend):
         indices: list[int] = None,
         **kwargs,
     ) -> list[int]:
-        indices = self.codec.encode(indices, self.name, "id")
+        indices = index_to_key(indices)
         conditions = [
             encode_condition(self.name, c, self.codec.encode) for c in conditions
         ]
         condition = where_condition(self.conn, self.name, conditions)
         indices = query_table(self.conn, self.name, condition, indices)
-        indices = self.codec.decode(indices, self.name, "id")
+        indices = key_to_index(indices)
         return indices
 
     def add_field(

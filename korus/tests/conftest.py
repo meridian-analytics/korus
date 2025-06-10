@@ -2,7 +2,7 @@ import os
 import pytest
 import json
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import korus.tax as kx
 import korus.db as kdb
 from korus.database.backend.sqlite import SQLiteBackend

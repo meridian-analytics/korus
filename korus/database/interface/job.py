@@ -148,6 +148,8 @@ class JobInterface(TableInterface):
         df.sort_values(by=["deployment_id", "start_utc", "end_utc"], inplace=True)
 
         # ensure correct dtypes
-        df = df.astype({"start_utc": "datetime64[ns]", "end_utc": "datetime64[ns]"})
+        df = df.astype(
+            {"start_utc": "datetime64[ns, UTC]", "end_utc": "datetime64[ns, UTC]"}
+        )
 
         return df
