@@ -14,7 +14,7 @@ def _id_from_name(interface: TableInterface, name: str | list[str]) -> list[int]
     """
     if name is None:
         return None
-    
+
     names = name if isinstance(name, list) else [name]
     indices = []
     for name in names:
@@ -29,7 +29,7 @@ def _id_from_name(interface: TableInterface, name: str | list[str]) -> list[int]
 
 class AnnotationInterface(TableInterface):
     """
-    TODO: overwrite add() method to allow 
+    TODO: overwrite add() method to allow
             - extracting deployment ID from file IDs
             - parsing of sound source & type labels
     TODO: overwrite get() method to provide conversion to ketos/raven formats

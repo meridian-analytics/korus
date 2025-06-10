@@ -32,7 +32,7 @@ def encode_key(v: int | list[int]):
         return v + 1
 
     else:
-        return [x + 1 for x in v]
+        return json.dumps([x + 1 for x in v])
 
 
 def decode_key(v: int | list[int]):

@@ -230,7 +230,7 @@ def test_comprehensive_example(
     db.job.add(job_data)
 
     # link files
-    db.job.add_file(0, 0)  #job:0 file:0
+    db.job.add_file(0, 0)  # job:0 file:0
     db.job.add_file(0, 1)
 
     # add a tag
@@ -238,21 +238,23 @@ def test_comprehensive_example(
 
     # insert three annotations (id: 0, 1, 2)
     deployment_id = two_files[0]["deployment_id"]
-    df = pd.DataFrame({
-        "deployment_id": [deployment_id, deployment_id, deployment_id],
-        "job_id": [0, 0, 0],
-        "file_id": [0, 0, 0],
-        "channel": [0, 0, 0],
-        "label": [("KW","PC"), ("SRKW","S01"), None],
-        "tentative_label": [("SRKW","S01"), None, None],
-        "tag": [None, None, ["NEGATIVE"]],
-        "duration_ms": [1300, 300000, 800],
-        "start_ms": [30000, 21200, 1000],
-        "freq_min_hz": [600, 700, 800],
-        "freq_max_hz": [4400, 3300, 2200],
-        "granularity": ["unit", "window", "window"],
-        "comments": ["no additional observations", "", "this is a negative sample"],
-    })
+    df = pd.DataFrame(
+        {
+            "deployment_id": [deployment_id, deployment_id, deployment_id],
+            "job_id": [0, 0, 0],
+            "file_id": [0, 0, 0],
+            "channel": [0, 0, 0],
+            "label": [("KW", "PC"), ("SRKW", "S01"), None],
+            "tentative_label": [("SRKW", "S01"), None, None],
+            "tag": [None, None, ["NEGATIVE"]],
+            "duration_ms": [1300, 300000, 800],
+            "start_ms": [30000, 21200, 1000],
+            "freq_min_hz": [600, 700, 800],
+            "freq_max_hz": [4400, 3300, 2200],
+            "granularity": ["unit", "window", "window"],
+            "comments": ["no additional observations", "", "this is a negative sample"],
+        }
+    )
     for _, row in df.iterrows():
         db.annotation.add(row)
 
@@ -260,7 +262,7 @@ def test_comprehensive_example(
     pass
 
 
-'''
+"""
     # insert a few annotations
     annot_tbl = pd.DataFrame(
         {
@@ -551,4 +553,4 @@ def test_comprehensive_example(
         conn, source_type=("KW", "%"), exclude=("SRKW", "S01"), taxonomy_id=2
     )
     assert idx == [13, 14, 20]
-'''
+"""
