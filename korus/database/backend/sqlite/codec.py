@@ -38,7 +38,7 @@ def index_to_key(v: int | list[int]):
 def key_to_index(v: int | list[int]):
     if v is None:
         return None
-    
+
     if isinstance(v, int):
         return v - 1
 

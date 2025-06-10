@@ -267,11 +267,11 @@ def test_comprehensive_example(
     assert len(db.annotation) == 6
 
     # query the table and check that we get the correct data back
-    fields = ["label","start","duration","tag"]
+    fields = ["label", "start", "duration", "tag"]
     values_list = db.annotation.get(fields=fields)
-    for i,values in enumerate(values_list):
+    for i, values in enumerate(values_list):
 
-        label,start,duration,tag = values
+        label, start, duration, tag = values
         end = start + duration
 
         if i == 0:
@@ -303,106 +303,49 @@ def test_comprehensive_example(
                 assert start == 21.177
                 assert end == 300.0
 
+    # test filtering
+    indices = (
+        db.annotation.reset_filter()
+        .filter(select=("KW", "PC"), taxonomy_version=1)
+        .indices
+    )
+    assert indices == [0, 1]
+
+    indices = (
+        db.annotation.reset_filter()
+        .filter(select=("SRKW", "PC"), taxonomy_version=3)
+        .indices
+    )
+    assert indices == [1]
+
+    indices = (
+        db.annotation.reset_filter()
+        .filter(select=("SRKW", "S01"), taxonomy_version=2)
+        .indices
+    )
+    assert indices == [1]
+
+    indices = (
+        db.annotation.reset_filter()
+        .filter(select=("SRKW", "S01"), tentative=True, taxonomy_version=2)
+        .indices
+    )
+    assert indices == [0, 1]
+
+    # insert another set of annotations, with minimal required info (id: 6, 7, 8)
+    df = pd.DataFrame(
+        {
+            "deployment_id": [deployment_id, deployment_id, deployment_id],
+            "job_id": [0, 0, 0],
+            "file_id": [1, 1, 1],
+            "label": [("KW", "PC"), ("SRKW", "S01"), None],
+        }
+    )
+    for _, row in df.iterrows():
+        db.annotation.add(row)
+
 
 """
-    # insert a few annotations
-    annot_tbl = pd.DataFrame(
-        {
-            "file_id": [1, 1, 1],  # id:1,2,3
-            "channel": [0, 0, 0],
-            "sound_source": ["KW", "SRKW", None],
-            "sound_type": ["PC", "S01", None],
-            "tentative_sound_source": ["SRKW", None, None],
-            "tentative_sound_type": ["S01", None, None],
-            "tag": [None, None, ["NEGATIVE"]],
-            "duration_ms": [1300, 300000, 800],
-            "start_ms": [30000, 21200, 1000],
-            "freq_min_hz": [600, 700, None],
-            "freq_max_hz": [4400, 3300, None],
-            "granularity": ["unit", "window", "window"],
-            "comments": ["no additional observations", "", "this is a negative sample"],
-        }
-    )
-    annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1)
-    neg_ids = kdb.add_negatives(conn, job_id=1)  # this adds 3 negatives
-
-    query = "SELECT label_id,start_ms,duration_ms,file_id,tag_id FROM annotation"
-    rows = c.execute(query).fetchall()
-    for i, row in enumerate(rows):
-        l = row[0]
-        f = row[3]
-        ss, st = c.execute(
-            f"SELECT sound_source_tag,sound_type_tag FROM label WHERE id = '{l}'"
-        ).fetchall()[0]
-        start = row[1] / 1000.0
-        end = start + row[2] / 1000.0
-        tag_id = json.loads(row[4])
-
-        if i == 0:
-            assert ss == "KW"
-            assert st == "PC"
-            assert start == 30.0
-            assert end == 31.3
-
-        elif i == 1:
-            assert ss == "SRKW"
-            assert st == "S01"
-            assert start == 21.2
-            assert end == 321.2
-
-        elif i == 2:
-            assert ss == None
-            assert st == None
-            assert tag_id == [2]
-            assert start == 1.0
-            assert end == 1.8
-
-        elif i > 2:
-            assert ss == None
-            assert st == None
-            assert tag_id == [1]
-
-            if i == 3:
-                assert start == 0.0
-                assert end == 1.0
-            elif i == 4:
-                assert start == 1.8
-                assert end == 21.2
-            elif i == 5:
-                assert start == 21.177
-                assert end == 300.0
-
-    # test filter_annotation function
-    rows = kdb.filter_annotation(conn, source_type=("KW", "PC"), taxonomy_id=1)
-    assert rows == [1, 2]
-
-    rows = kdb.filter_annotation(conn, source_type=("SRKW", "PC"), taxonomy_id=3)
-    assert rows == [2]
-
-    rows = kdb.filter_annotation(
-        conn, source_type=("SRKW", "S01"), taxonomy_id=2, tentative=False
-    )
-    assert rows == [2]
-
-    rows = kdb.filter_annotation(
-        conn, source_type=("SRKW", "S01"), taxonomy_id=2, tentative=True
-    )
-    assert rows == [1, 2]
-
-    # see all attached databases
-    ##rows = conn.execute("SELECT * FROM pragma_database_list").fetchall()
-    ##print(rows)
-
-    # insert annotations with minimal required info
-    annot_tbl = pd.DataFrame(
-        {
-            "file_id": [2, 2, 2],  # id:7,8,9
-            "sound_source": ["KW", "SRKW", None],
-            "sound_type": ["PC", "S01", None],
-        }
-    )
-    annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1)
-
     # define some tags
     v = {"name": "noise", "description": "A sample with noise"}
     c = kdb.insert_row(conn, table_name="tag", values=v)

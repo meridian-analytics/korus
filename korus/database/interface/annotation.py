@@ -354,17 +354,15 @@ class AnnotationInterface(TableInterface):
             if k in self.field_names + self.alias_names:
                 condition[k] = v
 
-        conds = [condition]
+        conds = [condition.copy()]
 
         # selected labels
         if select is not None:
 
             id = self._taxonomy.get_label_id(select, tax_version)
 
-            # crosswalk labels to other taxonomies, including descendant nodes
-            id = self._taxonomy.crosswalk(
-                id, tax_version, descend=True, equivalent_only=True
-            )
+            # crosswalk labels to all taxonomies, including descendant nodes
+            id = self._taxonomy.crosswalk(id, descend=True, equivalent_only=True)
 
             # confident
             conds[len(conds) - 1]["label_id"] = id
@@ -399,14 +397,12 @@ class AnnotationInterface(TableInterface):
 
         id = self._taxonomy.get_label_id(exclude, tax_version)
 
-        # crosswalk labels to other taxonomies, including only ascendant nodes and not requiring equivalency
-        exclude_id = self._taxonomy.crosswalk(
-            id, tax_version, ascend=True, equivalent_only=False
-        )
+        # crosswalk labels to all taxonomies, including only ascendant nodes and not requiring equivalency
+        exclude_id = self._taxonomy.crosswalk(id, ascend=True, equivalent_only=False)
 
-        # crosswalk labels to other taxonomies, including ascendant and descendant nodes
+        # crosswalk labels to all taxonomies, including ascendant and descendant nodes
         select_id = self._taxonomy.crosswalk(
-            id, tax_version, ascend=True, descend=True, equivalent_only=True
+            id, ascend=True, descend=True, equivalent_only=True
         )
 
         conds = []
