@@ -1,4 +1,5 @@
 import pytest
+import pandas as pd
 from datetime import datetime
 
 
@@ -228,51 +229,39 @@ def test_comprehensive_example(
     }
     db.job.add(job_data)
 
+    # link files
+    db.job.add_file(0, 0)  #job:0 file:0
+    db.job.add_file(0, 1)
+
+    # add a tag
+    db.tag.add({"name": "NEGATIVE", "description": "a negative sample"})
+
+    # insert three annotations (id: 0, 1, 2)
+    deployment_id = two_files[0]["deployment_id"]
+    df = pd.DataFrame({
+        "deployment_id": [deployment_id, deployment_id, deployment_id],
+        "job_id": [0, 0, 0],
+        "file_id": [0, 0, 0],
+        "channel": [0, 0, 0],
+        "label": [("KW","PC"), ("SRKW","S01"), None],
+        "tentative_label": [("SRKW","S01"), None, None],
+        "tag": [None, None, ["NEGATIVE"]],
+        "duration_ms": [1300, 300000, 800],
+        "start_ms": [30000, 21200, 1000],
+        "freq_min_hz": [600, 700, 800],
+        "freq_max_hz": [4400, 3300, 2200],
+        "granularity": ["unit", "window", "window"],
+        "comments": ["no additional observations", "", "this is a negative sample"],
+    })
+    for _, row in df.iterrows():
+        db.annotation.add(row)
+
+    assert len(db.annotation) == 3
     pass
 
 
 '''
-    # link files
-    # get deployment id
-    query = """
-        SELECT 
-            id
-        FROM 
-            deployment 
-        WHERE 
-            owner LIKE 'OceanResearch' 
-            AND name LIKE 'WestPoint'
-            AND start_utc >= '2022-01-01'
-            AND end_utc <= '2022-12-31'
-    """
-    rows = c.execute(query).fetchall()
-    deploy_id = rows[0][0]
-
-    # get file_id
-    for v in file_data:
-        fname = v["filename"]
-
-        query = f"""
-            SELECT 
-                id
-            FROM 
-                file 
-            WHERE 
-                deployment_id = '{deploy_id}' 
-                AND filename LIKE '{fname}'
-        """
-        rows = c.execute(query).fetchall()
-        file_id = rows[0][0]
-
-        # link file to job
-        v = {"job_id": 1, "file_id": file_id, "channel": 0}
-        c = kdb.insert_row(conn, table_name="file_job_relation", values=v)
-
-    # define some tags
-    v = {"name": "NEGATIVE", "description": "A negative sample"}
-    c = kdb.insert_row(conn, table_name="tag", values=v)
-
-    # insert annotation using add_annotation function
+    # insert a few annotations
     annot_tbl = pd.DataFrame(
         {
             "file_id": [1, 1, 1],  # id:1,2,3
