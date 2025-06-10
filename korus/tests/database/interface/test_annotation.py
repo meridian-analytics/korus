@@ -344,42 +344,54 @@ def test_comprehensive_example(
     for _, row in df.iterrows():
         db.annotation.add(row)
 
+    # define some more tags
+    db.tag.add({"name": "noise", "description": "A sample with noise"})
+    db.tag.add({"name": "Loud noise", "description": "A sample with loud noise"})
 
-"""
-    # define some tags
-    v = {"name": "noise", "description": "A sample with noise"}
-    c = kdb.insert_row(conn, table_name="tag", values=v)
-    v = {"name": "Loud noise", "description": "A sample with loud noise"}
-    c = kdb.insert_row(conn, table_name="tag", values=v)
-
-    # insert annotations with tags
-    annot_tbl = pd.DataFrame(
+    # insert annotations with tags (id: 9,10)
+    df = pd.DataFrame(
         {
-            "file_id": [2, 2],  # id: 10,11
-            "sound_source": ["SRKW", "SRKW"],
-            "sound_type": ["PC", "PC"],
-            "tag": ["noise", "Loud noise"],
+            "deployment_id": [deployment_id, deployment_id],
+            "job_id": [0, 0],
+            "file_id": [1, 1],  # id: 10,11
+            "label": [("SRKW", "PC"), ("SRKW", "PC")],
+            "tag": [["noise"], ["Loud noise"]],
         }
     )
-    annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1)
+    for _, row in df.iterrows():
+        db.annotation.add(row)
 
-    rows = kdb.filter_annotation(conn, source_type=("SRKW", "PC"), taxonomy_id=3)
-    assert rows == [2, 8, 10, 11]
-
-    rows = kdb.filter_annotation(
-        conn, source_type=("SRKW", "PC"), taxonomy_id=3, tag="Loud noise"
+    # filter
+    indices = (
+        db.annotation.reset_filter()
+        .filter(select=("SRKW", "PC"), taxonomy_version=3)
+        .indices
     )
-    assert rows == [11]
+    assert indices == [1, 7, 9, 10]
 
-    rows = kdb.filter_annotation(
-        conn, source_type=("SRKW", "PC"), taxonomy_id=3, tag="noise"
+    indices = (
+        db.annotation.reset_filter()
+        .filter(select=("SRKW", "PC"), taxonomy_version=3, tag="Loud noise")
+        .indices
     )
-    assert rows == [10]
+    assert indices == [10]
 
-    rows = kdb.filter_annotation(
-        conn, source_type=("SRKW", "PC"), taxonomy_id=2, tag=["noise", "Loud noise"]
+    indices = (
+        db.annotation.reset_filter()
+        .filter(select=("SRKW", "PC"), taxonomy_version=3, tag="noise")
+        .indices
     )
-    assert rows == [10, 11]
+    assert indices == [9]
+
+    indices = (
+        db.annotation.reset_filter()
+        .filter(select=("SRKW", "PC"), taxonomy_version=3, tag=["noise", "Loud noise"])
+        .indices
+    )
+    assert indices == [9, 10]
+
+
+"""
 
     annot_tbl = kdb.get_annotations(conn, indices=[1, 3, 5])
     path = os.path.join(path_to_assets, "compr-example-test-annot1.csv")

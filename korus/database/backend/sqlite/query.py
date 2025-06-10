@@ -100,6 +100,10 @@ def where_condition(conn, table_name, conditions):
                     f"LEFT JOIN json_each('{table_name}'.'{name}') AS {name}"
                 )
 
+    # avoid duplicates
+    left_joins = list(set(left_joins))
+
+    # join by space
     left_joins = " ".join(left_joins)
 
     # WHERE conditions
