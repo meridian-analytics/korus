@@ -1,11 +1,164 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from korus.database.backend import TableBackend
 from .interface import TableInterface
 from .taxonomy import TaxonomyInterface
 from .job import JobInterface
+from .file import FileInterface
 from .tag import TagInterface
 from .granularity import GranularityInterface
 from .utils.negative import find_unannotated_periods
+
+
+def _get_file_ids(
+    deployment_id: int,         
+    start_utc: datetime, 
+    end_utc: datetime, 
+    file: FileInterface
+) -> list[int]:
+    # TODO: move this function to file.py module ?
+    # TODO: add end_utc to file table? or allow for more complex search?
+    condition = {
+        "start_utc": (None, start_utc),
+    }
+    indices = file.reset_filter().filter(condition).indices
+    
+
+    return []
+
+
+'''
+        # annotation UTC end time
+        end_utc = start_utc + timedelta(microseconds=duration_ms * 1e3)
+
+        # if the annotation spans multiple files, capture all file ids
+        if file_data is not None:
+            file_end_utc = file_data["end_utc"]
+            filename = row.filename
+            while end_utc > file_end_utc:
+                loc = file_tbl.index.get_loc(filename) + 1
+                if loc >= len(file_tbl):
+                    break
+                file_data = file_tbl.iloc[loc]
+                file_id_list.append(int(file_data["file_id"]))
+                file_end_utc = file_data["end_utc"]
+                filename = file_tbl.index[loc]
+'''
+
+
+def _validate_file_id(row: dict, file: FileInterface) -> dict:
+    """Helper function for validating file IDs.
+    If annotation spans multiple files, attempt to determine the IDs of the secondary files, if not provided. 
+    """
+    file_id = row.get("file_id", None)
+    file_id_list = row.get("file_id_list", None)
+    num_files = row.get("num_files", None)
+
+    if file_id_list == []:
+        file_id_list = None
+
+    if file_id is None and file_id_list is None:
+        return row
+
+    if file_id is None:
+        file_id = file_id_list[0]
+        
+    if file_id_list is None:
+        if "start_utc" not in row:
+            file_id_list = [file_id]
+
+        else:
+            deployment_id = file.get(row["file_id"], fields="deployment_id", always_tuple=False)[0]
+            start_utc = row["start_utc"]
+            end_utc = start_utc + timedelta(microseconds = row["duration_ms"] * 1E3)
+            file_id_list = _get_file_ids(deployment_id, start_utc, end_utc, file)
+
+    if num_files is None:
+        num_files = len(file_id_list)
+
+    assert num_files == len(file_id_list), ""
+    assert file_id in file_id_list, ""
+
+    row["file_id"] = file_id
+    row["file_id_list"] = file_id_list
+    row["num_files"] = num_files
+
+    return row
+
+
+def _validate_deployment_id(row: dict, file: FileInterface) -> dict:
+    """Helper function for validating deployment ID
+    Raises AssertionError, if inconsistent deployment IDs are encountered.
+    """
+    if "file_id" not in row:
+        return row
+
+    # look up file metadata
+    deployment_id = file.get(row["file_id"], fields="deployment_id", always_tuple=False)[0]
+    
+    if "deployment_id" not in row:
+        row["deployment_id"] = deployment_id
+
+    x = row["deployment_id"]
+    assert_msg = f"The specified deployment ID ({x}) does not match the recorded deployment ID of the audiofile ({deployment_id})"
+    assert x == deployment_id, assert_msg
+
+    return row
+
+
+def _validate_timestamps(row: dict, file: FileInterface) -> dict:
+    """Helper function for converting and validating timestamps.
+    Raises AssertionError, if the within-file offset is not specified or cannot be deduced.
+    Raises ValueError, if inconsistent timestamps are encountered.
+    """
+    if "file_id" in row:
+        # look up file metadata
+        file_start_utc, sample_rate, num_samples = file.get(
+            indices = row["file_id"], 
+            fields = ["start_utc", "sample_rate", "num_samples"]
+        )[0]
+
+        file_duration = float(num_samples / sample_rate)
+    
+    else:
+        file_start_utc = None
+        file_duration = None
+
+    # default to zero within-file offset, if neither timestamp has been specified
+    if "start_utc" not in row and "start_ms" not in row:
+        row["start_ms"] = 0
+
+    # if within-file offset is unknown, derive it from the UTC start time
+    if "start_ms" not in row and file_start_utc is not None:
+        row["start_ms"] = int(
+            (row["start_utc"] - file_start_utc).total_seconds() * 1e3
+        )
+
+    # if UTC start time is unknown, derive it from the within-file offset
+    elif "start_utc" not in row and file_start_utc is not None:
+        row["start_utc"] = file_start_utc + timedelta(
+            microseconds=row["start_ms"] * 1e3
+        )
+
+    # for audiofiles lacking a timestamp, the within-file offset must have a non-null value
+    if file_start_utc is None:
+        assert_msg = "The within-file annotation start time must be specified for audiofiles with unknown UTC start times"
+        assert "start_ms" in row, assert_msg
+
+    else:
+        # check that timestamps are internally consistent
+        delta_ms = row["start_ms"] - int(
+            (row["start_utc"] - file_start_utc).total_seconds() * 1e3
+        )
+        if delta_ms != 0:
+            err_msg = f"Data have inconsistent timestamps. Audiofile UTC start time: {file_start_utc} | Annotation UTC start time: {row['start_utc']} | Annotation within-file start time: {row['start_ms']:.0} ms"
+            raise ValueError(err_msg)
+
+    # check that annotation starts within file
+    if file_duration is not None:
+        assert row["start_ms"] >= 0, "Within-file offset cannot be a negative"
+        assert row["start_ms"] <= file_duration * 1E3, "Within-file offset cannot exceed file duration"
+
+    return row
 
 
 def _id_from_name(interface: TableInterface, name: str | list[str]) -> list[int]:
@@ -41,6 +194,7 @@ class AnnotationInterface(TableInterface):
         backend: TableBackend,
         taxonomy: TaxonomyInterface,
         job: JobInterface,
+        file: FileInterface,
         tag: TagInterface,
         granularity: GranularityInterface,
     ):
@@ -50,6 +204,7 @@ class AnnotationInterface(TableInterface):
         # linked interfaces
         self._taxonomy = taxonomy
         self._job = job
+        self._file = file
         self._tag = tag
         self._granularity = granularity
 
@@ -222,6 +377,35 @@ class AnnotationInterface(TableInterface):
         """Reverse alias transform: convert granularity ID to granularity"""
         values = self._granularity.get(id, "name", always_tuple=False)
         return values if isinstance(id, list) else values[0]
+
+    def add(self, row: dict):
+        """Add an entry to the table.
+
+        If the deployment ID is not specified, it will be inferred from file ID.
+
+        Either the UTC start time of the annotation or the within-file start time must be specified.
+
+        If the UTC start time is not specified, it will be inferred from the within-file start time, using the audio file's UTC start time.
+        Conversely, if the within-file start time is not specified, it will be inferred from the UTC start time.
+
+        Args:
+            row: dict
+                Input data in the form of a dict, where the keys are the field names
+                and the values are the values to be added to the database.
+        """
+        row = row.copy()
+        row = self._apply_alias_transforms(row)
+
+        # validate deployment ID
+        row = _validate_deployment_id(row, self._file)
+
+        # validate start time
+        row = _validate_timestamps(row, self._file)
+
+        # validate file ID(s)
+        row = _validate_file_id(row, self._file)
+
+        super().add(row)
 
     def generate_negatives(self, job_id: int):
         """Generate negative annotations.

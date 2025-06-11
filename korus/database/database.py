@@ -31,6 +31,7 @@ class Database:
             self.backend.annotation,
             taxonomy=self.taxonomy,
             job=self.job,
+            file=self.file,
             tag=self.tag,
             granularity=self.granularity,
         )

@@ -332,10 +332,9 @@ def test_comprehensive_example(
     )
     assert indices == [0, 1]
 
-    # insert another set of annotations, with minimal required info (id: 6, 7, 8)
+    # insert annotations with minimal required info (id: 6, 7, 8)
     df = pd.DataFrame(
         {
-            "deployment_id": [deployment_id, deployment_id, deployment_id],
             "job_id": [0, 0, 0],
             "file_id": [1, 1, 1],
             "label": [("KW", "PC"), ("SRKW", "S01"), None],
@@ -351,9 +350,8 @@ def test_comprehensive_example(
     # insert annotations with tags (id: 9,10)
     df = pd.DataFrame(
         {
-            "deployment_id": [deployment_id, deployment_id],
             "job_id": [0, 0],
-            "file_id": [1, 1],  # id: 10,11
+            "file_id": [1, 1],
             "label": [("SRKW", "PC"), ("SRKW", "PC")],
             "tag": [["noise"], ["Loud noise"]],
         }
@@ -389,6 +387,41 @@ def test_comprehensive_example(
         .indices
     )
     assert indices == [9, 10]
+
+    # retrieve some data and check that values are correct
+    fields = [
+        "job_id",
+        "deployment_id",
+        "file_id",
+        "label",
+        "tentative_label",
+        "start_utc",
+        "duration",
+        "start",
+        "freq_min_hz",
+        "freq_max_hz",
+        "channel",
+        "granularity",
+        "comments",
+        "valid",
+    ]
+    df = db.annotation.get(fields=fields, indices=[0, 2, 4], as_pandas=True)
+
+    row = df.iloc[0]
+    assert row.job_id == 0
+    assert row.deployment_id == 0
+    assert row.file_id == 0
+    assert row.label == ("KW", "PC")
+    assert row.tentative_label == ("SRKW", "S01")
+    # assert row.start_utc == datetime(2022, 6, 24, 16, 40, 30)
+    assert row.duration == 1.3
+    assert row.start == 30.0
+    assert row.freq_min_hz == 600
+    assert row.freq_max_hz == 4400
+    assert row.channel == 0
+    assert row.granularity == "unit"
+    assert row.comments == "no additional observations"
+    assert row.valid
 
 
 """

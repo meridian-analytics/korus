@@ -37,7 +37,7 @@ def interfaces_with_taxonomy():
     tax = TaxonomyInterface(InMemoryTableBackend(), label)
     tag = TagInterface(InMemoryTableBackend())
     gran = GranularityInterface(InMemoryTableBackend())
-    annot = AnnotationInterface(InMemoryTableBackend(), tax, job, tag, gran)
+    annot = AnnotationInterface(InMemoryTableBackend(), tax, job, file, tag, gran)
 
     # create a small taxonomy
     tax.draft.create_sound_source("Whale", parent="Unknown")
