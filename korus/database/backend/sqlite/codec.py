@@ -213,6 +213,7 @@ def create_codec(conn):
     codec.decoder.add_rule("deployment", "start_utc", decode_datetime)
     codec.decoder.add_rule("deployment", "end_utc", decode_datetime)
     codec.decoder.add_rule("file", "start_utc", decode_datetime)
+    codec.decoder.add_rule("file", "end_utc", decode_datetime)
     codec.decoder.add_rule("taxonomy", "timestamp", decode_datetime)
 
     # encode & decode file_id_list field in annotation table

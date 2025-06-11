@@ -10,44 +10,31 @@ from .utils.negative import find_unannotated_periods
 
 
 def _get_file_ids(
-    deployment_id: int,         
-    start_utc: datetime, 
-    end_utc: datetime, 
-    file: FileInterface
+    deployment_id: int, start_utc: datetime, end_utc: datetime, file: FileInterface
 ) -> list[int]:
-    # TODO: move this function to file.py module ?
-    # TODO: add end_utc to file table? or allow for more complex search?
+    """Helper function for finding the audiofiles that overlap with a specified time range"""
+    # search for files that overlap with the specified time range
     condition = {
-        "start_utc": (None, start_utc),
+        "start_utc": (None, end_utc),
+        "end_utc": (start_utc, None),
+        "deployment_id": deployment_id,
     }
     indices = file.reset_filter().filter(condition).indices
-    
 
-    return []
+    # get the file UTC start times
+    file_start_times = file.get(indices=indices, fields="start_utc", always_tuple=False)
 
+    # sort chronologically
+    sorted_indices = [
+        i for i, _ in sorted(zip(indices, file_start_times), key=lambda pair: pair[1])
+    ]
 
-'''
-        # annotation UTC end time
-        end_utc = start_utc + timedelta(microseconds=duration_ms * 1e3)
-
-        # if the annotation spans multiple files, capture all file ids
-        if file_data is not None:
-            file_end_utc = file_data["end_utc"]
-            filename = row.filename
-            while end_utc > file_end_utc:
-                loc = file_tbl.index.get_loc(filename) + 1
-                if loc >= len(file_tbl):
-                    break
-                file_data = file_tbl.iloc[loc]
-                file_id_list.append(int(file_data["file_id"]))
-                file_end_utc = file_data["end_utc"]
-                filename = file_tbl.index[loc]
-'''
+    return sorted_indices
 
 
 def _validate_file_id(row: dict, file: FileInterface) -> dict:
     """Helper function for validating file IDs.
-    If annotation spans multiple files, attempt to determine the IDs of the secondary files, if not provided. 
+    If annotation spans multiple files, attempt to determine the IDs of the secondary files, if not provided.
     """
     file_id = row.get("file_id", None)
     file_id_list = row.get("file_id_list", None)
@@ -61,15 +48,17 @@ def _validate_file_id(row: dict, file: FileInterface) -> dict:
 
     if file_id is None:
         file_id = file_id_list[0]
-        
+
     if file_id_list is None:
-        if "start_utc" not in row:
+        if "start_utc" not in row or "duration_ms" not in row:
             file_id_list = [file_id]
 
         else:
-            deployment_id = file.get(row["file_id"], fields="deployment_id", always_tuple=False)[0]
+            deployment_id = file.get(
+                row["file_id"], fields="deployment_id", always_tuple=False
+            )[0]
             start_utc = row["start_utc"]
-            end_utc = start_utc + timedelta(microseconds = row["duration_ms"] * 1E3)
+            end_utc = start_utc + timedelta(microseconds=row["duration_ms"] * 1e3)
             file_id_list = _get_file_ids(deployment_id, start_utc, end_utc, file)
 
     if num_files is None:
@@ -86,15 +75,17 @@ def _validate_file_id(row: dict, file: FileInterface) -> dict:
 
 
 def _validate_deployment_id(row: dict, file: FileInterface) -> dict:
-    """Helper function for validating deployment ID
+    """Helper function for validating deployment ID.
     Raises AssertionError, if inconsistent deployment IDs are encountered.
     """
     if "file_id" not in row:
         return row
 
     # look up file metadata
-    deployment_id = file.get(row["file_id"], fields="deployment_id", always_tuple=False)[0]
-    
+    deployment_id = file.get(
+        row["file_id"], fields="deployment_id", always_tuple=False
+    )[0]
+
     if "deployment_id" not in row:
         row["deployment_id"] = deployment_id
 
@@ -106,19 +97,18 @@ def _validate_deployment_id(row: dict, file: FileInterface) -> dict:
 
 
 def _validate_timestamps(row: dict, file: FileInterface) -> dict:
-    """Helper function for converting and validating timestamps.
+    """Helper function for validating and completing annotations timestamps.
     Raises AssertionError, if the within-file offset is not specified or cannot be deduced.
     Raises ValueError, if inconsistent timestamps are encountered.
     """
     if "file_id" in row:
         # look up file metadata
         file_start_utc, sample_rate, num_samples = file.get(
-            indices = row["file_id"], 
-            fields = ["start_utc", "sample_rate", "num_samples"]
+            indices=row["file_id"], fields=["start_utc", "sample_rate", "num_samples"]
         )[0]
 
         file_duration = float(num_samples / sample_rate)
-    
+
     else:
         file_start_utc = None
         file_duration = None
@@ -129,9 +119,7 @@ def _validate_timestamps(row: dict, file: FileInterface) -> dict:
 
     # if within-file offset is unknown, derive it from the UTC start time
     if "start_ms" not in row and file_start_utc is not None:
-        row["start_ms"] = int(
-            (row["start_utc"] - file_start_utc).total_seconds() * 1e3
-        )
+        row["start_ms"] = int((row["start_utc"] - file_start_utc).total_seconds() * 1e3)
 
     # if UTC start time is unknown, derive it from the within-file offset
     elif "start_utc" not in row and file_start_utc is not None:
@@ -156,7 +144,30 @@ def _validate_timestamps(row: dict, file: FileInterface) -> dict:
     # check that annotation starts within file
     if file_duration is not None:
         assert row["start_ms"] >= 0, "Within-file offset cannot be a negative"
-        assert row["start_ms"] <= file_duration * 1E3, "Within-file offset cannot exceed file duration"
+        assert (
+            row["start_ms"] <= file_duration * 1e3
+        ), "Within-file offset cannot exceed file duration"
+
+    return row
+
+
+def _validate_duration(row: dict, file: FileInterface) -> dict:
+    """Helper function for validating or inferring the annotation duration"""
+    if "duration_ms" not in row and "file_id_list" in row:
+
+        file_ids = row["file_id_list"]
+
+        if len(file_ids) == 1:
+            row["duration_ms"] = int(file.get_duration(file_ids)[0] * 1e3)
+
+        else:
+            end_times = file.get(indices=file_ids, fields="end_utc", always_tuple=False)
+
+            assert_msg = "Unable to infer duration of annotation that spans multiple audiofiles, some of which do not have timestamps"
+            assert None not in end_times, assert_msg
+
+            end_utc = max(end_times)
+            row["duration_ms"] = int((end_utc - row["start_utc"]).total_seconds() * 1e3)
 
     return row
 
@@ -388,6 +399,9 @@ class AnnotationInterface(TableInterface):
         If the UTC start time is not specified, it will be inferred from the within-file start time, using the audio file's UTC start time.
         Conversely, if the within-file start time is not specified, it will be inferred from the UTC start time.
 
+        If the duration is not specified, it is inferred assuming that the annotation extends to the end
+        of the specified audiofile(s).
+
         Args:
             row: dict
                 Input data in the form of a dict, where the keys are the field names
@@ -404,6 +418,9 @@ class AnnotationInterface(TableInterface):
 
         # validate file ID(s)
         row = _validate_file_id(row, self._file)
+
+        # validate duration
+        row = _validate_duration(row, self._file)
 
         super().add(row)
 

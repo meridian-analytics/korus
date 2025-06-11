@@ -245,6 +245,7 @@ def create_file_table(conn):
                 format TEXT,
                 codec TEXT,
                 start_utc TEXT,
+                end_utc TEXT,
                 PRIMARY KEY (id),
                 FOREIGN KEY (deployment_id) REFERENCES deployment (id),
                 FOREIGN KEY (storage_id) REFERENCES storage (id),

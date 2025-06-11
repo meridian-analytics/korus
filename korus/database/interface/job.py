@@ -125,22 +125,6 @@ class JobInterface(TableInterface):
         # rename index column
         df.rename(columns={"id": "file_id"}, inplace=True)
 
-        # add end time
-        def endtime_fcn(row):
-            """Helper function for computing file end time"""
-            if row.start_utc is None:
-                return None
-            else:
-                return row.start_utc + timedelta(
-                    microseconds=row.num_samples / row.sample_rate * 1e6
-                )
-
-        if len(df) == 0:
-            df["end_utc"] = df["start_utc"]
-
-        else:
-            df["end_utc"] = df.apply(lambda r: endtime_fcn(r), axis=1)
-
         # add channel (dtype=object)
         df["channel"] = df.file_id.apply(lambda x: channels_list[x])
 
