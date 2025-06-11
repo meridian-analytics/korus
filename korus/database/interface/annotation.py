@@ -158,7 +158,7 @@ def _validate_duration(row: dict, file: FileInterface) -> dict:
         file_ids = row["file_id_list"]
 
         if len(file_ids) == 1:
-            row["duration_ms"] = int(file.get_duration(file_ids)[0] * 1e3)
+            row["duration_ms"] = int(file.get_duration(file_ids)[0] * 1e3) - row["start_ms"]
 
         else:
             end_times = file.get(indices=file_ids, fields="end_utc", always_tuple=False)
