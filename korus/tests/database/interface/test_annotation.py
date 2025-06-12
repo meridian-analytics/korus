@@ -465,38 +465,23 @@ def test_comprehensive_example(
     assert row.valid
     assert row.negative
 
+    # perform another query and return data in 'ketos' format
+    indices = db.annotation.reset_filter().filter({"tag": "NEGATIVE"}, {"negative": True}).indices
+
+    print()
+    print(indices)
+
+    
+
+'''
+filename,relative_path,start,duration,freq_min,freq_max,label,comments
+ABCLISTENHF1234_20220624T164000.000Z_20220624T164459.996Z.flac,OceanResearch/WestPoint/20220624,1.0,0.8,0,16000,0,this is a negative sample
+ABCLISTENHF1234_20220624T164000.000Z_20220624T164459.996Z.flac,OceanResearch/WestPoint/20220624,0.0,1.0,0,16000,1,
+ABCLISTENHF1234_20220624T164000.000Z_20220624T164459.996Z.flac,OceanResearch/WestPoint/20220624,1.8,19.4,0,16000,1,
+ABCLISTENHF1234_20220624T164000.000Z_20220624T164459.996Z.flac,OceanResearch/WestPoint/20220624,21.177,278.823,0,16000,1,
+'''
 
 """
-start_utc,duration_ms,start_ms,freq_min_hz,freq_max_hz,channel,granularity,machine_prediction,comments,valid,tag,ambiguous_label
-1,1,1,,,,,2022-06-24 16:40:01.800,19400,1800,0,16000,0,window,,,1,["__AUTO_NEGATIVE__"],
-"""
-
-"""
-
-    annot_tbl = kdb.get_annotations(conn, indices=[1, 3, 5])
-    path = os.path.join(path_to_assets, "compr-example-test-annot1.csv")
-    expected = pd.read_csv(path)
-    expected = expected.astype(
-        {
-            "start_utc": "datetime64[ns]",
-            "tentative_sound_source": "object",
-            "tentative_sound_type": "object",
-            "machine_prediction": "object",
-            "ambiguous_label": "object",
-        }
-    )
-
-    # expected.ambiguous_label = expected.ambiguous_label.fillna("")
-    def _decode_tag(x):
-        if isinstance(x, float) and np.isnan(x):
-            return None
-        else:
-            return json.loads(x)
-
-    expected.tag = expected.tag.apply(lambda x: _decode_tag(x))
-    pd.testing.assert_frame_equal(
-        annot_tbl[expected.columns], expected[expected.columns]
-    )
 
     indices_0 = kdb.filter_annotation(conn, tag="NEGATIVE")
     indices_1 = kdb.filter_annotation(conn, tag=ktb.AUTO_NEG)
