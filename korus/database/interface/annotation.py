@@ -158,7 +158,9 @@ def _validate_duration(row: dict, file: FileInterface) -> dict:
         file_ids = row["file_id_list"]
 
         if len(file_ids) == 1:
-            row["duration_ms"] = int(file.get_duration(file_ids)[0] * 1e3) - row["start_ms"]
+            row["duration_ms"] = (
+                int(file.get_duration(file_ids)[0] * 1e3) - row["start_ms"]
+            )
 
         else:
             end_times = file.get(indices=file_ids, fields="end_utc", always_tuple=False)
@@ -168,6 +170,35 @@ def _validate_duration(row: dict, file: FileInterface) -> dict:
 
             end_utc = max(end_times)
             row["duration_ms"] = int((end_utc - row["start_utc"]).total_seconds() * 1e3)
+
+    return row
+
+
+def _validate_frequency(row: dict, file: FileInterface) -> dict:
+    """Helper function for validating or inferring frequency limits"""
+    if "freq_min_hz" not in row:
+        row["freq_min_hz"] = 0
+
+    if "file_id" in row:
+        sr = file.get(indices=row["file_id"], fields="sample_rate", always_tuple=False)[
+            0
+        ]
+        nyquist_freq = sr // 2
+
+        if "freq_max_hz" not in row:
+            row["freq_max_hz"] = nyquist_freq
+
+    for x in ["min", "max"]:
+        field = f"freq_{x}_hz"
+
+        assert_msg = f"{x} frequency limit must be specified"
+        assert row.get(field, None) is not None, assert_msg
+
+        assert_msg = f"{x} frequency limit cannot exceed Nyquist frequency"
+        assert row[field] <= nyquist_freq, assert_msg
+
+    assert_msg = f"max frequency limit cannot be less than the min frequency limit"
+    assert row["freq_max_hz"] >= row["freq_min_hz"], assert_msg
 
     return row
 
@@ -377,7 +408,10 @@ class AnnotationInterface(TableInterface):
 
     def _get_tag(self, id: int | list[int], **kwargs) -> str | list[str]:
         """Reverse alias transform: convert tag ID to tag"""
-        return self._tag.get(id, "name", always_tuple=False)
+        if id is None:
+            return None
+        else:
+            return self._tag.get(id, "name", always_tuple=False)
 
     def _get_granularity_id(self, name: str | list[str], **kwargs) -> int | list[int]:
         """Alias transform: convert granularity to granularity ID"""
@@ -410,17 +444,20 @@ class AnnotationInterface(TableInterface):
         row = row.copy()
         row = self._apply_alias_transforms(row)
 
-        # validate deployment ID
+        # validate/infer deployment ID
         row = _validate_deployment_id(row, self._file)
 
-        # validate start time
+        # validate/infer start time
         row = _validate_timestamps(row, self._file)
 
-        # validate file ID(s)
+        # validate/infer file IDs
         row = _validate_file_id(row, self._file)
 
-        # validate duration
+        # validate/infer duration
         row = _validate_duration(row, self._file)
+
+        # validate/infer frequency limits
+        row = _validate_frequency(row, self._file)
 
         super().add(row)
 

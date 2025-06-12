@@ -405,6 +405,7 @@ def test_comprehensive_example(
         "tag",
         "comments",
         "valid",
+        "negative",
     ]
     df = db.annotation.get(fields=fields, indices=[0, 2, 4], as_pandas=True)
 
@@ -421,9 +422,10 @@ def test_comprehensive_example(
     assert row.freq_max_hz == 4400
     assert row.channel == 0
     assert row.granularity == "unit"
+    assert row.tag == None
     assert row.comments == "no additional observations"
     assert row.valid
-    print(row.tag)
+    assert not row.negative
 
     row = df.iloc[1]
     assert row.job_id == 0
@@ -434,19 +436,40 @@ def test_comprehensive_example(
     assert row.start_utc == datetime(2022, 6, 24, 16, 40, 1, tzinfo=timezone.utc)
     assert row.duration == 0.8
     assert row.start == 1.0
-    assert row.freq_min_hz == 0
-    assert row.freq_max_hz == 16000
+    assert row.freq_min_hz == 800
+    assert row.freq_max_hz == 2200
     assert row.channel == 0
     assert row.tag == ["NEGATIVE"]
     assert row.granularity == "window"
     assert row.comments == "this is a negative sample"
     assert row.valid
+    assert not row.negative
 
-'''
+    row = df.iloc[2]
+    assert row.job_id == 0
+    assert row.deployment_id == 0
+    assert row.file_id == 0
+    assert row.label == None
+    assert row.tentative_label == None
+    assert row.start_utc == datetime(
+        2022, 6, 24, 16, 40, 1, 800000, tzinfo=timezone.utc
+    )
+    assert row.duration == 19.4
+    assert row.start == 1.8
+    assert row.freq_min_hz == 0
+    assert row.freq_max_hz == 16000
+    assert row.channel == 0
+    assert row.tag == None
+    assert row.granularity == "window"
+    assert row.comments == None
+    assert row.valid
+    assert row.negative
+
+
+"""
 start_utc,duration_ms,start_ms,freq_min_hz,freq_max_hz,channel,granularity,machine_prediction,comments,valid,tag,ambiguous_label
-1,1,1,,,,,2022-06-24 16:40:01.000,800,1000,0,16000,0,window,,this is a negative sample,1,["NEGATIVE"],
 1,1,1,,,,,2022-06-24 16:40:01.800,19400,1800,0,16000,0,window,,,1,["__AUTO_NEGATIVE__"],
-'''
+"""
 
 """
 
