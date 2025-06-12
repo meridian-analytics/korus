@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def test_generate_negatives(interfaces_with_taxonomy):
@@ -402,6 +402,7 @@ def test_comprehensive_example(
         "freq_max_hz",
         "channel",
         "granularity",
+        "tag",
         "comments",
         "valid",
     ]
@@ -413,7 +414,7 @@ def test_comprehensive_example(
     assert row.file_id == 0
     assert row.label == ("KW", "PC")
     assert row.tentative_label == ("SRKW", "S01")
-    # assert row.start_utc == datetime(2022, 6, 24, 16, 40, 30)
+    assert row.start_utc == datetime(2022, 6, 24, 16, 40, 30, tzinfo=timezone.utc)
     assert row.duration == 1.3
     assert row.start == 30.0
     assert row.freq_min_hz == 600
@@ -422,7 +423,30 @@ def test_comprehensive_example(
     assert row.granularity == "unit"
     assert row.comments == "no additional observations"
     assert row.valid
+    print(row.tag)
 
+    row = df.iloc[1]
+    assert row.job_id == 0
+    assert row.deployment_id == 0
+    assert row.file_id == 0
+    assert row.label == None
+    assert row.tentative_label == None
+    assert row.start_utc == datetime(2022, 6, 24, 16, 40, 1, tzinfo=timezone.utc)
+    assert row.duration == 0.8
+    assert row.start == 1.0
+    assert row.freq_min_hz == 0
+    assert row.freq_max_hz == 16000
+    assert row.channel == 0
+    assert row.tag == ["NEGATIVE"]
+    assert row.granularity == "window"
+    assert row.comments == "this is a negative sample"
+    assert row.valid
+
+'''
+start_utc,duration_ms,start_ms,freq_min_hz,freq_max_hz,channel,granularity,machine_prediction,comments,valid,tag,ambiguous_label
+1,1,1,,,,,2022-06-24 16:40:01.000,800,1000,0,16000,0,window,,this is a negative sample,1,["NEGATIVE"],
+1,1,1,,,,,2022-06-24 16:40:01.800,19400,1800,0,16000,0,window,,,1,["__AUTO_NEGATIVE__"],
+'''
 
 """
 

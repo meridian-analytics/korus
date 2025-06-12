@@ -210,6 +210,7 @@ def create_codec(conn):
                 codec.decoder.add_rule(tbl_name, col_name, decode_json)
 
     # decode timestamps
+    codec.decoder.add_rule("annotation", "start_utc", decode_datetime)
     codec.decoder.add_rule("deployment", "start_utc", decode_datetime)
     codec.decoder.add_rule("deployment", "end_utc", decode_datetime)
     codec.decoder.add_rule("file", "start_utc", decode_datetime)
