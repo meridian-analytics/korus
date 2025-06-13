@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from tabulate import tabulate
 from korus.database.backend import TableBackend
+import numpy as np
 import pandas as pd
 
 
@@ -433,8 +434,21 @@ class TableInterface:
         # replace alias names with field names
         fields_noalias = [self.field_name(name) for name in fields]
 
+        # unique indices
+        if isinstance(indices, int):
+            indices = [indices]
+
+        if indices is None:
+            unique = inverse = None
+        else:
+            unique, inverse = np.unique(indices, return_inverse=True)
+
         # pass query to backend
-        data = self.backend.get(indices, fields_noalias, return_indices)
+        data = self.backend.get(unique, fields_noalias, return_indices)
+
+        # inverse index mapping
+        if indices is not None:
+            data = [data[i] for i in inverse]
 
         # apply reverse alias transforms
         data = [

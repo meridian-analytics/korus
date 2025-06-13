@@ -223,14 +223,6 @@ def _id_from_name(interface: TableInterface, name: str | list[str]) -> list[int]
 
 
 class AnnotationInterface(TableInterface):
-    """
-    TODO: overwrite add() method to allow
-            - extracting deployment ID from file IDs
-            - parsing of sound source & type labels
-    TODO: overwrite get() method to provide conversion to ketos/raven formats
-
-    """
-
     def __init__(
         self,
         backend: TableBackend,
@@ -507,6 +499,16 @@ class AnnotationInterface(TableInterface):
         # add new negatives to table
         for _, row in negatives.iterrows():
             self.add(row.to_dict())
+
+    def from_raven(
+        self,
+    ):
+        raise NotImplementedError()
+
+    def to_raven(
+        self,
+    ):
+        raise NotImplementedError()
 
     def filter(self, *conditions: dict, **kwargs):
         """Search the table.

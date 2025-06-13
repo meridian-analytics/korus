@@ -62,6 +62,8 @@ class MonoTimePeriod:
 
 
 class StereoTimePeriod:
+    """TODO: docstring"""
+
     def __init__(self, deployment_id: int, max_file_gap: float):
         self.deployment_id = deployment_id
         self.max_file_gap = max_file_gap

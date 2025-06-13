@@ -465,38 +465,70 @@ def test_comprehensive_example(
     assert row.valid
     assert row.negative
 
-    # perform another query and return data in 'ketos' format
-    indices = db.annotation.reset_filter().filter({"tag": "NEGATIVE"}, {"negative": True}).indices
+    # perform another query and verify data
+    indices = (
+        db.annotation.reset_filter()
+        .filter({"tag": "NEGATIVE"}, {"negative": True})
+        .indices
+    )
+    df = db.annotation.get(
+        indices,
+        fields=[
+            "file_id",
+            "start",
+            "duration",
+            "freq_min_hz",
+            "freq_max_hz",
+            "comments",
+        ],
+        as_pandas=True,
+    )
 
-    print()
-    print(indices)
+    file_ids = df.file_id.values.tolist()
+    df["filename"] = db.file.get(file_ids, "filename", always_tuple=False)
+    df["relative_path"] = db.file.get(file_ids, "relative_path", always_tuple=False)
 
-    
+    assert len(df) == 4
 
-'''
-filename,relative_path,start,duration,freq_min,freq_max,label,comments
-ABCLISTENHF1234_20220624T164000.000Z_20220624T164459.996Z.flac,OceanResearch/WestPoint/20220624,1.0,0.8,0,16000,0,this is a negative sample
-ABCLISTENHF1234_20220624T164000.000Z_20220624T164459.996Z.flac,OceanResearch/WestPoint/20220624,0.0,1.0,0,16000,1,
-ABCLISTENHF1234_20220624T164000.000Z_20220624T164459.996Z.flac,OceanResearch/WestPoint/20220624,1.8,19.4,0,16000,1,
-ABCLISTENHF1234_20220624T164000.000Z_20220624T164459.996Z.flac,OceanResearch/WestPoint/20220624,21.177,278.823,0,16000,1,
-'''
+    filename1 = two_files[0]["filename"]
+    filename2 = two_files[1]["filename"]
+    relative_path = two_files[0]["relative_path"]
+
+    for idx, row in df.iterrows():
+        if idx == 0:
+            assert row.filename == filename1
+            assert row.relative_path == relative_path
+            assert row.start == 1.0
+            assert row.duration == 0.8
+            assert row.freq_min_hz == 800
+            assert row.freq_max_hz == 2200
+
+        elif idx == 1:
+            assert row.filename == filename1
+            assert row.relative_path == relative_path
+            assert row.start == 0.0
+            assert row.duration == 1.0
+            assert row.freq_min_hz == 0
+            assert row.freq_max_hz == 16000
+
+        elif idx == 2:
+            assert row.filename == filename1
+            assert row.relative_path == relative_path
+            assert row.start == 1.8
+            assert row.duration == 19.4
+            assert row.freq_min_hz == 0
+            assert row.freq_max_hz == 16000
+
+        elif idx == 3:
+            assert row.filename == filename2
+            assert row.relative_path == relative_path
+            assert row.start == 21.177
+            assert row.duration == 278.823
+            assert row.freq_min_hz == 0
+            assert row.freq_max_hz == 16000
+
 
 """
-
-    indices_0 = kdb.filter_annotation(conn, tag="NEGATIVE")
-    indices_1 = kdb.filter_annotation(conn, tag=ktb.AUTO_NEG)
-    df_0 = kdb.get_annotations(conn, indices_0, format="ketos", label=0)
-    df_1 = kdb.get_annotations(conn, indices_1, format="ketos", label=1)
-    df_kt = pd.concat([df_0, df_1])
-
-    # temporary fix: reformat to match expectatin
-    df_kt.reset_index(inplace=True)
-    df_kt.drop(columns=["annot_id", "top_path"], inplace=True)
-
-    path = os.path.join(path_to_assets, "compr-example-test-annot2.csv")
-    expected = pd.read_csv(path)
-    pd.testing.assert_frame_equal(df_kt, expected)
-
     # insert annotations with ambiguous labels
     annot_tbl = pd.DataFrame(
         {
