@@ -527,39 +527,69 @@ def test_comprehensive_example(
             assert row.freq_min_hz == 0
             assert row.freq_max_hz == 16000
 
-
-"""
-    # insert annotations with ambiguous labels
-    annot_tbl = pd.DataFrame(
+    # insert annotations with ambiguous labels (id: 11-15)
+    df = pd.DataFrame(
         {
-            "file_id": [2, 2, 2, 2, 2],  # id: 12,13,14,15,16
-            "sound_source": ["SRKW", "SRKW", "NRKW", "KW", "KW"],
-            "sound_type": ["S01", "S02", "N01", "PC", "PC"],
-            "ambiguous_sound_source": [None, None, None, "SRKW,NRKW", None],
-            "ambiguous_sound_type": [None, None, None, "S01,S02,S16,N01,N22", "PC,W"],
+            "job_id": 0,
+            "file_id": [1, 1, 1, 1, 1],
+            "label": [
+                ("SRKW", "S01"),
+                ("SRKW", "S02"),
+                ("NRKW", "N01"),
+                ("KW", "PC"),
+                ("KW", "TC"),
+            ],
+            "ambiguous_label": [
+                None,
+                None,
+                None,
+                [
+                    ("SRKW", "S01"),
+                    ("SRKW", "S02"),
+                    ("NRKW", "N01"),
+                ],
+                [("KW", "PC"), ("KW", "W")],
+            ],
         }
     )
-    annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1, error="ignore")
-    rows = c.execute(
-        f"SELECT label_id, ambiguous_label_id FROM annotation WHERE id IN {list_to_str(annot_ids)}"
-    ).fetchall()
-    assert rows[0] == (36, "[null]")
-    assert rows[1] == (37, "[null]")
-    assert rows[2] == (43, "[null]")
-    assert rows[3] == (24, "[36, 37, 43]")
-    assert rows[4] == (24, "[24, 25]")
+    for _, row in df.iterrows():
+        db.annotation.add(row)
 
-    # filter on label_id and tentative_label_id only
-    idx = kdb.filter_annotation(
-        conn, source_type=("SRKW", "S02"), tentative=True, taxonomy_id=2
+    # verify data
+    labels = db.annotation.get(fields="ambiguous_label", always_tuple=False)
+    assert labels[-5:] == [
+        None,
+        None,
+        None,
+        [
+            ("SRKW", "S01"),
+            ("SRKW", "S02"),
+            ("NRKW", "N01"),
+        ],
+        [("KW", "PC"), ("KW", "W")],
+    ]
+
+    # filter on label and tentative label only
+    indices = (
+        db.annotation.reset_filter()
+        .filter(select=("SRKW", "S02"), tentative=True, taxonomy_version=2)
+        .indices
     )
-    assert len(idx) == 1
+    assert len(indices) == 1
 
     # filter again, now also including ambiguous label assignments
-    idx = kdb.filter_annotation(
-        conn, source_type=("SRKW", "S02"), tentative=True, ambiguous=True, taxonomy_id=2
+    indices = (
+        db.annotation.reset_filter()
+        .filter(
+            select=("SRKW", "S02"), tentative=True, ambiguous=True, taxonomy_version=2
+        )
+        .indices
     )
-    assert len(idx) == 2
+    assert len(indices) == 2
+
+
+"""
+
 
     # invert the filter
     idx = kdb.filter_annotation(

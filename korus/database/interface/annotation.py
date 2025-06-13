@@ -500,6 +500,11 @@ class AnnotationInterface(TableInterface):
         for _, row in negatives.iterrows():
             self.add(row.to_dict())
 
+    def validate_raven(
+        self,
+    ):
+        raise NotImplementedError()
+
     def from_raven(
         self,
     ):
