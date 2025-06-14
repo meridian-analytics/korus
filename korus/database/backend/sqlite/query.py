@@ -34,7 +34,15 @@ def to_str(x):
     if np.ndim(x) == 0:
         x = [x]
 
-    return "(" + ",".join([f"'{v}'" if isinstance(v, str) else f"{v}" for v in x]) + ")"
+    def _str(v):
+        if isinstance(v, str):
+            return f"'{v}'"
+        elif v is None:
+            return "NULL"
+        else:
+            return f"{v}"
+
+    return "(" + ",".join([_str(v) for v in x]) + ")"
 
 
 def table_exists(conn, name):
@@ -124,6 +132,9 @@ def where_condition(conn, table_name, conditions):
             if col_types[name] == "JSON":
                 x += ".value"
 
+            else:
+                x = f"{table_name}.{x}"
+
             if isinstance(values, tuple):
                 a, b = values
                 if isinstance(a, str):
@@ -148,13 +159,14 @@ def where_condition(conn, table_name, conditions):
 
             else:
                 if invert:
-                    cond = f"{x} NOT IN {to_str(values)}"
+                    cond = f"{x} IS NOT NULL AND {x} NOT IN {to_str(values)}"
                 else:
                     cond = f"{x} IN {to_str(values)}"
 
             logical_and.append(cond)
 
-        logical_or.append("(" + " AND ".join(logical_and) + ")")
+        if len(logical_and) > 0:
+            logical_or.append("(" + " AND ".join(logical_and) + ")")
 
     if len(logical_or) > 0:
         return left_joins + " WHERE " + " OR ".join(logical_or)
@@ -167,15 +179,18 @@ def query_table(conn, table_name, condition=None, indices=None):
     c = conn.cursor()
 
     if indices is not None:
-        id_cond = f"WHERE id IN {to_str(indices)}"
+        id_cond = f"WHERE {table_name}.id IN {to_str(indices)}"
 
         if condition is None:
             condition = id_cond
 
         else:
-            condition = condition.replace("WHERE", id_cond + " AND")
+            condition = condition.replace("WHERE", id_cond + " AND (") + ")"
 
-    q = f"SELECT {table_name}.id FROM {table_name} {condition}"
+    q = f"SELECT {table_name}.id FROM {table_name}"
+    if condition is not None:
+        q += f" {condition}"
+
     rows = c.execute(q).fetchall()
     return [row[0] for row in rows]
 

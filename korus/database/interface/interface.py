@@ -545,10 +545,6 @@ class TableInterface:
                 value = [value]
 
             if isinstance(value, list):
-                # if negation, add None
-                if negation:
-                    value.append(None)
-
                 # ensure unique values
                 value = list(set(value))
 

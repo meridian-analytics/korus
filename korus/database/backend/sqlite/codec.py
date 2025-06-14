@@ -221,7 +221,15 @@ def create_codec(conn):
     codec.encoder.add_rule("annotation", "file_id_list", encode_key)
     codec.decoder.add_rule("annotation", "file_id_list", decode_key)
 
-    # encode & decode all fields named *_id
+    # encode & decode label ids
+    codec.encoder.add_rule("annotation", "tentative_label_id", encode_key)
+    codec.decoder.add_rule("annotation", "tentative_label_id", decode_key)
+    codec.encoder.add_rule("annotation", "multiple_label_id", encode_key)
+    codec.decoder.add_rule("annotation", "multiple_label_id", decode_key)
+    codec.encoder.add_rule("annotation", "ambiguous_label_id", encode_key)
+    codec.decoder.add_rule("annotation", "ambiguous_label_id", decode_key)
+
+    # encode & decode all primary and foreign keys
     table_names = qy.get_table_names(conn)
     for table_name in table_names:
         # primary keys

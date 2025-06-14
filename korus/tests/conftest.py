@@ -156,8 +156,8 @@ def sqlite_database_with_taxonomy():
     tax.create_sound_type("TC", "Mammal", name="Tonal Call")
     tax.create_sound_type("CK", "Dolphin", name="Click")
     tax.create_sound_type("CK", "KW", name="Click")
-    tax.create_sound_type("PC", "KW", name="Pulsed Call")
-    tax.create_sound_type("W", "KW", name="Whistle")
+    tax.create_sound_type("PC", "KW", parent="TC", name="Pulsed Call")
+    tax.create_sound_type("W", "KW", parent="TC", name="Whistle")
 
     # release version 1
     db.taxonomy.release(comment="this is the first version")

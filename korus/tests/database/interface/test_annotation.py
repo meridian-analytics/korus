@@ -587,25 +587,18 @@ def test_comprehensive_example(
     )
     assert len(indices) == 2
 
+    # exclude-search
+    indices = (
+        db.annotation.reset_filter()
+        .filter(
+            exclude=("SRKW", "PC"), tentative=True, negative=False, taxonomy_version=2
+        )
+        .indices
+    )
+    assert indices == [13]
+
 
 """
-
-
-    # invert the filter
-    idx = kdb.filter_annotation(
-        conn, source_type=("SRKW", "PC"), invert=True, tentative=True, taxonomy_id=2
-    )
-    assert idx[-1] == annot_ids[2]
-    with pytest.raises(NotImplementedError):
-        idx = kdb.filter_annotation(
-            conn,
-            source_type=("SRKW", "PC"),
-            invert=True,
-            tentative=True,
-            ambiguous=True,
-            taxonomy_id=2,
-        )
-        # assert idx[-1] == annot_ids[2]
 
     # insert a humpback annotation
     annot_tbl = pd.DataFrame(
