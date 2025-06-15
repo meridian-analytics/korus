@@ -597,37 +597,43 @@ def test_comprehensive_example(
     )
     assert indices == [13]
 
-
-"""
-
-    # insert a humpback annotation
-    annot_tbl = pd.DataFrame(
+    # insert a humpback annotation (id: 16)
+    df = pd.DataFrame(
         {
-            "file_id": [2],  # id:17
-            "sound_source": ["HW"],
-            "sound_type": ["TC"],
+            "job_id": 0,
+            "file_id": [1],
+            "label": [("HW", "TC")],
         }
     )
-    annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1)
+    for _, row in df.iterrows():
+        db.annotation.add(row)
 
-    # filter using @invert=True
-    idx = kdb.filter_annotation(
-        conn, source_type=("KW", "%"), invert=True, taxonomy_id=3
+    # exclude all KW annotations
+    indices = (
+        db.annotation.reset_filter()
+        .filter(exclude=("KW", "*"), negative=False, taxonomy_version=3)
+        .indices
     )
+    assert indices == [16]
 
-    assert idx == [3, 9, 17]
+    # exclude all KW;PC annotations; include auto-negatives
+    indices = (
+        db.annotation.reset_filter()
+        .filter(exclude=("KW", "PC"), taxonomy_version=3)
+        .indices
+    )
+    assert indices == [3, 4, 5, 16]
 
-    # filter on negatives
-    idx = kdb.filter_negative(conn, source_type=("KW", "%"), taxonomy_id=3)
-    assert len(idx) == 0
-    # since only KW,PC and KW,W where subject to systematic annotation (while KW,EC wasn't), the auto-generated
-    # negatives are excluded from this search
+    # exclude all HW annotations; only search on auto-negatives
+    indices = (
+        db.annotation.reset_filter()
+        .filter(exclude=("HW", "*"), negative=True, taxonomy_version=3)
+        .indices
+    )
+    assert len(indices) == 0
 
-    idx = kdb.filter_negative(conn, source_type=("KW", "PC"), taxonomy_id=3)
-    assert idx == [4, 5, 6]
 
-    idx = kdb.filter_negative(conn, source_type=("HW", "%"), taxonomy_id=3)
-    assert len(idx) == 0
+"""
 
     # insert annotations with excluded labels
     annot_tbl = pd.DataFrame(
