@@ -16,6 +16,7 @@ from korus.database.interface import (
     LabelInterface,
     TagInterface,
     GranularityInterface,
+    StorageInterface,
 )
 
 path_to_assets = os.path.join(os.path.dirname(__file__), "assets")
@@ -32,7 +33,8 @@ def in_memory_table_backend():
 def interfaces_with_taxonomy():
     """Yields a dict of table interfaces with a small, but realistic taxonomy"""
     label = LabelInterface(InMemoryTableBackend())
-    file = FileInterface(InMemoryTableBackend())
+    storage = StorageInterface(InMemoryTableBackend())
+    file = FileInterface(InMemoryTableBackend(), storage)
     job = JobInterface(InMemoryJobBackend(), file)
     tax = TaxonomyInterface(InMemoryTableBackend(), label)
     tag = TagInterface(InMemoryTableBackend())
@@ -63,7 +65,8 @@ def interfaces_with_taxonomy():
 def job_interface_with_data():
     """Yields a JobInterface with two jobs and two files"""
 
-    file = FileInterface(InMemoryTableBackend())
+    storage = StorageInterface(InMemoryTableBackend())
+    file = FileInterface(InMemoryTableBackend(), storage)
     job = JobInterface(InMemoryJobBackend(), file)
 
     # add two jobs

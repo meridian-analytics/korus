@@ -392,7 +392,14 @@ class AnnotationInterface(TableInterface):
         # get annotation data
         annots = self.get(
             indices=indices,
-            fields=["deployment_id", "file_id", "channel", "start_utc", "start", "duration"],  #required: file_id,duration,start_utc,start,...
+            fields=[
+                "deployment_id",
+                "file_id",
+                "channel",
+                "start_utc",
+                "start",
+                "duration",
+            ],
             return_index=True,
             as_pandas=True,
         )
@@ -409,12 +416,15 @@ class AnnotationInterface(TableInterface):
         annots = annots[annots.num_view != 0]
 
         # get file data
-        files = self._job.get(
+        files = self._file.get(
             indices=annots.file_id.unique(),
+            fields=["start_utc"],
             return_index=True,
             as_pandas=True,
         )
-        files = files.rename(columns={"id": "file_id"})
+        files = files.set_index("id")
+        files["duration"] = self._file.get_duration(indices)
+        files["absolute_path"] = self._file.get_absolute_path(indices)
 
         # loop over annotations
         selections = []

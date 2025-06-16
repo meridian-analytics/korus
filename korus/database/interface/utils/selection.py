@@ -190,11 +190,10 @@ def fetch_audiofile_metadata(conn, file_ids):
 
 
 def map_to_audiofile(
-    row: pd.Series, 
-    window: float, 
-    view_centers: list[datetime], 
+    row: pd.Series,
+    window: float,
+    view_centers: list[datetime],
     files: pd.DataFrame,
-    full_path: bool, 
     data_support: bool,
 ) -> pd.DataFrame:
     """Helper function for `create_selections` method in AnnotationInterface class.
@@ -212,8 +211,6 @@ def map_to_audiofile(
             UTC timestamps of the views
         files: pandas DataFrame
             File table.
-        full_path: bool
-            Whether to include the full audio file paths in the return table.
         data_support: bool
             If True, selection windows are not allow to extend beyond the start/end times of the audio files in the database.
 
@@ -233,16 +230,11 @@ def map_to_audiofile(
     start = row.start + delta
     end = start + window.total_seconds()
 
-    # audiofile path
-    filename = file_tbl.loc[row.file_id].filename
-    relative_path = file_tbl.loc[row.file_id].relative_path
-    top_path = file_tbl.loc[row.file_id].path
-    file_path = os.path.join(relative_path, filename)
-    if full_path:
-        file_path = os.path.join(top_path, file_path)
+    # file path
+    file_path = files.loc[row.file_id].absolute_path
 
-    # audio file duration
-    file_duration = file_tbl.loc[row.file_id].duration_s
+    # file duration
+    file_duration = files.loc[row.file_id].duration
 
     # first, collect data for views that are fully within the audio file
     idx = (start >= 0) & (end <= file_duration)
@@ -266,13 +258,13 @@ def map_to_audiofile(
     sel_id = df.shape[0]
     for view_start, view_end in zip(start, end):
 
-        view_start_utc = file_tbl.loc[row.file_id].start_utc + timedelta(
+        view_start_utc = files.loc[row.file_id].start_utc + timedelta(
             seconds=view_start
         )
-        view_end_utc = file_tbl.loc[row.file_id].start_utc + timedelta(seconds=view_end)
+        view_end_utc = files.loc[row.file_id].start_utc + timedelta(seconds=view_end)
 
         file_data = _find_supporting_audiofiles(
-            conn, row.deployment_id, view_start_utc, view_end_utc, full_path
+            conn, row.deployment_id, view_start_utc, view_end_utc, file_path
         )
 
         if len(file_data) == 0:
@@ -383,7 +375,9 @@ def _find_supporting_audiofiles(conn, deployment_id, start_utc, end_utc, full_pa
     return pd.DataFrame(data, columns=["path", "start_utc", "end_utc"])
 
 
-def compute_view_centers(row: pd.Series, window: float, step: float, center: bool) -> list[datetime]:
+def compute_view_centers(
+    row: pd.Series, window: float, step: float, center: bool
+) -> list[datetime]:
     """Helper function for `create_selections` method in AnnotationInterface class.
 
     Computes the temporal midpoints of the view(s) created of each annotation.
@@ -463,10 +457,7 @@ def compute_view_centers(row: pd.Series, window: float, step: float, center: boo
 
 
 def compute_number_of_views(
-    df: pd.DataFrame, 
-    window: float, 
-    num_max: int, 
-    stepping: bool
+    df: pd.DataFrame, window: float, num_max: int, stepping: bool
 ) -> pd.DataFrame:
     """Helper function for `create_selections` method in AnnotationInterface class.
 
