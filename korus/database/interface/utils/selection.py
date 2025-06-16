@@ -306,7 +306,7 @@ def map_to_audiofile(
             continue
 
         elif not data_support:
-            raise NotImplementedError("@data_support=False not yet implemented")
+            raise NotImplementedError("data_support=False not yet implemented")
 
         data += segments
         sel_id += 1
