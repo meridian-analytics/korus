@@ -115,24 +115,25 @@ def test_use_alias(in_memory_table_backend):
     i.add({"AA": "12"})
 
     # retrieve alias value
-    values = i.get(fields="A")
+    values = i.get(fields="AA")
     assert values == [("12",), ("12",)]
 
     # retrieve field value
-    values = i.get(fields="A", alias=False)
+    values = i.get(fields="A")
     assert values == [(12,), (12,)]
 
 
-def test_filter_data(in_memory_table_backend):
+def test_filter(in_memory_table_backend):
     """Check that we can filter data in a TableInterface instance"""
     i = itf.interface.TableInterface("test", in_memory_table_backend)
 
-    i.add_field("A", int, "a test field", default=None)
-    i.add_field("B", str, "another test field", default=None)
+    i.add_field("A", int, "a test field", required=False)
+    i.add_field("B", str, "another test field", required=False)
 
     i.add({"A": 11, "B": "x"})
     i.add({"A": 12, "B": "xy"})
     i.add({"A": 13, "B": "xyz"})
+    i.add({})
 
     # filter with single condition
     idx = i.filter({"A": 11}).indices
@@ -147,3 +148,42 @@ def test_filter_data(in_memory_table_backend):
     i.reset_filter()
     idx = i.filter({"A": (11, 12)}).filter({"B": "xy"}).indices
     assert idx == [1]
+
+    # negation
+    # note: None is *not* selected by the filter
+    idx = i.reset_filter().filter({"A~": 11}).indices
+    assert idx == [1, 2]
+
+
+def test_get_as_pandas(in_memory_table_backend):
+    """Check that we can get data as a Pandas DataFrame"""
+    i = itf.interface.TableInterface("test", in_memory_table_backend)
+
+    i.add_field("A", int, "a test field")
+    i.add_field("B", datetime, "anoter test field")
+    i.add_field("C", list, "yet another test field")
+    i.add_field("D", dict, "the last test field")
+
+    row = {
+        "A": 11,
+        "B": datetime(2022, 12, 2),
+        "C": ["x", "y"],
+        "D": {"alpha": 1, "beta": 2},
+    }
+    i.add(row)
+
+    row = {
+        "A": 12,
+        "B": datetime(2022, 12, 3),
+        "C": ["xx", "yy", "zz"],
+        "D": {"gamma": 3},
+    }
+    i.add(row)
+
+    df = i.get(as_pandas=True, return_indices=True)
+
+    expected = """     A          B             C                        D
+id                                                      
+0   11 2022-12-02        [x, y]  {'alpha': 1, 'beta': 2}
+1   12 2022-12-03  [xx, yy, zz]             {'gamma': 3}"""
+    assert df.to_string() == expected

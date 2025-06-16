@@ -34,7 +34,15 @@ def to_str(x):
     if np.ndim(x) == 0:
         x = [x]
 
-    return "(" + ",".join([f"'{v}'" if isinstance(v, str) else f"{v}" for v in x]) + ")"
+    def _str(v):
+        if isinstance(v, str):
+            return f"'{v}'"
+        elif v is None:
+            return "NULL"
+        else:
+            return f"{v}"
+
+    return "(" + ",".join([_str(v) for v in x]) + ")"
 
 
 def table_exists(conn, name):
@@ -84,28 +92,48 @@ def get_row_count(conn, table_name):
     return n
 
 
-def where_condition(conn, table_name, conditions, invert):
+def where_condition(conn, table_name, conditions):
+    if isinstance(conditions, dict):
+        conditions = [conditions]
+
     col_types = get_column_types(conn, table_name)
 
     # left joins on JSON columns
     left_joins = []
     for condition in conditions:
         for name in condition.keys():
+            name = name.replace("~", "")
             if col_types[name] == "JSON":
                 left_joins.append(
                     f"LEFT JOIN json_each('{table_name}'.'{name}') AS {name}"
                 )
 
+    # avoid duplicates
+    left_joins = list(set(left_joins))
+
+    # join by space
     left_joins = " ".join(left_joins)
 
     # WHERE conditions
     logical_or = []
     for condition in conditions:
+
         logical_and = []
         for name, values in condition.items():
+
+            # inverted search
+            if name[-1] == "~":
+                name = name[:-1]
+                invert = True
+            else:
+                invert = False
+
             x = f"{name}"
             if col_types[name] == "JSON":
                 x += ".value"
+
+            else:
+                x = f"{table_name}.{x}"
 
             if isinstance(values, tuple):
                 a, b = values
@@ -131,13 +159,14 @@ def where_condition(conn, table_name, conditions, invert):
 
             else:
                 if invert:
-                    cond = f"{x} NOT IN {to_str(values)}"
+                    cond = f"{x} IS NOT NULL AND {x} NOT IN {to_str(values)}"
                 else:
                     cond = f"{x} IN {to_str(values)}"
 
             logical_and.append(cond)
 
-        logical_or.append("(" + " AND ".join(logical_and) + ")")
+        if len(logical_and) > 0:
+            logical_or.append("(" + " AND ".join(logical_and) + ")")
 
     if len(logical_or) > 0:
         return left_joins + " WHERE " + " OR ".join(logical_or)
@@ -146,21 +175,33 @@ def where_condition(conn, table_name, conditions, invert):
         return None
 
 
-def search_table(conn, table_name, condition=None, indices=None):
+def query_table(conn, table_name, condition=None, indices=None):
     c = conn.cursor()
 
     if indices is not None:
-        id_cond = f"WHERE id IN {to_str(indices)}"
+        id_cond = f"WHERE {table_name}.id IN {to_str(indices)}"
 
         if condition is None:
             condition = id_cond
 
         else:
-            condition = condition.replace("WHERE", id_cond + " AND")
+            condition = condition.replace("WHERE", id_cond + " AND (") + ")"
 
-    q = f"SELECT {table_name}.id FROM {table_name} {condition}"
+    q = f"SELECT {table_name}.id FROM {table_name}"
+    if condition is not None:
+        q += f" {condition}"
+
     rows = c.execute(q).fetchall()
     return [row[0] for row in rows]
+
+
+def delete_row(conn, table_name, indices=None):
+    c = conn.cursor()
+    q = f"DELETE FROM {table_name}"
+    if indices is not None:
+        q += f" WHERE id IN {to_str(indices)}"
+
+    c.execute(q)
 
 
 def fetch_row(
@@ -170,10 +211,13 @@ def fetch_row(
 
     left_joins = []
 
+    if fields is None:
+        fields = []
+
     if isinstance(fields, str):
         fields = [fields]
 
-    if fields is None:
+    if len(fields) == 0 and not return_indices:
         fields_str = "*"
 
     else:
@@ -209,7 +253,7 @@ def fetch_row(
         rows = [rows[i] for i in idx]
 
     if as_dict:
-        if fields is None:
+        if len(fields) == 0:
             fields = get_column_names(conn, table_name)
 
         if not return_indices:

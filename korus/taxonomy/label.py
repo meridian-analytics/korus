@@ -43,6 +43,9 @@ class LabelManager:
         return_version: bool = True,
     ) -> tuple | list[tuple]:
         """TODO: docstring"""
+        if id is None:
+            return None
+
         cols = ["version"]
         if return_nid:
             cols += self._cols["nid"]
@@ -95,6 +98,9 @@ class LabelManager:
         Raises:
             ValueError: if an invalid index is passed
         """
+        if tag is None and nid is None:
+            return None
+
         if nid is None:
             indices = tag
             df = self._idf["tag"]
@@ -154,9 +160,7 @@ class LabelManager:
             self._idf[key].set_index(index, inplace=True)
 
     def update(self, version: int, rows: list[tuple]):
-        null_row = tuple([None for _ in self.columns])
-        data = [null_row] + rows
-        new_df = pd.DataFrame(data, columns=self.columns, dtype=object)
+        new_df = pd.DataFrame(rows, columns=self.columns, dtype=object)
         new_df["version"] = version
         if self.df is not None:
             new_df = pd.concat([self.df, new_df], ignore_index=True)

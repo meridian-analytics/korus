@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from tabulate import tabulate
 from korus.database.backend import TableBackend
+import numpy as np
 import pandas as pd
 
 
@@ -152,6 +153,24 @@ class TableInterface:
         """The names of the table aliases"""
         return [alias.name for alias in self.aliases]
 
+    @property
+    def aliases_asdict(self) -> dict[str, FieldAlias]:
+        """The field aliases as a dict"""
+        return {alias.name: alias for alias in self._aliases}
+
+    def field_name(self, name: str):
+        """Given field or alias name, return field name"""
+        if name in self.field_names:
+            return name
+
+        elif name in self.alias_names:
+            return self.aliases[self.alias_names.index(name)].field_name
+
+        else:
+            raise ValueError(
+                f"`{name}` does not match any field definitions or aliases"
+            )
+
     def values_asdict(
         self, values: tuple, fields: str | list[str] = None, index: bool = False
     ) -> dict:
@@ -165,6 +184,7 @@ class TableInterface:
                 for every field, in the correct ordering.
             index: bool
                 Whether the index has been inserted at the beginning of the value tuple.
+                If True, the index value is added to the dict with the key `id`.
 
         Returns:
             : dict
@@ -304,11 +324,12 @@ class TableInterface:
         Replaces values and renames keys in the input dictionary.
         """
         for alias in self._aliases:
-            if alias.name in row:
-                v = row.pop(alias.name)
-                _kwargs = kwargs.copy()
-                _kwargs.update(row)
-                row[alias.field_name] = alias.transform(v, **_kwargs)
+            for append in ["", "~"]:
+                if alias.name + append in row:
+                    v = row.pop(alias.name + append)
+                    _kwargs = kwargs.copy()
+                    _kwargs.update(row)
+                    row[alias.field_name + append] = alias.transform(v, **_kwargs)
 
         return row
 
@@ -320,12 +341,12 @@ class TableInterface:
         """
         row = self.values_asdict(values, fields, index)
 
-        for alias in self._aliases:
-            if alias.field_name in row:
-                v = row.pop(alias.field_name)
-                row[alias.name] = alias.reverse_transform(v, **row)
+        for name, value in row.items():
+            if name in self.aliases_asdict:
+                row[name] = self.aliases_asdict[name].reverse_transform(value, **row)
 
-        return tuple(row.values())
+        values = [v for v in row.values()]
+        return tuple(values)
 
     def add(self, row: dict):
         """Add an entry to the table
@@ -346,6 +367,15 @@ class TableInterface:
             err.args = (err_msg,) + err.args
             raise
 
+    def remove(self, indices: int | list[int] = None):
+        """Remove entries from the table.
+
+        Args:
+            indices: int | list[int]
+                The indices of the entries to be removed. If None, all entries will be removed.
+        """
+        self.backend.remove(indices)
+
     def set(self, idx: int, row: dict):
         """Modify an existing entry in the table
 
@@ -357,7 +387,7 @@ class TableInterface:
         """
         row = row.copy()
         row = self._apply_alias_transforms(row)
-        current_values = self.values_asdict(self.get(idx, alias=False)[0])
+        current_values = self.values_asdict(self.get(idx)[0])
         row = self._replace_missing_values(row, current_values)
         row = self._validate_data(row)
         try:
@@ -372,7 +402,6 @@ class TableInterface:
         indices: int | list[int] = None,
         fields: str | list[str] = None,
         return_indices: bool = False,
-        alias: bool = True,
         always_tuple: bool = True,
         as_pandas: bool = False,
     ) -> list[tuple]:
@@ -387,8 +416,6 @@ class TableInterface:
                 The fields to be returned. If None, all fields are returned.
             return_indices: bool
                 Whether to also return the indices. If True, indices are inserted at the beginning of each row tuple.
-            alias: bool
-                Whether to apply reverse alias transforms to replace field values by their alias values.
             always_tuple: bool
                 If False, and there is only 1 field, return a list of values instead of tuples.
             as_pandas: bool
@@ -401,17 +428,39 @@ class TableInterface:
         if fields is None:
             fields = self.names
 
-        data = self.backend.get(indices, fields, return_indices)
+        if isinstance(fields, str):
+            fields = [fields]
 
-        if alias:
-            data = [
-                self._apply_reverse_alias_transforms(values, fields, return_indices)
-                for values in data
-            ]
+        # replace alias names with field names
+        fields_noalias = [self.field_name(name) for name in fields]
 
+        # unique indices
+        if isinstance(indices, int):
+            indices = [indices]
+
+        if indices is None:
+            unique = inverse = None
+        else:
+            unique, inverse = np.unique(indices, return_inverse=True)
+
+        # pass query to backend
+        data = self.backend.get(unique, fields_noalias, return_indices)
+
+        # inverse index mapping
+        if indices is not None:
+            data = [data[i] for i in inverse]
+
+        # apply reverse alias transforms
+        data = [
+            self._apply_reverse_alias_transforms(values, fields, return_indices)
+            for values in data
+        ]
+
+        # optionally, drop tuple dimension
         if not as_pandas and not always_tuple and len(data) >= 1 and len(data[0]) == 1:
             data = [values[0] for values in data]
 
+        # optionally, reformat output as Pandas DataFrame
         if as_pandas:
             data = _as_pandas_dataframe(data, fields, return_indices)
 
@@ -423,29 +472,19 @@ class TableInterface:
 
     def __iter__(self):
         """Iterate through the table"""
-        self._count = 0
-        self._index = -1
+        self.backend.reset_cursor()
         return self
 
     def __next__(self):
         """Get the next row from the table"""
-        self._count += 1
-
-        if self._count > len(self):
-            raise StopIteration
-
-        while True:
-            self._index += 1
-            rows = self.get(self._index)
-            if len(rows) > 0:
-                return rows[0]
+        return self.get(next(self.backend))[0]
 
     def reset_filter(self):
         """Reset the search filter"""
         self.indices = None
         return self
 
-    def filter(self, *conditions, invert: bool = False, **kwargs):
+    def filter(self, *conditions, **kwargs):
         """Search the table.
 
         If the backend's filtering method accepts additional keyword arguments,
@@ -456,10 +495,10 @@ class TableInterface:
                 Search criteria, where the keys are the field names and
                 the values are the search values. Use tuples to search on
                 a range of values and lists to search on multiple values.
+                Append `~` to the field name to invert the search criteria,
+                i.e., to exclude values or a range of values.
                 Multiple dicts are joined by a logical OR.
                 Within each dict, search criteria are joined by a logical AND.
-            invert: bool
-                Invert the search, i.e., exclude values or a range of values.
 
         Returns:
             self: TableInterface
@@ -472,16 +511,12 @@ class TableInterface:
         ]
 
         # pass to backend
-        self.indices = self.backend.filter(
-            *conditions, invert=invert, indices=self.indices, **kwargs
-        )
+        self.indices = self.backend.filter(*conditions, indices=self.indices, **kwargs)
 
         return self
 
     def _validate_condition(self, condition: dict) -> dict:
         """Helper function for validating filter conditions.
-
-        TODO: implement this method
 
         Args:
             condition: dict
@@ -497,6 +532,24 @@ class TableInterface:
         if condition is None:
             condition = dict()
 
+        for key, value in condition.items():
+            negation = key[-1] == "~"
+            name = key[:-1] if negation else key
+
+            assert (
+                name in self.field_names
+            ), f"Invalid field name `{name}` in filter condition"
+
+            # if scalar, recast as list
+            if not isinstance(value, (list, tuple)):
+                value = [value]
+
+            if isinstance(value, list):
+                # ensure unique values
+                value = list(set(value))
+
+            condition[key] = value
+
         return condition
 
     def __str__(self) -> str:
@@ -509,7 +562,7 @@ class TableInterface:
                 Table summary
         """
         # table name and no. entries
-        res = f"Name: {self.name}\nEntries: {len(self)}"
+        res = f"\nName: {self.name}\nEntries: {len(self)}"
 
         # fields
         res += "\nFields:\n"
@@ -533,7 +586,8 @@ class TableInterface:
         res += tabulate(
             [f.as_tuple_str() for f in self.aliases],
             headers=[
-                "Field" "Alias",
+                "Field",
+                "Alias",
                 "Type",
                 "Description",
             ],
@@ -547,12 +601,12 @@ def _as_pandas_dataframe(
 ) -> pd.DataFrame:
     """Helper function for converting retrieved data to a Pandas DataFrame"""
     if index:
-        columns = ["index"] + columns
+        columns = ["id"] + columns
 
     df = pd.DataFrame(data, columns=columns)
 
     if index:
-        df.set_index("index", inplace=True)
-        df.index.name = "index"
+        df.set_index("id", inplace=True)
+        df.index.name = "id"
 
     return df

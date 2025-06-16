@@ -17,20 +17,37 @@ class TableBackend:
     def add(self, row: dict):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "add"))
 
+    def remove(self, indices: int | list[int] = None):
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "remove"))
+
     def set(self, idx: int, row: dict):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "set"))
 
     def filter(
-        self,
-        *conditions: dict,
-        invert: bool = False,
-        indices: list[int] = None,
-        **kwargs
+        self, *conditions: dict, indices: list[int] = None, **kwargs
     ) -> list[int]:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "filter"))
 
     def __len__(self):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "__len__"))
+
+    def __next__(self):
+        """Should raise StopIteration when end of table is reached"""
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "__next__"))
+
+    def reset_cursor(self):
+        """Return to first row"""
+        raise NotImplementedError(
+            not_impl_err_msg(self.__class__.__name__, "reset_cursor")
+        )
+
+
+class JobBackend(TableBackend):
+    def add_file(self, job_id: int, file_id: int, channel: int = 0):
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "add_file"))
+
+    def get_files(self, job_id: int) -> list[tuple[int, int]]:
+        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "get_file"))
 
 
 class DatabaseBackend:
@@ -52,7 +69,7 @@ class DatabaseBackend:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "file"))
 
     @property
-    def job(self) -> TableBackend:
+    def job(self) -> JobBackend:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "job"))
 
     @property

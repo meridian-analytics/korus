@@ -28,6 +28,19 @@ def test_ascend_descend():
     tax.create_sound_type("a1", "ABA", parent="a")
     tax.create_sound_type("a2", "ABA", parent="a")
 
+    tags = [tag for tag in tax.ascend("AB", "b4", include_start_node=False)]
+    assert tags == [
+        ("AB", "b"),
+        ("AB", "Unknown"),
+        ("A", "b4"),
+        ("A", "b"),
+        ("A", "Unknown"),
+        ("Unknown", "Unknown"),
+    ]
+
+    tags = [tag for tag in tax.descend("AB", "a", include_start_node=False)]
+    assert tags == [("ABA", "a"), ("ABA", "a1"), ("ABA", "a2")]
+
     tags = [tag for tag in tax.ascend("ABA", "*")]
     assert tags == [("ABA", "*"), ("AB", "*"), ("A", "*"), ("Unknown", "*")]
 

@@ -14,7 +14,7 @@ def encode_condition(table_name, condition, encoder):
         if not isinstance(values, (list, tuple)):
             values = [values]
 
-        values = [encoder(v, table_name, name) for v in values]
+        values = [encoder(v, table_name, name.replace("~", "")) for v in values]
 
         if is_tuple:
             values = tuple(values)
@@ -24,7 +24,7 @@ def encode_condition(table_name, condition, encoder):
     return encoded_condition
 
 
-def encode_key(v: int | list[int]):
+def index_to_key(v: int | list[int]):
     if v is None:
         return None
 
@@ -35,12 +35,38 @@ def encode_key(v: int | list[int]):
         return [x + 1 for x in v]
 
 
-def decode_key(v: int | list[int]):
+def key_to_index(v: int | list[int]):
+    if v is None:
+        return None
+
     if isinstance(v, int):
         return v - 1
 
     else:
         return [x - 1 for x in v]
+
+
+def encode_key(v: int | list[int]):
+    v = index_to_key(v)
+    if isinstance(v, (list, tuple, dict)):
+        v = json.dumps(v)
+
+    return v
+
+
+def decode_key(v: int | list[int]):
+    if isinstance(v, str):
+        v = json.loads(v)
+
+    return key_to_index(v)
+
+
+def decode_json(v: str) -> list | tuple | dict:
+    if v is None:
+        return None
+
+    else:
+        return json.loads(v)
 
 
 def decode_datetime(v: str) -> datetime:
@@ -176,17 +202,34 @@ class Codec:
 def create_codec(conn):
     codec = Codec()
 
+    # decode JSON columns
+    for tbl_name in qy.get_table_names(conn):
+        col_types = qy.get_column_types(conn, tbl_name)
+        for col_name, col_type in col_types.items():
+            if col_type == "JSON":
+                codec.decoder.add_rule(tbl_name, col_name, decode_json)
+
     # decode timestamps
+    codec.decoder.add_rule("annotation", "start_utc", decode_datetime)
     codec.decoder.add_rule("deployment", "start_utc", decode_datetime)
     codec.decoder.add_rule("deployment", "end_utc", decode_datetime)
     codec.decoder.add_rule("file", "start_utc", decode_datetime)
+    codec.decoder.add_rule("file", "end_utc", decode_datetime)
     codec.decoder.add_rule("taxonomy", "timestamp", decode_datetime)
 
     # encode & decode file_id_list field in annotation table
     codec.encoder.add_rule("annotation", "file_id_list", encode_key)
     codec.decoder.add_rule("annotation", "file_id_list", decode_key)
 
-    # encode & decode all fields named *_id
+    # encode & decode label ids
+    codec.encoder.add_rule("annotation", "tentative_label_id", encode_key)
+    codec.decoder.add_rule("annotation", "tentative_label_id", decode_key)
+    codec.encoder.add_rule("annotation", "multiple_label_id", encode_key)
+    codec.decoder.add_rule("annotation", "multiple_label_id", decode_key)
+    codec.encoder.add_rule("annotation", "ambiguous_label_id", encode_key)
+    codec.decoder.add_rule("annotation", "ambiguous_label_id", decode_key)
+
+    # encode & decode all primary and foreign keys
     table_names = qy.get_table_names(conn)
     for table_name in table_names:
         # primary keys

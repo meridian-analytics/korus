@@ -9,7 +9,7 @@ path_to_assets = os.path.join(file_dir, "..", "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
-def test_crosswalk_label_id():
+def test_crosswalk():
     lm = LabelManager()
     tax = Taxonomy()
     m = TaxonomyManager(tax, lm)
@@ -27,13 +27,13 @@ def test_crosswalk_label_id():
     m.release()  # 5th release
 
     id = m.get_label_id("A-BC", 4)
-    xid = m.crosswalk_label_id(id, 3)
+    xid = m.crosswalk(id, 3)
     assert m.labels.get_label(xid) == [(3, ("A-B",)), (3, ("A-C",))]
 
-    xid = m.crosswalk_label_id(id, 5)
+    xid = m.crosswalk(id, 5)
     assert m.labels.get_label(xid) == (5, ("A",))
 
-    xid = m.crosswalk_label_id(id, 5, equivalent_only=True)
+    xid = m.crosswalk(id, 5, equivalent_only=True)
     assert len(xid) == 0
 
 
@@ -94,16 +94,16 @@ def test_get_label_id():
     m.update(1, tax.all_labels)
 
     id = get_label_id("AA", tax, m)
-    assert id == 3
+    assert id == 2
 
     id = get_label_id("AA", tax, m, ascend=True)
-    assert id == [3, 2, 1]
+    assert id == [2, 1, 0]
 
     id = get_label_id("AB", tax, m, descend=True)
-    assert id == [4, 5]
+    assert id == [3, 4]
 
     id = get_label_id("AB", tax, m, ascend=True, descend=True)
-    assert sorted(id) == sorted([1, 2, 4, 5])
+    assert sorted(id) == sorted([0, 1, 3, 4])
 
 
 def test_taxonomy_manager():
@@ -121,16 +121,16 @@ def test_taxonomy_manager():
     m.release()
 
     id = m.get_label_id("AA")
-    assert id == 3
+    assert id == 2
 
     id = m.get_label_id("AA", 1, ascend=True)
-    assert id == [3, 2, 1]
+    assert id == [2, 1, 0]
 
     id = m.get_label_id("AB", descend=True)
-    assert id == [4, 5]
+    assert id == [3, 4]
 
     id = m.get_label_id("AB", ascend=True, descend=True)
-    assert sorted(id) == sorted([1, 2, 4, 5])
+    assert sorted(id) == sorted([0, 1, 3, 4])
 
-    id = m.get_label_id(label_id=4, descend=True)
-    assert id == [4, 5]
+    id = m.get_label_id(label_id=3, descend=True)
+    assert id == [3, 4]

@@ -347,8 +347,9 @@ class AcousticTaxonomy(Taxonomy):
 
                 # iterate over sound types of starting node until a common sound type is found
                 for tid in start_types.rsearch(type_tag):
-                    if types.get_node(tid) is not None:
-                        type_iter = types.rsearch(tid)
+                    start_tag = start_types.get_node(tid).tag
+                    if types.get_node(start_tag) is not None:
+                        type_iter = types.rsearch(start_tag)
                         break
 
                 # iterator over sound types in ancestor

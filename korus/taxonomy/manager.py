@@ -125,10 +125,10 @@ class TaxonomyManager:
 
         return ids
 
-    def crosswalk_label_id(
+    def crosswalk(
         self,
         label_id: int | list[int],
-        version: int = None,
+        dst_version: int = None,
         ascend: bool = False,
         descend: bool = False,
         always_list: bool = False,
@@ -139,8 +139,8 @@ class TaxonomyManager:
         Args:
             label_id: int | list[int]
                 Label ID(s)
-            version: int
-                Destination taxonomy version
+            dst_version: int
+                Destination taxonomy version. If None, crosswalk to all versions, including the source version.
             ascend: bool
                 Also return the labels of ancestral nodes of the mapped node(s).
             descend: bool
@@ -154,7 +154,10 @@ class TaxonomyManager:
         """
         ids = []
 
-        tax = self.current if version is None else self.releases[version - 1]
+        if dst_version is None:
+            dst_versions = [i + 1 for i in range(len(self.releases))]
+        else:
+            dst_versions = [dst_version]
 
         # convert label IDs to (version, node identifier) tuples
         inputs = self.labels.get_label(label_id, return_nid=True, always_list=True)
@@ -162,29 +165,36 @@ class TaxonomyManager:
         # loop over inputs
         for src_version, nid in inputs:
 
-            # get closest relatives
-            mode = "b" if src_version > version else "f"
-            relatives, equiv = self.get_closest_relative(nid, version, mode)
+            # loop over destination taxonomies
+            for dst_version in dst_versions:
 
-            if equivalent_only and not equiv:
-                continue
+                # get destination taxonomy
+                dst_taxonomy = self.releases[dst_version - 1]
 
-            # convert node IDs to tags
-            relatives = self.labels.get_label(
-                self.labels.get_label_id(version, nid=relatives), return_version=False
-            )
+                # get closest relatives in destination taxonomy
+                mode = "b" if src_version > dst_version else "f"
+                relatives, equiv = self.get_closest_relative(nid, dst_version, mode)
 
-            # get label IDs
-            ids += get_label_id(
-                relatives,
-                tax,
-                self.labels,
-                ascend,
-                descend,
-                always_list=True,
-            )
+                if equivalent_only and not equiv:
+                    continue
 
-            ids = list(set(ids))
+                # convert node IDs to tags
+                relatives = self.labels.get_label(
+                    self.labels.get_label_id(dst_version, nid=relatives),
+                    return_version=False,
+                )
+
+                # get label IDs
+                ids += get_label_id(
+                    relatives,
+                    dst_taxonomy,
+                    self.labels,
+                    ascend,
+                    descend,
+                    always_list=True,
+                )
+
+                ids = list(set(ids))
 
         if isinstance(label_id, int) and len(ids) == 1 and not always_list:
             ids = ids[0]
@@ -359,8 +369,13 @@ def get_label_id(
     Raises:
         ValueError: if the (sound-source, sound-type) label does not exist in the taxonomy
     """
+    if label is None:
+        return None
+
+    is_list = isinstance(label, list)
+
     # recast the `label` argument as list[tuple]
-    labels = [label] if not isinstance(label, list) else label
+    labels = [label] if not is_list else label
     labels = [l if isinstance(l, tuple) else (l,) for l in labels]
 
     # taxonomy version
@@ -380,7 +395,7 @@ def get_label_id(
                 ids += label_manager.get_label_id(v, l, always_list=True)
 
     # recast output
-    if not always_list and len(ids) == 1:
+    if not always_list and len(ids) == 1 and not is_list:
         ids = ids[0]
 
     return ids

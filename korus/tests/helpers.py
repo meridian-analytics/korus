@@ -16,9 +16,20 @@ class InMemoryTableBackend(TableBackend):
         super().__init__("in_memory")
         self.rows = []
         self.fields = []
+        self.reset_cursor()
 
     def __len__(self):
         return len(self.rows)
+
+    def reset_cursor(self):
+        self._idx = -1
+
+    def __next__(self):
+        self._idx += 1
+        if self._idx >= len(self):
+            raise StopIteration
+
+        return self._idx
 
     def get(self, indices=None, fields=None, return_indices=False):
         if len(self.rows) == 0:
@@ -54,10 +65,22 @@ class InMemoryTableBackend(TableBackend):
         self.fields += [k for k in row.keys() if k not in self.fields]
         self.rows.append(row)
 
+    def remove(self, indices=None):
+        if isinstance(indices, int):
+            indices = [indices]
+
+        if indices is None:
+            self.rows = []
+
+        else:
+            indices = sorted(indices, reverse=True)
+            for idx in indices:
+                del self.rows[idx]
+
     def set(self, idx, row):
         self.rows[idx] = row
 
-    def filter(self, *conditions, invert=False, indices=None):
+    def filter(self, *conditions, indices=None, **_):
         filtered_indices = []
         for idx, row in enumerate(self.rows):
 
@@ -66,6 +89,12 @@ class InMemoryTableBackend(TableBackend):
 
                 result = True
                 for name, values in condition.items():
+                    if name[-1] == "~":
+                        name = name[:-1]
+                        negation = True
+                    else:
+                        negation = False
+
                     if name not in row:
                         continue
 
@@ -81,16 +110,16 @@ class InMemoryTableBackend(TableBackend):
                     for x in xs:
                         accept_x = False
 
-                        if isinstance(values, tuple):
+                        if isinstance(values, tuple) and x is not None:
                             a, b = values
-                            if invert:
+                            if negation:
                                 accept_x = x < a or x > b
                             else:
                                 accept_x = x >= a and x <= b
 
                         else:
-                            if invert:
-                                accept_x = x not in values
+                            if negation:
+                                accept_x = x is not None and x not in values
                             else:
                                 accept_x = x in values
 
@@ -110,3 +139,18 @@ class InMemoryTableBackend(TableBackend):
             filtered_indices = [idx for idx in filtered_indices if idx in indices]
 
         return filtered_indices
+
+
+class InMemoryJobBackend(InMemoryTableBackend):
+    def __init__(self):
+        super().__init__()
+        self.files = []
+
+    def add_file(self, job_id: int, file_id: int, channel: int = 0):
+        self.files.append((job_id, file_id, channel))
+
+    def get_files(self, job_id: int | list[int]) -> list[tuple[int, int]]:
+        if isinstance(job_id, int):
+            job_id = [job_id]
+
+        return [row[1:] for row in self.files if row[0] in job_id]

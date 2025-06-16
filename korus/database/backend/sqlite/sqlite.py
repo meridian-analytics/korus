@@ -1,6 +1,13 @@
 import sqlite3
 from korus.database.backend import TableBackend, DatabaseBackend
-from .codec import Codec, encode_key, encode_condition
+from .codec import (
+    Codec,
+    encode_key,
+    encode_condition,
+    decode_key,
+    index_to_key,
+    key_to_index,
+)
 from .tables import create_tables
 from .codec import create_codec
 from .query import (
@@ -10,8 +17,9 @@ from .query import (
     fetch_row,
     get_sqlite_type,
     where_condition,
-    search_table,
+    query_table,
     add_column,
+    delete_row,
 )
 
 
@@ -31,17 +39,28 @@ class SQLiteTableBackend(TableBackend):
         super().__init__(name)
         self.conn = conn
         self.codec = codec
+        self.reset_cursor()
 
     def __len__(self):
         return get_row_count(self.conn, self.name)
+
+    def __next__(self):
+        return decode_key(next(self._cursor)[0])
+
+    def reset_cursor(self):
+        self._cursor = self.conn.cursor().execute(f"SELECT id FROM {self.name}")
 
     def add(self, row: dict):
         insert_row(self.conn, self.name, self.codec.encode(row, self.name))
         self.conn.commit()
 
+    def remove(self, indices: int | list[int] = None):
+        delete_row(self.conn, self.name, index_to_key(indices))
+        self.conn.commit()
+
     def set(self, idx: int, row: dict):
         update_row(
-            self.conn, self.name, encode_key(idx), self.codec.encode(row, self.name)
+            self.conn, self.name, index_to_key(idx), self.codec.encode(row, self.name)
         )
         self.conn.commit()
 
@@ -54,7 +73,7 @@ class SQLiteTableBackend(TableBackend):
         rows = fetch_row(
             self.conn,
             self.name,
-            encode_key(indices),
+            index_to_key(indices),
             fields,
             as_dict=True,
             return_indices=return_indices,
@@ -65,17 +84,16 @@ class SQLiteTableBackend(TableBackend):
     def filter(
         self,
         *conditions: dict,
-        invert: bool = False,
         indices: list[int] = None,
         **kwargs,
     ) -> list[int]:
-        indices = self.codec.encode(indices, self.name, "id")
+        indices = index_to_key(indices)
         conditions = [
             encode_condition(self.name, c, self.codec.encode) for c in conditions
         ]
-        condition = where_condition(self.conn, self.name, conditions, invert)
-        indices = search_table(self.conn, self.name, condition, indices)
-        indices = self.codec.decode(indices, self.name, "id")
+        condition = where_condition(self.conn, self.name, conditions)
+        indices = query_table(self.conn, self.name, condition, indices)
+        indices = key_to_index(indices)
         return indices
 
     def add_field(
@@ -100,6 +118,40 @@ class SQLiteTableBackend(TableBackend):
         self.conn.commit()
 
 
+class SQLiteJobBackend(SQLiteTableBackend):
+    def __init__(self, conn: sqlite3.Connection, codec: Codec):
+        super().__init__(conn, "job", codec)
+
+    def add_file(self, job_id: int, file_id: int, channel: int = 0):
+        tbl_name = "file_job_relation"
+        row = {"job_id": job_id, "file_id": file_id, "channel": channel}
+        insert_row(self.conn, tbl_name, self.codec.encode(row, tbl_name))
+        self.conn.commit()
+
+    def get_files(self, job_id: int | list[int]) -> list[tuple[int, int]]:
+        tbl_name = "file_job_relation"
+
+        # query condition
+        cond = {"job_id": job_id}
+        cond = encode_condition(tbl_name, cond, self.codec.encode)
+        cond = where_condition(self.conn, tbl_name, cond)
+
+        # perform query
+        indices = query_table(self.conn, tbl_name, cond)
+
+        # retrieve row data
+        rows = fetch_row(
+            self.conn, tbl_name, indices, fields=["file_id", "channel"], as_dict=True
+        )
+        rows = [self.codec.decode(row, self.name) for row in rows]
+        rows = [tuple(list(row.values())) for row in rows]
+
+        # unique, sorted list
+        rows = sorted(list(set(rows)))
+
+        return rows
+
+
 class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
     def __init__(self, *args, **kwargs):
 
@@ -122,7 +174,7 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
         self._annotation = SQLiteTableBackend(self, "annotation", self.codec)
         self._deployment = SQLiteTableBackend(self, "deployment", self.codec)
         self._file = SQLiteTableBackend(self, "file", self.codec)
-        self._job = SQLiteTableBackend(self, "job", self.codec)
+        self._job = SQLiteJobBackend(self, self.codec)
         self._storage = SQLiteTableBackend(self, "storage", self.codec)
         self._taxonomy = SQLiteTableBackend(self, "taxonomy", self.codec)
         self._label = SQLiteTableBackend(self, "label", self.codec)

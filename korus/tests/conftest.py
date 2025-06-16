@@ -2,12 +2,21 @@ import os
 import pytest
 import json
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import korus.tax as kx
 import korus.db as kdb
 from korus.database.backend.sqlite import SQLiteBackend
 from korus.database import SQLiteDatabase
-from korus.tests.helpers import InMemoryTableBackend
+from korus.tests.helpers import InMemoryTableBackend, InMemoryJobBackend
+from korus.database.interface import (
+    AnnotationInterface,
+    FileInterface,
+    JobInterface,
+    TaxonomyInterface,
+    LabelInterface,
+    TagInterface,
+    GranularityInterface,
+)
 
 path_to_assets = os.path.join(os.path.dirname(__file__), "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
@@ -17,6 +26,78 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 def in_memory_table_backend():
     """Instance of TableBackend that stores data in memory"""
     yield InMemoryTableBackend()
+
+
+@pytest.fixture
+def interfaces_with_taxonomy():
+    """Yields a dict of table interfaces with a small, but realistic taxonomy"""
+    label = LabelInterface(InMemoryTableBackend())
+    file = FileInterface(InMemoryTableBackend())
+    job = JobInterface(InMemoryJobBackend(), file)
+    tax = TaxonomyInterface(InMemoryTableBackend(), label)
+    tag = TagInterface(InMemoryTableBackend())
+    gran = GranularityInterface(InMemoryTableBackend())
+    annot = AnnotationInterface(InMemoryTableBackend(), tax, job, file, tag, gran)
+
+    # create a small taxonomy
+    tax.draft.create_sound_source("Whale", parent="Unknown")
+    tax.draft.create_sound_source("KW", parent="Whale")
+    tax.draft.create_sound_source("SRKW", parent="KW")
+    tax.draft.create_sound_type("TC", "Whale", "Unknown")
+    tax.draft.create_sound_type("PC", "KW", "TC")
+    tax.draft.create_sound_type("S01", "SRKW", "PC")
+    tax.draft.create_sound_source("HW", parent="Whale")
+    tax.release()
+
+    yield {
+        "file": file,
+        "job": job,
+        "taxonomy": tax,
+        "tag": tag,
+        "granularity": gran,
+        "annotation": annot,
+    }
+
+
+@pytest.fixture
+def job_interface_with_data():
+    """Yields a JobInterface with two jobs and two files"""
+
+    file = FileInterface(InMemoryTableBackend())
+    job = JobInterface(InMemoryJobBackend(), file)
+
+    # add two jobs
+    job.add({"taxonomy_id": 0})
+    job.add({"taxonomy_id": 0})
+
+    # add two files
+    file.add(
+        {
+            "deployment_id": 0,
+            "storage_id": 0,
+            "filename": "xyz.flac",
+            "sample_rate": 2000,
+            "num_samples": 20000,
+        }
+    )
+    file.add(
+        {
+            "deployment_id": 0,
+            "storage_id": 0,
+            "filename": "abc.wav",
+            "sample_rate": 4000,
+            "num_samples": 40000,
+        }
+    )
+
+    # link 1st file (channel 0) to the 2nd job
+    job.add_file(1, 0)
+
+    # link 2nd file (channel 14) to both jobs
+    job.add_file(0, 1, 14)
+    job.add_file(1, 1, 14)
+
+    yield job
 
 
 @pytest.fixture
@@ -75,8 +156,8 @@ def sqlite_database_with_taxonomy():
     tax.create_sound_type("TC", "Mammal", name="Tonal Call")
     tax.create_sound_type("CK", "Dolphin", name="Click")
     tax.create_sound_type("CK", "KW", name="Click")
-    tax.create_sound_type("PC", "KW", name="Pulsed Call")
-    tax.create_sound_type("W", "KW", name="Whistle")
+    tax.create_sound_type("PC", "KW", parent="TC", name="Pulsed Call")
+    tax.create_sound_type("W", "KW", parent="TC", name="Whistle")
 
     # release version 1
     db.taxonomy.release(comment="this is the first version")
@@ -108,6 +189,84 @@ def sqlite_database_with_taxonomy():
     db.backend.close()
     if os.path.exists(path):
         os.remove(path)
+
+
+@pytest.fixture
+def one_storage_location():
+    v = {
+        "name": "laptop",
+        "path": "/",
+        "description": "data from my latest deployments",
+    }
+    return v
+
+
+@pytest.fixture
+def one_deployment():
+    lat = 49.780487
+    lon = -122.05154
+    depth = 18.0
+    v = {
+        "owner": "OceanResearch",
+        "name": "WestPoint",
+        "start_utc": datetime(2022, 6, 24),
+        "end_utc": datetime(2022, 10, 3),
+        "location": "Salt Spring Island, BC, Canada",
+        "latitude_deg": lat,
+        "longitude_deg": lon,
+        "depth_m": depth,
+        "latitude_min_deg": lat,
+        "latitude_max_deg": lat,
+        "longitude_min_deg": lon,
+        "longitude_max_deg": lon,
+        "depth_min_m": depth,
+        "depth_max_m": depth,
+        "license": None,
+        "hydrophone": None,
+        "bits_per_sample": None,
+        "sample_rate": 128000,
+        "num_channels": 1,
+        "sensitivity": None,
+        "comments": None,
+    }
+    return v
+
+
+@pytest.fixture
+def two_files():
+
+    def abclisten_timestamp_parser(x):
+        fmt = "_%Y%m%dT%H%M%S.%fZ"
+        p = x.find("_")
+        s = x[p : p + 21]
+        return datetime.strptime(s, fmt)
+
+    fnames = [
+        "ABCLISTENHF1234_20220624T164000.000Z_20220624T164459.996Z.flac",
+        "ABCLISTENHF1234_20220624T164500.023Z_20220624T164959.994Z.flac",
+    ]
+
+    dirpath = "OceanResearch/WestPoint"
+
+    file_data = []
+    for fname in fnames:
+        dt = abclisten_timestamp_parser(fname)
+        dir_path = os.path.join(dirpath, dt.strftime("%Y%m%d"))
+        num_samples, sample_rate = 32000 * 5 * 60, 32000
+        v = {
+            "deployment_id": 0,
+            "storage_id": 0,
+            "filename": fname,
+            "relative_path": dir_path,
+            "sample_rate": sample_rate,
+            "num_samples": num_samples,
+            "format": "FLAC",
+            "codec": "FLAC",
+            "start_utc": dt,
+        }
+        file_data.append(v)
+
+    return file_data
 
 
 # --- old fixtures below this point ---
