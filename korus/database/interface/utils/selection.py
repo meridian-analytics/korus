@@ -2,39 +2,30 @@ import os
 import warnings
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 from datetime import datetime, timedelta
-import korus.db as kdb
-from korus.util import list_to_str
 
-
+'''
 def create_selections(
-    conn,
-    indices,
-    window_ms,
-    step_ms=None,
-    center=False,
-    exclusive=False,
-    num_max=None,
-    source_type_avoid=None,
-    data_support=True,
-    progress_bar=False,
-    full_path=True,
+    indices: list[int],
+    window: float,
+    step: float = None,
+    center: bool = False,
+    exclusive: bool = False,
+    num_max: int = None,
+    exclude: tuple[str, str] | list[tuple[str, str]] = None,
+    data_support: bool = True,
+    progress_bar: bool = False,
+    full_path: str = True,
 ):
     """Create uniform-length selection windows on a set of annotations.
 
-    TODO: implement @source_avoid_type
-    TODO: implement @data_support=False
-
     Args:
-        conn: sqlite3.Connection
-            Database connection
-        indices: list(int)
-            Indices in the annotation table
-        window_ms: int
-            Window size in milliseconds.
-        step_ms: int
-            Step size in milliseconds. Used for creating temporally translated views of the same annotation.
+        indices: list[int]
+            Annotation indices
+        window: float
+            Window size in seconds.
+        step: float
+            Step size in seconds. Used for creating temporally translated views of the same annotation.
             If None, at most one (1) selection will be created per annotation.
         center: bool
             Align the selection window temporally with the midpoint of the annotation. If False, the temporal
@@ -46,11 +37,12 @@ def create_selections(
             Default is False.
         num_max: int
             Create at most this many selections.
-        source_type_avoid: tuple, list(tuple)
+        exclude: tuple[str, str] | list[tuple[str, str]]
             Only return selections that have been verified to not contain sounds with this (source,type) label.
             Note that the requirement extends to all ancestral and descendant nodes in the taxonomy tree.
+            NOT YET IMPLEMENTED.
         data_support: bool
-            If True, selection windows are not allow to extend beyond the start/end times of the audio files in the database.
+            If True, selection windows are not allowed to extend beyond the start/end times of the audio files in the database.
             Default is True.
         progress_bar: bool
             Whether to display a progress bar. Default is False.
@@ -58,18 +50,18 @@ def create_selections(
             Whether to include the full audio file paths in the output table. Default is True.
 
     Returns:
-        sel_tbl: Pandas DataFrame
+        : Pandas DataFrame
             Selection table
     """
-    if source_type_avoid:
-        raise NotImplementedError("@source_type_avoid not yet implemented")
+    if exclude:
+        raise NotImplementedError("Creation of selections with `exclude` argument is not implemented")
 
     # selection timedelta
     sel_delta = timedelta(seconds=window_ms / 1.0e3)
     step_delta = timedelta(seconds=step_ms / 1.0e3) if step_ms is not None else None
 
     # retrieve annotation data
-    annot_tbl = kdb.get_annotations(conn, indices)
+    annots = kdb.get_annotations(conn, indices)
 
     # append column with annotation indices
     annot_tbl["annot_id"] = indices
@@ -127,8 +119,7 @@ def create_selections(
 
     return sel_tbl
 
-
-def _fetch_audiofile_metadata(conn, file_ids):
+def fetch_audiofile_metadata(conn, file_ids):
     """Helper function for @create_selections.
 
     Retrieves file metadata from the database for given file indices.
@@ -195,9 +186,10 @@ def _fetch_audiofile_metadata(conn, file_ids):
     file_tbl.set_index("file_id", inplace=True)
 
     return file_tbl
+'''
 
 
-def _map_to_audiofile(
+def map_to_audiofile(
     row, window, view_centers, conn, file_tbl, full_path, data_support
 ):
     """Helper function for @create_selections.
@@ -383,7 +375,7 @@ def _find_supporting_audiofiles(conn, deployment_id, start_utc, end_utc, full_pa
     return pd.DataFrame(data, columns=["path", "start_utc", "end_utc"])
 
 
-def _compute_view_centers(row, window, step, center):
+def compute_view_centers(row, window, step, center):
     """Helper function for @create_selections.
 
     Computes the temporal midpoints of the view(s) created of each annotation.
@@ -458,7 +450,7 @@ def _compute_view_centers(row, window, step, center):
     return view_centers
 
 
-def _compute_number_of_views(df, window_ms, num_max, stepping):
+def compute_number_of_views(df, window_ms, num_max, stepping):
     """Helper function for @create_selections.
 
     Computes the number of selections to be created from each annotation,

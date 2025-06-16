@@ -5,7 +5,6 @@ import pandas as pd
 from tqdm import tqdm
 from datetime import datetime, timedelta
 import korus.db as kdb
-from korus.util import list_to_str
 
 
 def create_selections(
@@ -167,7 +166,7 @@ def _fetch_audiofile_metadata(conn, file_ids):
         ON
             f.storage_id = s.id 
         WHERE 
-            f.id IN {list_to_str(file_ids)}
+            f.id IN {kdb.list_to_str(file_ids)}
         """
     file_data = c.execute(query).fetchall()
 

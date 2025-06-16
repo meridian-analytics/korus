@@ -1,4 +1,6 @@
-from datetime import datetime, timedelta
+from tqdm import tqdm
+import pandas as pd
+from datetime import datetime
 from korus.database.backend import TableBackend
 from .interface import TableInterface
 from .taxonomy import TaxonomyInterface
@@ -7,202 +9,18 @@ from .file import FileInterface
 from .tag import TagInterface
 from .granularity import GranularityInterface
 from .utils.negative import find_unannotated_periods
-
-
-def _get_file_ids(
-    deployment_id: int, start_utc: datetime, end_utc: datetime, file: FileInterface
-) -> list[int]:
-    """Helper function for finding the audiofiles that overlap with a specified time range"""
-    # search for files that overlap with the specified time range
-    condition = {
-        "start_utc": (None, end_utc),
-        "end_utc": (start_utc, None),
-        "deployment_id": deployment_id,
-    }
-    indices = file.reset_filter().filter(condition).indices
-
-    # get the file UTC start times
-    file_start_times = file.get(indices=indices, fields="start_utc", always_tuple=False)
-
-    # sort chronologically
-    sorted_indices = [
-        i for i, _ in sorted(zip(indices, file_start_times), key=lambda pair: pair[1])
-    ]
-
-    return sorted_indices
-
-
-def _validate_file_id(row: dict, file: FileInterface) -> dict:
-    """Helper function for validating file IDs.
-    If annotation spans multiple files, attempt to determine the IDs of the secondary files, if not provided.
-    """
-    file_id = row.get("file_id", None)
-    file_id_list = row.get("file_id_list", None)
-    num_files = row.get("num_files", None)
-
-    if file_id_list == []:
-        file_id_list = None
-
-    if file_id is None and file_id_list is None:
-        return row
-
-    if file_id is None:
-        file_id = file_id_list[0]
-
-    if file_id_list is None:
-        if "start_utc" not in row or "duration_ms" not in row:
-            file_id_list = [file_id]
-
-        else:
-            deployment_id = file.get(
-                row["file_id"], fields="deployment_id", always_tuple=False
-            )[0]
-            start_utc = row["start_utc"]
-            end_utc = start_utc + timedelta(microseconds=row["duration_ms"] * 1e3)
-            file_id_list = _get_file_ids(deployment_id, start_utc, end_utc, file)
-
-    if num_files is None:
-        num_files = len(file_id_list)
-
-    assert num_files == len(file_id_list), ""
-    assert file_id in file_id_list, ""
-
-    row["file_id"] = file_id
-    row["file_id_list"] = file_id_list
-    row["num_files"] = num_files
-
-    return row
-
-
-def _validate_deployment_id(row: dict, file: FileInterface) -> dict:
-    """Helper function for validating deployment ID.
-    Raises AssertionError, if inconsistent deployment IDs are encountered.
-    """
-    if "file_id" not in row:
-        return row
-
-    # look up file metadata
-    deployment_id = file.get(
-        row["file_id"], fields="deployment_id", always_tuple=False
-    )[0]
-
-    if "deployment_id" not in row:
-        row["deployment_id"] = deployment_id
-
-    x = row["deployment_id"]
-    assert_msg = f"The specified deployment ID ({x}) does not match the recorded deployment ID of the audiofile ({deployment_id})"
-    assert x == deployment_id, assert_msg
-
-    return row
-
-
-def _validate_timestamps(row: dict, file: FileInterface) -> dict:
-    """Helper function for validating and completing annotations timestamps.
-    Raises AssertionError, if the within-file offset is not specified or cannot be deduced.
-    Raises ValueError, if inconsistent timestamps are encountered.
-    """
-    if "file_id" in row:
-        # look up file metadata
-        file_start_utc, sample_rate, num_samples = file.get(
-            indices=row["file_id"], fields=["start_utc", "sample_rate", "num_samples"]
-        )[0]
-
-        file_duration = float(num_samples / sample_rate)
-
-    else:
-        file_start_utc = None
-        file_duration = None
-
-    # default to zero within-file offset, if neither timestamp has been specified
-    if "start_utc" not in row and "start_ms" not in row:
-        row["start_ms"] = 0
-
-    # if within-file offset is unknown, derive it from the UTC start time
-    if "start_ms" not in row and file_start_utc is not None:
-        row["start_ms"] = int((row["start_utc"] - file_start_utc).total_seconds() * 1e3)
-
-    # if UTC start time is unknown, derive it from the within-file offset
-    elif "start_utc" not in row and file_start_utc is not None:
-        row["start_utc"] = file_start_utc + timedelta(
-            microseconds=row["start_ms"] * 1e3
-        )
-
-    # for audiofiles lacking a timestamp, the within-file offset must have a non-null value
-    if file_start_utc is None:
-        assert_msg = "The within-file annotation start time must be specified for audiofiles with unknown UTC start times"
-        assert "start_ms" in row, assert_msg
-
-    else:
-        # check that timestamps are internally consistent
-        delta_ms = row["start_ms"] - int(
-            (row["start_utc"] - file_start_utc).total_seconds() * 1e3
-        )
-        if delta_ms != 0:
-            err_msg = f"Data have inconsistent timestamps. Audiofile UTC start time: {file_start_utc} | Annotation UTC start time: {row['start_utc']} | Annotation within-file start time: {row['start_ms']:.0} ms"
-            raise ValueError(err_msg)
-
-    # check that annotation starts within file
-    if file_duration is not None:
-        assert row["start_ms"] >= 0, "Within-file offset cannot be a negative"
-        assert (
-            row["start_ms"] <= file_duration * 1e3
-        ), "Within-file offset cannot exceed file duration"
-
-    return row
-
-
-def _validate_duration(row: dict, file: FileInterface) -> dict:
-    """Helper function for validating or inferring the annotation duration"""
-    if "duration_ms" not in row and "file_id_list" in row:
-
-        file_ids = row["file_id_list"]
-
-        if len(file_ids) == 1:
-            row["duration_ms"] = (
-                int(file.get_duration(file_ids)[0] * 1e3) - row["start_ms"]
-            )
-
-        else:
-            end_times = file.get(indices=file_ids, fields="end_utc", always_tuple=False)
-
-            assert_msg = "Unable to infer duration of annotation that spans multiple audiofiles, some of which do not have timestamps"
-            assert None not in end_times, assert_msg
-
-            end_utc = max(end_times)
-            row["duration_ms"] = int((end_utc - row["start_utc"]).total_seconds() * 1e3)
-
-    return row
-
-
-def _validate_frequency(row: dict, file: FileInterface) -> dict:
-    """Helper function for validating or inferring frequency limits"""
-    nyquist_freq = None
-
-    if "freq_min_hz" not in row:
-        row["freq_min_hz"] = 0
-
-    if "file_id" in row:
-        sr = file.get(indices=row["file_id"], fields="sample_rate", always_tuple=False)[
-            0
-        ]
-        nyquist_freq = sr // 2
-
-        if "freq_max_hz" not in row:
-            row["freq_max_hz"] = nyquist_freq
-
-    assert_msg = f"Lower frequency limit cannot exceed Nyquist frequency"
-    assert nyquist_freq is None or row["freq_min_hz"] <= nyquist_freq, assert_msg
-
-    if row.get("freq_max_hz", None) is not None:
-        assert_msg = f"Upper frequency limit cannot exceed Nyquist frequency"
-        assert nyquist_freq is None or row["freq_max_hz"] <= nyquist_freq, assert_msg
-
-        assert_msg = (
-            f"Upper frequency limit cannot be less than the lower frequency limit"
-        )
-        assert row["freq_max_hz"] >= row["freq_min_hz"], assert_msg
-
-    return row
+from .utils.selection import (
+    compute_number_of_views,
+    compute_view_centers,
+    map_to_audiofile,
+)
+from .utils.validate import (
+    validate_deployment_id,
+    validate_duration,
+    validate_file_id,
+    validate_timestamps,
+    validate_frequency,
+)
 
 
 def _id_from_name(interface: TableInterface, name: str | list[str]) -> list[int]:
@@ -439,19 +257,19 @@ class AnnotationInterface(TableInterface):
         row = self._apply_alias_transforms(row)
 
         # validate/infer deployment ID
-        row = _validate_deployment_id(row, self._file)
+        row = validate_deployment_id(row, self._file)
 
         # validate/infer start time
-        row = _validate_timestamps(row, self._file)
+        row = validate_timestamps(row, self._file)
 
         # validate/infer file IDs
-        row = _validate_file_id(row, self._file)
+        row = validate_file_id(row, self._file)
 
         # validate/infer duration
-        row = _validate_duration(row, self._file)
+        row = validate_duration(row, self._file)
 
         # validate/infer frequency limits
-        row = _validate_frequency(row, self._file)
+        row = validate_frequency(row, self._file)
 
         super().add(row)
 
@@ -516,6 +334,122 @@ class AnnotationInterface(TableInterface):
         self,
     ):
         raise NotImplementedError()
+
+    def create_selections(
+        self,
+        indices: list[int],
+        window: float,
+        step: float = None,
+        center: bool = False,
+        exclusive: bool = False,
+        num_max: int = None,
+        exclude: tuple[str, str] | list[tuple[str, str]] = None,
+        data_support: bool = True,
+        progress_bar: bool = False,
+        full_path: str = True,
+    ):
+        """Create uniform-length selection windows on a set of annotations.
+
+        Args:
+            indices: list[int]
+                Annotation indices
+            window: float
+                Window size in seconds.
+            step: float
+                Step size in seconds. Used for creating temporally translated views of the same annotation.
+                If None, at most one (1) selection will be created per annotation.
+            center: bool
+                Align the selection window temporally with the midpoint of the annotation. If False, the temporal
+                alignment will be chosen at random (uniform distribution).
+            exclusive: bool
+                If True, the selection window is not allowed to contain anything but the annotated section of data.
+                In other words, the selection window is not allowed extend beyond the start/end point of the annotation.
+                In particular, this means that selections will not be created for annotations shorther than @window_ms.
+                Default is False.
+            num_max: int
+                Create at most this many selections.
+            exclude: tuple[str, str] | list[tuple[str, str]]
+                Only return selections that have been verified to not contain sounds with this (source,type) label.
+                Note that the requirement extends to all ancestral and descendant nodes in the taxonomy tree.
+                NOT YET IMPLEMENTED.
+            data_support: bool
+                If True, selection windows are not allowed to extend beyond the start/end times of the audio files in the database.
+                Default is True.
+            progress_bar: bool
+                Whether to display a progress bar. Default is False.
+            full_path: bool
+                Whether to include the full audio file paths in the output table. Default is True.
+
+        Returns:
+            : Pandas DataFrame
+                Selection table
+        """
+        if exclude:
+            raise NotImplementedError(
+                "Creation of selections with `exclude` argument is not implemented"
+            )
+
+        # get annotation data
+        annots = self.get(
+            indices=indices,
+            fields=["deployment_id", "file_id", "channel", "start", "duration"],
+            return_index=True,
+            as_pandas=True,
+        )
+        annots = annots.rename(columns={"id": "annot_id"})
+
+        # if exclusive=True, discard all annotations shorter than @window_ms
+        if exclusive:
+            annots = annots[annots.duration >= window]
+
+        # compute no. views of each annotation
+        annots = compute_number_of_views(annots, window, num_max, step is not None)
+
+        # discard annotations with 0 views
+        annots = annots[annots.num_view != 0]
+
+        # get file data
+        files = self._job.get(
+            indices=annots.file_id.unique(),
+            return_index=True,
+            as_pandas=True,
+        )
+        files = files.rename(columns={"id": "file_id"})
+
+        # loop over annotations
+        selections = []
+        for idx, row in tqdm(
+            annots.iterrows(), total=annots.shape[0], disable=not progress_bar
+        ):
+
+            # compute center UTC times of the views
+            view_centers = compute_view_centers(row, window, step, center)
+
+            # map times to audio files
+            views = map_to_audiofile(
+                row, window, view_centers, files, full_path, data_support
+            )
+
+            if len(views) == 0:
+                continue
+
+            # assign IDs to the selections
+            views.sel_id += len(selections)
+
+            # append the annotation index
+            views["annot_id"] = row.annot_id
+
+            # collect selections and increment counter
+            selections.append(views)
+
+        # concatenate into a pandas DataFrame, set index and round to appropriate digits
+        selections = (
+            pd.concat(selections, ignore_index=True)
+            .set_index(["sel_id", "filename"])
+            .round({"start": 3, "end": 3})
+        )
+
+        return selections
 
     def filter(self, *conditions: dict, **kwargs):
         """Search the table.
