@@ -119,7 +119,7 @@ class InMemoryTableBackend(TableBackend):
 
                         else:
                             if negation:
-                                accept_x = x not in values
+                                accept_x = x is not None and x not in values
                             else:
                                 accept_x = x in values
 

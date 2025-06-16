@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 import numpy as np
 from copy import deepcopy
@@ -138,7 +138,7 @@ def _ensure_utc_start(files: pd.DataFrame, max_file_gap: float) -> pd.DataFrame:
     # pick the latest, valid end time
     end_utc = files.end_utc.max()
     if pd.isna(end_utc):
-        end_utc = datetime(2000, 1, 1)
+        end_utc = datetime(2000, 1, 1, tzinfo=timezone.utc)
 
     # loop over files without start and end times, assigning them
     # arbitrary times with sufficient spacing to ensure they don't

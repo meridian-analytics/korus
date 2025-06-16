@@ -632,48 +632,67 @@ def test_comprehensive_example(
     )
     assert len(indices) == 0
 
-
-"""
-
-    # insert annotations with excluded labels
-    annot_tbl = pd.DataFrame(
+    # insert annotations with excluded labels (id: 17,18,19)
+    df = pd.DataFrame(
         {
-            "file_id": [2, 2, 2],  # id:18,19,20
-            "sound_source": ["Unknown", "Unknown", "KW"],
-            "excluded_sound_source": ["KW", ["KW", "HW"], "SRKW"],
-            "excluded_sound_type": ["PC", "Unknown", "S01"],
+            "job_id": 0,
+            "file_id": [1, 1, 1],
+            "label": [
+                ("Unknown", "Unknown"),
+                ("Unknown", "Unknown"),
+                ("KW", "Unknown"),
+            ],
+            "excluded_label": [
+                [("KW", "PC")],
+                [("KW", "Unknown"), ("HW", "Unknown")],
+                [("SRKW", "S01")],
+            ],
         }
     )
-    annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1, error="ignore")
+    for _, row in df.iterrows():
+        db.annotation.add(row)
 
-    # check that the first two annotations (18,19) are returned when searching for non-KW annotations
-    idx = kdb.filter_annotation(
-        conn, source_type=("KW", "%"), invert=True, taxonomy_id=2
+    # check that the first two annotations are returned, along with the HW annotation added previously, when searching for non-KW annotations
+    indices = (
+        db.annotation.reset_filter()
+        .filter(exclude=("KW", "*"), negative=False, taxonomy_version=3)
+        .indices
     )
-    assert idx == [3, 9, 17, 18, 19]
+    assert indices == [16, 17, 18]
 
-    # check that all three annotations (18,19,20) are returned when searching for non-(SRKW,S01) annotations
-    idx = kdb.filter_annotation(
-        conn, source_type=("SRKW", "S01"), invert=True, taxonomy_id=2
+    # check that all three annotations (17,18,19), plus a few others, are returned when searching for non-(SRKW,S01) annotations
+    indices = (
+        db.annotation.reset_filter()
+        .filter(exclude=("SRKW", "S01"), negative=False, taxonomy_version=3)
+        .indices
     )
-    assert idx == [3, 9, 13, 14, 17, 18, 19, 20]
+    assert indices == [12, 13, 16, 17, 18, 19]
 
-    # check that the first two annotations (18,19) are returned when searching for non-(SRKW,S02) annotations
-    idx = kdb.filter_annotation(
-        conn, source_type=("SRKW", "S02"), invert=True, taxonomy_id=2
+    # check that the first two annotations (17,18) are returned when searching for non-(SRKW,S02) annotations
+    indices = (
+        db.annotation.reset_filter()
+        .filter(exclude=("SRKW", "S02"), negative=False, taxonomy_version=3)
+        .indices
     )
-    assert idx == [2, 3, 8, 9, 12, 14, 17, 18, 19]
+    assert indices == [1, 7, 11, 13, 16, 17, 18]
 
-    # check that second and third annotations (19,20) is returned when searching for non-HW annotations
-    idx = kdb.filter_annotation(
-        conn, source_type=("HW", "%"), invert=True, taxonomy_id=2
+    # check that second and third annotations (18,19) are returned when searching for non-HW annotations
+    indices = (
+        db.annotation.reset_filter()
+        .filter(exclude=("HW", "*"), negative=False, taxonomy_version=3)
+        .indices
     )
-    assert idx == [1, 2, 3, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20]
+    assert indices == [0, 1, 6, 7, 9, 10, 11, 12, 13, 14, 15, 18, 19]
 
-    # check that `exclude` arg works as intended when filtering
-    # expecting query to return annotations 13, 14, and 20
-    idx = kdb.filter_annotation(
-        conn, source_type=("KW", "%"), exclude=("SRKW", "S01"), taxonomy_id=2
+    # check that we can use select and exclude together
+    indices = (
+        db.annotation.reset_filter()
+        .filter(
+            select=("KW", "*"),
+            exclude=("SRKW", "S01"),
+            negative=False,
+            taxonomy_version=2,
+        )
+        .indices
     )
-    assert idx == [13, 14, 20]
-"""
+    assert indices == [12, 13, 19]

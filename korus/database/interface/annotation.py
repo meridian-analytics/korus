@@ -176,6 +176,8 @@ def _validate_duration(row: dict, file: FileInterface) -> dict:
 
 def _validate_frequency(row: dict, file: FileInterface) -> dict:
     """Helper function for validating or inferring frequency limits"""
+    nyquist_freq = None
+
     if "freq_min_hz" not in row:
         row["freq_min_hz"] = 0
 
@@ -188,17 +190,17 @@ def _validate_frequency(row: dict, file: FileInterface) -> dict:
         if "freq_max_hz" not in row:
             row["freq_max_hz"] = nyquist_freq
 
-    for x in ["min", "max"]:
-        field = f"freq_{x}_hz"
+    assert_msg = f"Lower frequency limit cannot exceed Nyquist frequency"
+    assert nyquist_freq is None or row["freq_min_hz"] <= nyquist_freq, assert_msg
 
-        assert_msg = f"{x} frequency limit must be specified"
-        assert row.get(field, None) is not None, assert_msg
+    if row.get("freq_max_hz", None) is not None:
+        assert_msg = f"Upper frequency limit cannot exceed Nyquist frequency"
+        assert nyquist_freq is None or row["freq_max_hz"] <= nyquist_freq, assert_msg
 
-        assert_msg = f"{x} frequency limit cannot exceed Nyquist frequency"
-        assert row[field] <= nyquist_freq, assert_msg
-
-    assert_msg = f"max frequency limit cannot be less than the min frequency limit"
-    assert row["freq_max_hz"] >= row["freq_min_hz"], assert_msg
+        assert_msg = (
+            f"Upper frequency limit cannot be less than the lower frequency limit"
+        )
+        assert row["freq_max_hz"] >= row["freq_min_hz"], assert_msg
 
     return row
 
