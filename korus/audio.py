@@ -9,28 +9,6 @@ from datetime import timedelta
 from tqdm import tqdm
 
 
-def not_impl_err_msg(class_name, method_name):
-    return f"`{method_name}` not implemented by `{class_name}`"
-
-
-def list_to_str(l):
-    """Transform a list to a string, suitably formatted for forming SQLite queries.
-
-    Example query: `SELECT * FROM y WHERE z IN {list_to_str(x)}`
-
-    Args:
-        l: list or numpy array
-            List of values
-
-    Returns:
-        : str
-            String
-    """
-    if not isinstance(l, (list, np.ndarray)):
-        l = [l]
-    return "(" + ",".join([f"'{x}'" for x in l]) + ")"
-
-
 def collect_audiofile_metadata(
     path,
     ext="WAV",

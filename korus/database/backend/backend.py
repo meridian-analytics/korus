@@ -1,4 +1,4 @@
-from korus.util import not_impl_err_msg
+from korus.utils import not_impl_err_msg
 
 
 class TableBackend:

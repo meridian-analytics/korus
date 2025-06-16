@@ -2,10 +2,7 @@ import os
 import pytest
 from datetime import datetime
 import pandas as pd
-import korus.util as ku
-
-
-# TODO: add tests for all functions in korus.util module
+import korus.audio as ka
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -16,10 +13,10 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 def test_find_files_dir():
     """Check that we can find files in a directory"""
     path = os.path.join(path_to_assets, "files")
-    f = ku.find_files(path)
+    f = ka.find_files(path)
     f.sort()
     assert f == ["a.txt", "b.wav"]
-    f = ku.find_files(path, subdirs=True)
+    f = ka.find_files(path, subdirs=True)
     f.sort()
     assert f == [
         "a.txt",
@@ -28,7 +25,7 @@ def test_find_files_dir():
         "more-files/d.wav",
         "more-files/e.txt",
     ]
-    f = ku.find_files(path, substr="wav", subdirs=True)
+    f = ka.find_files(path, substr="wav", subdirs=True)
     f.sort()
     assert f == ["b.wav", "more-files/d.wav"]
 
@@ -36,7 +33,7 @@ def test_find_files_dir():
 def test_find_files_tar():
     """Check that we can find files in a zipped tar archive"""
     path = os.path.join(path_to_assets, "zipped-files.tar.gz")
-    f = ku.find_files(path, subdirs=True)
+    f = ka.find_files(path, subdirs=True)
     f.sort()
     assert f == [
         "a.txt",
@@ -45,16 +42,16 @@ def test_find_files_tar():
         "more-files/d.wav",
         "more-files/e.txt",
     ]
-    f = ku.find_files(path, substr="wav")
+    f = ka.find_files(path, substr="wav")
     f.sort()
     assert f == ["b.wav"]
-    f = ku.find_files(path, substr="wav", subdirs=True)
+    f = ka.find_files(path, substr="wav", subdirs=True)
     f.sort()
     assert f == ["b.wav", "more-files/d.wav"]
-    f = ku.find_files(path, substr="wav", tar_path="/more-files")
+    f = ka.find_files(path, substr="wav", tar_path="/more-files")
     f.sort()
     assert f == ["d.wav"]
-    f = ku.find_files(path, substr="wav", tar_path="non-existing-path")
+    f = ka.find_files(path, substr="wav", tar_path="non-existing-path")
     f.sort()
     assert f == []
 
@@ -72,11 +69,11 @@ def test_collect_audiofile_metadata(rel_path):
     path = os.path.join(path_to_assets, rel_path)
 
     # by default, only search for WAV files
-    df = ku.collect_audiofile_metadata(path)
+    df = ka.collect_audiofile_metadata(path)
     assert len(df) == 0
 
     # search for FLAC files
-    df = ku.collect_audiofile_metadata(path, ext="FLAC")
+    df = ka.collect_audiofile_metadata(path, ext="FLAC")
     # compare to expected result
     answ_path = os.path.join(
         path_to_assets, "timestamped-audiofiles/df-no-timestamps.csv"
@@ -85,7 +82,7 @@ def test_collect_audiofile_metadata(rel_path):
     pd.testing.assert_frame_equal(df, answ)
 
     # search for FLAC files with timestamp parser
-    df = ku.collect_audiofile_metadata(
+    df = ka.collect_audiofile_metadata(
         path, ext="FLAC", timestamp_parser=timestamp_parser
     )
     # compare to expected result
@@ -95,7 +92,7 @@ def test_collect_audiofile_metadata(rel_path):
 
     # search with time constraints and date_subfolder=True
     earliest_start_utc = datetime(2024, 6, 30, 12, 0, 0)
-    df = ku.collect_audiofile_metadata(
+    df = ka.collect_audiofile_metadata(
         path,
         ext="FLAC",
         timestamp_parser=timestamp_parser,

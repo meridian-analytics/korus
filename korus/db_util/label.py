@@ -1,6 +1,5 @@
 import json
 import korus.db as kdb
-from korus.util import list_to_str
 
 
 def get_related_label_id(
@@ -230,8 +229,8 @@ def crosswalk_label_id(
     is_equivalent = source_is_equivalent and type_is_equivalent
 
     # finally, query label identifier using the mapped UUIDs
-    mapped_source_id_str = list_to_str(mapped_source_id)
-    mapped_type_id_str = list_to_str(mapped_type_id)
+    mapped_source_id_str = kdb.list_to_str(mapped_source_id)
+    mapped_type_id_str = kdb.list_to_str(mapped_type_id)
     query = f"""
         SELECT 
             id
@@ -319,7 +318,7 @@ def crosswalk_label(
     )
 
     # map label_id -> tag tuple
-    mapped_label_id_str = list_to_str(mapped_label_id)
+    mapped_label_id_str = kdb.list_to_str(mapped_label_id)
     query = f"""
         SELECT 
             sound_source_tag, sound_type_tag
@@ -391,7 +390,7 @@ def trace_node_history(conn, node_id, dst_taxonomy_id, mode="backward"):
         if len(ids) == 0:
             break
 
-        ids_str = list_to_str(ids)  # "(" + ",".join([f"'{x}'" for x in ids]) + ")"
+        ids_str = kdb.list_to_str(ids)  # "(" + ",".join([f"'{x}'" for x in ids]) + ")"
         query = f"""
             SELECT 
                 {col_name}, is_equivalent

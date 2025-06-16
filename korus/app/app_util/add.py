@@ -10,9 +10,8 @@ from datetime import datetime, timedelta
 from termcolor import colored, cprint
 import traceback
 from tabulate import tabulate
-from korus.util import collect_audiofile_metadata
+from korus.audio import collect_audiofile_metadata
 import korus.db as kdb
-from korus.util import list_to_str
 import korus.app.app_util.view as vw
 import korus.app.app_util.ui as ui
 
@@ -651,7 +650,7 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
 
     # get all file IDs
     c = conn.cursor()
-    query = f"SELECT id,deployment_id,filename FROM file WHERE deployment_id IN {list_to_str(deployment_id)}"
+    query = f"SELECT id,deployment_id,filename FROM file WHERE deployment_id IN {kdb.list_to_str(deployment_id)}"
     rows = c.execute(query).fetchall()
 
     # check that filenames are unique across deployments
@@ -765,7 +764,7 @@ def add_annotations(conn, deployment_id, job_id, logger, timestamp_parser=None):
 
     # check if any of the annotations just added pertain to audio files not present in the database
     c = conn.cursor()
-    query = f"SELECT file_id FROM annotation WHERE id in {list_to_str(annot_ids)}"
+    query = f"SELECT file_id FROM annotation WHERE id in {kdb.list_to_str(annot_ids)}"
     rows = c.execute(query).fetchall()
     num_missing = 0
     for row in rows:

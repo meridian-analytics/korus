@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import textwrap
 from tabulate import tabulate
-from korus.util import list_to_str
+import korus.db as kdb
 import korus.app.app_util.ui as ui
 
 
@@ -38,7 +38,7 @@ def view_table_contents(
     c = conn.cursor()
     query = f"SELECT * FROM {table_name}"
     if ids is not None:
-        ids_str = list_to_str(ids)
+        ids_str = kdb.list_to_str(ids)
         query += f" WHERE id IN {ids_str}"
 
     data = c.execute(query).fetchall()
@@ -108,7 +108,7 @@ def view_jobs(conn):
                 return []
 
             ids = value.replace("[", "").replace("]", "").replace(" ", "").split(",")
-            query = f"SELECT sound_source_tag,sound_type_tag FROM label WHERE id IN {list_to_str(ids)}"
+            query = f"SELECT sound_source_tag,sound_type_tag FROM label WHERE id IN {kdb.list_to_str(ids)}"
             c = conn.cursor()
             rows = c.execute(query).fetchall()
             return rows

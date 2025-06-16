@@ -11,11 +11,28 @@ from datetime import datetime, timedelta
 from treelib import Tree
 import traceback
 import getpass
-from korus.util import get_num_samples_and_rate, list_to_str
 import korus.tax as kx
 import korus.db_util.table as ktb
 import korus.db_util.label as klb
 from korus.app.app_util.add import edit_row_manually
+
+
+def list_to_str(l):
+    """Transform a list to a string, suitably formatted for forming SQLite queries.
+
+    Example query: `SELECT * FROM y WHERE z IN {list_to_str(x)}`
+
+    Args:
+        l: list or numpy array
+            List of values
+
+    Returns:
+        : str
+            String
+    """
+    if not isinstance(l, (list, np.ndarray)):
+        l = [l]
+    return "(" + ",".join([f"'{x}'" for x in l]) + ")"
 
 
 def filter_files(conn, deployment_id=None, start_utc=None, end_utc=None, job_id=None):
