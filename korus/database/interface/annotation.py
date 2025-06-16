@@ -392,7 +392,7 @@ class AnnotationInterface(TableInterface):
         # get annotation data
         annots = self.get(
             indices=indices,
-            fields=["deployment_id", "file_id", "channel", "start", "duration"],
+            fields=["deployment_id", "file_id", "channel", "start_utc", "start", "duration"],  #required: file_id,duration,start_utc,start,...
             return_index=True,
             as_pandas=True,
         )

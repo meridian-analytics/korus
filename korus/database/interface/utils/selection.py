@@ -190,26 +190,30 @@ def fetch_audiofile_metadata(conn, file_ids):
 
 
 def map_to_audiofile(
-    row, window, view_centers, conn, file_tbl, full_path, data_support
-):
-    """Helper function for @create_selections.
+    row: pd.Series, 
+    window: float, 
+    view_centers: list[datetime], 
+    files: pd.DataFrame,
+    full_path: bool, 
+    data_support: bool,
+) -> pd.DataFrame:
+    """Helper function for `create_selections` method in AnnotationInterface class.
 
-    Maps the selection window UTC timestamps to the
-    audio filename and within-file offset.
+    Maps the annotation 'views' to their audiofile positions.
+
+    TODO: finish implementing this
 
     Args:
         row: Pandas Series
             A single row in the annotation table
-        window: datetime.timedelta
-            Selection window size
-        view_centers: list(datetime.datetime)
-            UTC timestamp of the window midpoint
-        conn: sqlite3.Connection
-            Database connection
-        file_tbl: pandas DataFrame
-            File table returned by the :func:`_fetch_audiofile_metadata` helper function
+        window: float
+            Selection window size in seconds
+        view_centers: list[datetime.datetime]
+            UTC timestamps of the views
+        files: pandas DataFrame
+            File table.
         full_path: bool
-            Whether to include the full audio file paths in the output table.
+            Whether to include the full audio file paths in the return table.
         data_support: bool
             If True, selection windows are not allow to extend beyond the start/end times of the audio files in the database.
 
@@ -218,11 +222,15 @@ def map_to_audiofile(
             Selection; has columns: sel_id, filename, start, end
 
     """
+    # convert to timedelta objects
+    window = timedelta(seconds=window)
+    step = timedelta(seconds=step) if step is not None else None
+
     # selection view start/end times in seconds relative to file start
     delta = np.array(
-        [((vc - 0.5 * window) - row.start_utc).total_seconds() for vc in view_centers]
+        [((x - 0.5 * window) - row.start_utc).total_seconds() for x in view_centers]
     )
-    start = row.start_ms / 1e3 + delta
+    start = row.start + delta
     end = start + window.total_seconds()
 
     # audiofile path
@@ -375,27 +383,32 @@ def _find_supporting_audiofiles(conn, deployment_id, start_utc, end_utc, full_pa
     return pd.DataFrame(data, columns=["path", "start_utc", "end_utc"])
 
 
-def compute_view_centers(row, window, step, center):
-    """Helper function for @create_selections.
+def compute_view_centers(row: pd.Series, window: float, step: float, center: bool) -> list[datetime]:
+    """Helper function for `create_selections` method in AnnotationInterface class.
 
     Computes the temporal midpoints of the view(s) created of each annotation.
 
     Args:
         row: Pandas Series
-            A single row in the annotation table
-        window: datetime.timedelta
-            Selection window size
-        step: datetime.timedelta
-            Step size
+            A single row in the annotation table. Must have attributes `start_utc`, `duration`, `num_view`.
+        window: float
+            Window size in seconds
+        step: float
+            Step size in seconds
         center: bool
             Whether the view(s) should be centered on the annotation.
 
     Args:
-        view_centers: list(datetime.datetime)
+        view_centers: list[datetime.datetime]
             Temporal midpoint of each view
     """
+    # convert to timedelta objects
+    window = timedelta(seconds=window)
+    step = timedelta(seconds=step) if step is not None else None
+
+    # grab annotation data
     annot_start = row.start_utc
-    annot_delta = timedelta(seconds=row.duration_ms / 1.0e3)
+    annot_delta = timedelta(seconds=row.duration)
     annot_end = annot_start + annot_delta
     annot_center = annot_start + 0.5 * annot_delta
 
@@ -439,8 +452,7 @@ def compute_view_centers(row, window, step, center):
 
         no_steps = np.arange(start=-nb, stop=nf + 1, step=1)
 
-        # if the no. selection windows is capped and we have too many selections,
-        # randomly subsample as many as we need
+        # if the number of selection windows is capped and we have too many selections, randomly subsample as many as we need
         if row.num_view > 1 and row.num_view < len(no_steps):
             no_steps = np.random.choice(no_steps, size=row.num_view, replace=False)
 
@@ -450,27 +462,29 @@ def compute_view_centers(row, window, step, center):
     return view_centers
 
 
-def compute_number_of_views(df, window_ms, num_max, stepping):
-    """Helper function for @create_selections.
+def compute_number_of_views(
+    df: pd.DataFrame, 
+    window: float, 
+    num_max: int, 
+    stepping: bool
+) -> pd.DataFrame:
+    """Helper function for `create_selections` method in AnnotationInterface class.
 
-    Computes the number of selections to be created from each annotation,
-    also referred to as the number of 'views'.
+    Computes the number of selections to be created from each annotation, also referred to as the number of `views`.
 
-    The result is stored in a column named 'num_view' which is added to the
-    input table.
+    The result is stored in a column named `num_view` which is added to the input data frame.
 
-    Note: If @num_max is None (i.e. no limit) @num_view is set to -1.
+    Note: If `num_max` is None (i.e. no limit) `num_view` is set to -1.
 
     Args:
         df: Pandas DataFrame
-            Annotation table
-        window_ms: int
-            Window size in milliseconds.
+            Annotation table. Must have column `duration`.
+        window: float
+            Window size in seconds.
         num_max: int
             Create at most this many selections.
         stepping: bool
-            Whether multiple, time-translated views of each annotation are to
-            be created.
+            Whether multiple, time-translated views of each annotation are to be created.
 
     Args:
         df: Pandas DataFrame
@@ -483,10 +497,9 @@ def compute_number_of_views(df, window_ms, num_max, stepping):
         return df
 
     # if the total number of selections is capped, and stepping is enabled,
-    # make the number of views of each annotation approx. proportional to
-    # max(@window_ms, row.duration_ms)
+    # make the number of views of each annotation approx. proportional to max(window, duration)
     if stepping:
-        df.num_view = df.duration_ms.apply(lambda x: max(x, window_ms))
+        df.num_view = df.duration.apply(lambda x: max(x, window))
         df.num_view *= num_max / df.num_view.sum()
 
         def round_fcn(val, rndm):
