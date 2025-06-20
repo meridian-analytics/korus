@@ -1,12 +1,17 @@
+import os
 from datetime import datetime, timedelta
+from korus.database.backend import TableBackend
 from .interface import TableInterface
+from .storage import StorageInterface
 
 
 class FileInterface(TableInterface):
     """Defines the interface of the File Table."""
 
-    def __init__(self, backend):
+    def __init__(self, backend: TableBackend, storage: StorageInterface):
         super().__init__("file", backend)
+
+        self._storage = storage
 
         self.add_field("deployment_id", int, "Deployment index")
         self.add_field("storage_id", int, "Storage index")
@@ -56,4 +61,25 @@ class FileInterface(TableInterface):
                 File duration(s) in seconds.
         """
         data = self.get(indices=indices, fields=["num_samples", "sample_rate"])
-        return [float(n * sr) for n, sr in data]
+        return [float(n / sr) for n, sr in data]
+
+    def get_absolute_path(self, indices: int | list[int]) -> list[str]:
+        """Get the absolute paths to the audio files.
+
+        Args:
+            indices: int | list[int]
+                The indices of the entries to be returned. If None, all entries in the table are returned.
+
+        Returns:
+            : list[str]
+                Absolute file paths.
+        """
+        data = self.get(
+            indices=indices, fields=["storage_id", "filename", "relative_path"]
+        )
+        storage_ids, filenames, rel_paths = zip(*data)
+        top_paths = self._storage.get(storage_ids, ["path"], always_tuple=False)
+        return [
+            os.path.join(top_path, rel_path, filename)
+            for top_path, rel_path, filename in zip(top_paths, rel_paths, filenames)
+        ]

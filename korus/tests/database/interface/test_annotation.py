@@ -1,6 +1,10 @@
 import pytest
+import numpy as np
 import pandas as pd
 from datetime import datetime, timezone
+
+
+np.random.seed(1)
 
 
 def test_generate_negatives(interfaces_with_taxonomy):
@@ -195,7 +199,9 @@ def test_comprehensive_example(
     sqlite_database_with_taxonomy,
     one_deployment,
     one_storage_location,
+    one_job,
     two_files,
+    three_annotations,
 ):
     """A fairly comprehensive (and rather complex) test that we can add a broad range of
     annotations to the database and search for them using the filter method.
@@ -213,21 +219,7 @@ def test_comprehensive_example(
         db.file.add(file)
 
     # add a job
-    target = [("KW", "PC"), ("KW", "W")]
-    job_data = {
-        "taxonomy_id": 2,
-        "annotator": "LL",
-        "target": target,
-        "is_exhaustive": True,
-        "start_utc": datetime(2022, 10, 1),
-        "end_utc": datetime(2023, 3, 1),
-        "comments": "Vessel noise annotated opportunistically",
-        "issues": [
-            "start and end times may not always be accurate",
-            "some KW sounds may have been incorrectly labelled as HW",
-        ],
-    }
-    db.job.add(job_data)
+    db.job.add(one_job)
 
     # link files
     db.job.add_file(0, 0)  # job:0 file:0
@@ -237,24 +229,7 @@ def test_comprehensive_example(
     db.tag.add({"name": "NEGATIVE", "description": "a negative sample"})
 
     # insert three annotations (id: 0, 1, 2)
-    deployment_id = two_files[0]["deployment_id"]
-    df = pd.DataFrame(
-        {
-            "deployment_id": [deployment_id, deployment_id, deployment_id],
-            "job_id": [0, 0, 0],
-            "file_id": [0, 0, 0],
-            "channel": [0, 0, 0],
-            "label": [("KW", "PC"), ("SRKW", "S01"), None],
-            "tentative_label": [("SRKW", "S01"), None, None],
-            "tag": [None, None, ["NEGATIVE"]],
-            "duration_ms": [1300, 300000, 800],
-            "start_ms": [30000, 21200, 1000],
-            "freq_min_hz": [600, 700, 800],
-            "freq_max_hz": [4400, 3300, 2200],
-            "granularity": ["unit", "window", "window"],
-            "comments": ["no additional observations", "", "this is a negative sample"],
-        }
-    )
+    df = pd.DataFrame(three_annotations)
     for _, row in df.iterrows():
         db.annotation.add(row)
 
@@ -696,3 +671,73 @@ def test_comprehensive_example(
         .indices
     )
     assert indices == [12, 13, 19]
+
+
+def test_create_selections(
+    sqlite_database_with_taxonomy,
+    one_deployment,
+    one_storage_location,
+    one_job,
+    two_files,
+    three_annotations,
+):
+    db = sqlite_database_with_taxonomy
+
+    # add data to the database
+    db.deployment.add(one_deployment)
+    db.storage.add(one_storage_location)
+    for file in two_files:
+        db.file.add(file)
+
+    db.job.add(one_job)
+    db.job.add_file(0, 0)
+    db.job.add_file(0, 1)
+    db.tag.add({"name": "NEGATIVE", "description": "a negative sample"})
+    df = pd.DataFrame(three_annotations)
+    for _, row in df.iterrows():
+        db.annotation.add(row)
+
+    # search for annotations
+    indices = db.annotation.filter(select=("KW", "PC"), taxonomy_version=3).indices
+    assert len(indices) == 2
+
+    # create KW selections without stepping
+    df = db.annotation.create_selections(
+        indices=indices,
+        window=3,
+    )
+    assert len(df) == 2
+    col_names = sorted(df.columns.values)
+    assert col_names == ["annot_id", "end", "filename", "sel_id", "start"]
+    assert np.all(np.isclose((df.end - df.start).values, 3.0, rtol=1e-3))
+
+    # create KW selections with stepping
+    df = db.annotation.create_selections(
+        indices=indices, window=3, step=0.7, center=True
+    )
+
+    # check that three selections were created from first annotation (1.3s duration)
+    df_0 = df[df.annot_id == 0]
+    assert len(df_0) == 3
+
+    # check that approx 300/0.7 selections were created from second annotation (300s duration)
+    df_1 = df[df.annot_id == 1]
+    assert len(df_1) == 430
+
+    # create KW selections with stepping and cap on max number of selections
+    df = db.annotation.create_selections(
+        indices, window=3, step=1, num_max=10, center=True
+    )
+    df_0 = df[df.annot_id == 0]
+    df_1 = df[df.annot_id == 1]
+    assert len(df_0) == 1
+    assert len(df_1) == 9
+
+    # create KW selections with exclusive=True and window=1min and step=50s
+    df = db.annotation.create_selections(
+        indices, window=60, step=50, exclusive=True, center=True
+    )
+    df_1 = df[df.annot_id == 1]
+    assert len(df_1.sel_id.unique()) == 5
+    assert df.iloc[0].start > 21.2
+    assert df.iloc[-1].end < 21.2
