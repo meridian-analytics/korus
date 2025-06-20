@@ -200,8 +200,6 @@ def map_to_audiofile(
 
     Maps the annotation 'views' to their audiofile positions.
 
-    TODO: finish implementing this
-
     Args:
         row: Pandas Series
             A single row in the annotation table
@@ -210,7 +208,7 @@ def map_to_audiofile(
         view_centers: list[datetime.datetime]
             UTC timestamps of the views
         files: pandas DataFrame
-            File table.
+            File table. Must have columns `deployment_id`, `start_utc`, `end_utc`, `absolute_path`, and `duration`.
         data_support: bool
             If True, selection windows are not allow to extend beyond the start/end times of the audio files in the database.
 
@@ -232,6 +230,9 @@ def map_to_audiofile(
 
     # file path
     file_path = files.loc[row.file_id].absolute_path
+
+    # file UTC start time
+    file_start_utc = files.loc[row.file_id].start_utc
 
     # file duration
     file_duration = files.loc[row.file_id].duration
@@ -258,19 +259,20 @@ def map_to_audiofile(
     sel_id = df.shape[0]
     for view_start, view_end in zip(start, end):
 
-        view_start_utc = files.loc[row.file_id].start_utc + timedelta(
-            seconds=view_start
-        )
-        view_end_utc = files.loc[row.file_id].start_utc + timedelta(seconds=view_end)
+        view_start_utc = file_start_utc + timedelta(seconds=view_start)
+        view_end_utc = file_start_utc + timedelta(seconds=view_end)
 
-        file_data = _find_supporting_audiofiles(
-            conn, row.deployment_id, view_start_utc, view_end_utc, file_path
+        # find all files that overlap with view
+        idx = (
+            (files.start_utc <= view_end_utc)
+            & (files.end_utc >= view_start_utc)
+            & (files.deployment_id == row.deployment_id)
         )
 
-        if len(file_data) == 0:
+        if np.sum(idx) == 0:
             msg = (
                 f"Could not find supporting audio file for selection view starting at {view_start_utc}"
-                + f" and ending at {view_end_utc} for Deployment {row.deployment_id}"
+                + f" and ending at {view_end_utc} for deployment {row.deployment_id}"
             )
             warnings.warn(msg, UserWarning)
             continue
@@ -279,14 +281,14 @@ def map_to_audiofile(
         tot_duration = 0
         tot_gap = 0
         prev_file_end_utc = None
-        for _, f in file_data.iterrows():
+        for _, f in files.loc[idx].iterrows():
             segment_start_utc = max(view_start_utc, f.start_utc)
             segment_start = (segment_start_utc - f.start_utc).total_seconds()
 
             segment_end_utc = min(view_end_utc, f.end_utc)
             segment_end = (segment_end_utc - f.start_utc).total_seconds()
 
-            segments += [[sel_id, f.path, segment_start, segment_end]]
+            segments += [[sel_id, f.absolute_path, segment_start, segment_end]]
 
             if prev_file_end_utc is not None:
                 tot_gap += (f.start_utc - prev_file_end_utc).total_seconds()
@@ -316,63 +318,6 @@ def map_to_audiofile(
         df = pd.concat([df, df_beyond])
 
     return df
-
-
-def _find_supporting_audiofiles(conn, deployment_id, start_utc, end_utc, full_path):
-    """Helper function for @create_selections.
-
-    Searches the database for audiofiles that overlap temporally with a given time window.
-
-    Args:
-        conn: sqlite3.Connection
-            Database connection
-        deployment_id: int
-            Deployment index
-        start_utc, end_utc: str
-            UTC start/end time in Korus standard format yyyy-mm-dd HH:MM:SS.sss
-        full_path: bool
-            Whether to return the full audio path
-
-    Args:
-        df: Pandas DataFrame
-            File table with columns: path,start_utc",end_utc
-    """
-    c = conn.cursor()
-
-    query = f"""
-        SELECT
-            f.filename,
-            f.relative_path,
-            s.path,
-            f.start_utc,
-            f.end_utc
-        FROM 
-            file AS f
-        LEFT JOIN
-            storage AS s
-        ON 
-            f.storage_id = s.id
-        WHERE
-            deployment_id = {deployment_id}
-            AND (start_utc < '{end_utc}' AND end_utc > '{start_utc}')
-    """
-    rows = c.execute(query).fetchall()
-
-    data = []
-    for row in rows:
-        filename = row[0]
-        relative_path = row[1]
-        top_path = row[2]
-        file_path = os.path.join(relative_path, filename)
-        if full_path:
-            file_path = os.path.join(top_path, file_path)
-
-        file_start_utc = datetime.strptime(row[3], "%Y-%m-%d %H:%M:%S.%f")
-        file_end_utc = datetime.strptime(row[4], "%Y-%m-%d %H:%M:%S.%f")
-
-        data.append((file_path, file_start_utc, file_end_utc))
-
-    return pd.DataFrame(data, columns=["path", "start_utc", "end_utc"])
 
 
 def compute_view_centers(

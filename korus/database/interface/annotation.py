@@ -418,7 +418,7 @@ class AnnotationInterface(TableInterface):
         # get file data
         files = self._file.get(
             indices=annots.file_id.unique(),
-            fields=["start_utc"],
+            fields=["deployment_id", "start_utc", "end_utc"],
             return_index=True,
             as_pandas=True,
         )
