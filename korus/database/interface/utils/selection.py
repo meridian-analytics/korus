@@ -4,190 +4,6 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 
-'''
-def create_selections(
-    indices: list[int],
-    window: float,
-    step: float = None,
-    center: bool = False,
-    exclusive: bool = False,
-    num_max: int = None,
-    exclude: tuple[str, str] | list[tuple[str, str]] = None,
-    data_support: bool = True,
-    progress_bar: bool = False,
-    full_path: str = True,
-):
-    """Create uniform-length selection windows on a set of annotations.
-
-    Args:
-        indices: list[int]
-            Annotation indices
-        window: float
-            Window size in seconds.
-        step: float
-            Step size in seconds. Used for creating temporally translated views of the same annotation.
-            If None, at most one (1) selection will be created per annotation.
-        center: bool
-            Align the selection window temporally with the midpoint of the annotation. If False, the temporal
-            alignment will be chosen at random (uniform distribution).
-        exclusive: bool
-            If True, the selection window is not allowed to contain anything but the annotated section of data.
-            In other words, the selection window is not allowed extend beyond the start/end point of the annotation.
-            In particular, this means that selections will not be created for annotations shorther than @window_ms.
-            Default is False.
-        num_max: int
-            Create at most this many selections.
-        exclude: tuple[str, str] | list[tuple[str, str]]
-            Only return selections that have been verified to not contain sounds with this (source,type) label.
-            Note that the requirement extends to all ancestral and descendant nodes in the taxonomy tree.
-            NOT YET IMPLEMENTED.
-        data_support: bool
-            If True, selection windows are not allowed to extend beyond the start/end times of the audio files in the database.
-            Default is True.
-        progress_bar: bool
-            Whether to display a progress bar. Default is False.
-        full_path: bool
-            Whether to include the full audio file paths in the output table. Default is True.
-
-    Returns:
-        : Pandas DataFrame
-            Selection table
-    """
-    if exclude:
-        raise NotImplementedError("Creation of selections with `exclude` argument is not implemented")
-
-    # selection timedelta
-    sel_delta = timedelta(seconds=window_ms / 1.0e3)
-    step_delta = timedelta(seconds=step_ms / 1.0e3) if step_ms is not None else None
-
-    # retrieve annotation data
-    annots = kdb.get_annotations(conn, indices)
-
-    # append column with annotation indices
-    annot_tbl["annot_id"] = indices
-
-    # if @exclusive=True, discard all annotations shorter than @window_ms
-    if exclusive:
-        annot_tbl = annot_tbl[annot_tbl.duration_ms >= window_ms]
-
-    # compute no. views of each annotation
-    stepping = step_ms is not None
-    annot_tbl = _compute_number_of_views(annot_tbl, window_ms, num_max, stepping)
-
-    # discard annotations with 0 views
-    annot_tbl = annot_tbl[annot_tbl.num_view != 0]
-
-    # query database for audio file data
-    file_ids = annot_tbl.file_id.unique()
-    file_tbl = _fetch_audiofile_metadata(conn, file_ids)
-
-    # loop over annotations
-    sel_tbl = []
-    num_sel = 0
-    for idx, row in tqdm(
-        annot_tbl.iterrows(), total=annot_tbl.shape[0], disable=not progress_bar
-    ):
-
-        # compute UTC times of the views
-        view_centers = _compute_view_centers(row, sel_delta, step_delta, center)
-
-        # map UTC times to audio filename and offsets
-        selection = _map_to_audiofile(
-            row, sel_delta, view_centers, conn, file_tbl, full_path, data_support
-        )
-
-        if len(selection) == 0:
-            continue
-
-        # assign an ID to the selection
-        selection.sel_id += num_sel
-
-        # append the annotation index
-        selection["annot_id"] = row.annot_id
-
-        # collect selections and increment counter
-        sel_tbl.append(selection)
-        num_sel = selection.sel_id.iloc[-1] + 1
-
-    # concatenate into a pandas DataFrame
-    sel_tbl = pd.concat(sel_tbl, ignore_index=True)
-
-    sel_tbl.set_index(["sel_id", "filename"], inplace=True)
-
-    # round to ms
-    sel_tbl = sel_tbl.round({"start": 3, "end": 3})
-
-    return sel_tbl
-
-def fetch_audiofile_metadata(conn, file_ids):
-    """Helper function for @create_selections.
-
-    Retrieves file metadata from the database for given file indices.
-
-    Args:
-        conn: sqlite3.Connection
-            Database connection
-        file_ids: list(int)
-            Indices of the files we want to retrieve data for.
-
-    Returs:
-        df: Pandas DataFrame
-            File table
-    """
-    c = conn.cursor()
-
-    # query file data
-    columns = [
-        "f.id",
-        "f.deployment_id",
-        "f.filename",
-        "f.relative_path",
-        "f.sample_rate",
-        "f.num_samples",
-        "f.start_utc",
-        "f.end_utc",
-        "s.path",
-    ]
-    query = f"""
-        SELECT 
-            {','.join(columns)} 
-        FROM 
-            file AS f
-        LEFT JOIN
-            storage AS s
-        ON
-            f.storage_id = s.id 
-        WHERE 
-            f.id IN {list_to_str(file_ids)}
-        """
-    file_data = c.execute(query).fetchall()
-
-    # pass data to a pandas DataFrame
-    columns = [c[c.find(".") + 1 :] for c in columns]
-    file_tbl = pd.DataFrame(file_data, columns=columns)
-
-    # rename file id column
-    file_tbl.rename(columns={"id": "file_id"}, inplace=True)
-
-    # convert to datetime
-    file_tbl.start_utc = pd.to_datetime(
-        file_tbl.start_utc, format="%Y-%m-%d %H:%M:%S.%f"
-    )
-
-    # add duration column
-    file_tbl["duration_s"] = file_tbl.apply(
-        lambda r: r.num_samples / r.sample_rate, axis=1
-    )
-
-    # sort according to deployment and time, in that order
-    file_tbl.sort_values(by=["deployment_id", "start_utc", "end_utc"], inplace=True)
-
-    # set file_id as index
-    file_tbl.set_index("file_id", inplace=True)
-
-    return file_tbl
-'''
-
 
 def map_to_audiofile(
     row: pd.Series,
@@ -208,7 +24,8 @@ def map_to_audiofile(
         view_centers: list[datetime.datetime]
             UTC timestamps of the views
         files: pandas DataFrame
-            File table. Must have columns `deployment_id`, `start_utc`, `end_utc`, `absolute_path`, and `duration`.
+            File table. Must have columns `deployment_id`, `start_utc`, `end_utc`, `absolute_path`, and `duration`
+            and entries should be sorted by deployment first, and chronologically second.
         data_support: bool
             If True, selection windows are not allow to extend beyond the start/end times of the audio files in the database.
 
@@ -219,7 +36,6 @@ def map_to_audiofile(
     """
     # convert to timedelta objects
     window = timedelta(seconds=window)
-    step = timedelta(seconds=step) if step is not None else None
 
     # selection view start/end times in seconds relative to file start
     delta = np.array(
@@ -262,11 +78,11 @@ def map_to_audiofile(
         view_start_utc = file_start_utc + timedelta(seconds=view_start)
         view_end_utc = file_start_utc + timedelta(seconds=view_end)
 
-        # find all files that overlap with view
+        # find all 'supporting' files that overlap with the view
         idx = (
-            (files.start_utc <= view_end_utc)
+            (files.deployment_id == row.deployment_id)
+            & (files.start_utc <= view_end_utc)
             & (files.end_utc >= view_start_utc)
-            & (files.deployment_id == row.deployment_id)
         )
 
         if np.sum(idx) == 0:
@@ -281,6 +97,8 @@ def map_to_audiofile(
         tot_duration = 0
         tot_gap = 0
         prev_file_end_utc = None
+
+        # loop over supporting files
         for _, f in files.loc[idx].iterrows():
             segment_start_utc = max(view_start_utc, f.start_utc)
             segment_start = (segment_start_utc - f.start_utc).total_seconds()
@@ -453,5 +271,20 @@ def compute_number_of_views(
         df.num_view = 0
         idx = np.random.choice(np.arange(df.shape[0]), size=num_max, replace=False)
         df.loc[idx, "num_view"] = 1
+
+    # if we have too many views, randomly drop some to stay below limit
+    n_excess = np.sum(df.num_view) - num_max
+    if n_excess > 0:
+        # create array of indices, where every index is represented num_view times
+        indices = np.concatenate(
+            [
+                np.ones(row.num_view) * idx
+                for idx, row in df.loc[df.num_view > 0].iterrows()
+            ]
+        )
+        # randomly select n_excess elements from the array
+        for idx in np.random.choice(indices, size=n_excess, replace=False):
+            # reduce num_view by 1
+            df.loc[idx, "num_view"] -= 1
 
     return df

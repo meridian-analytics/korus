@@ -61,7 +61,7 @@ class FileInterface(TableInterface):
                 File duration(s) in seconds.
         """
         data = self.get(indices=indices, fields=["num_samples", "sample_rate"])
-        return [float(n * sr) for n, sr in data]
+        return [float(n / sr) for n, sr in data]
 
     def get_absolute_path(self, indices: int | list[int]) -> list[str]:
         """Get the absolute paths to the audio files.

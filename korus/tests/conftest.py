@@ -237,6 +237,7 @@ def one_deployment():
 
 @pytest.fixture
 def two_files():
+    """Two, consecutive 5-minute audio files sampled at 32 kHz, with the first audio file starting at 2022-06-24 16:40:00.000"""
 
     def abclisten_timestamp_parser(x):
         fmt = "_%Y%m%dT%H%M%S.%fZ"
@@ -270,6 +271,52 @@ def two_files():
         file_data.append(v)
 
     return file_data
+
+
+@pytest.fixture
+def one_job():
+    """An exhaustive annotation job targeting KW,PC and KW,W"""
+    target = [("KW", "PC"), ("KW", "W")]
+    job_data = {
+        "taxonomy_id": 2,
+        "annotator": "LL",
+        "target": target,
+        "is_exhaustive": True,
+        "start_utc": datetime(2022, 10, 1),
+        "end_utc": datetime(2023, 3, 1),
+        "comments": "Vessel noise annotated opportunistically",
+        "issues": [
+            "start and end times may not always be accurate",
+            "some KW sounds may have been incorrectly labelled as HW",
+        ],
+    }
+
+    return job_data
+
+
+@pytest.fixture
+def three_annotations():
+    """Three annotations:
+    - KW,PC: starting 30.0s into the first audio file and lasting 1.3s
+    - SRKW,S01: starting 21.1s into the first audio file and lasting 5 minutes
+    - None,None: a manual negative starting 1.0s into the first audio file and lasting 0.8s
+    """
+    annot_data = {
+        "deployment_id": [0, 0, 0],
+        "job_id": [0, 0, 0],
+        "file_id": [0, 0, 0],
+        "channel": [0, 0, 0],
+        "label": [("KW", "PC"), ("SRKW", "S01"), None],
+        "tentative_label": [("SRKW", "S01"), None, None],
+        "tag": [None, None, ["NEGATIVE"]],
+        "duration_ms": [1300, 300000, 800],
+        "start_ms": [30000, 21200, 1000],
+        "freq_min_hz": [600, 700, 800],
+        "freq_max_hz": [4400, 3300, 2200],
+        "granularity": ["unit", "window", "window"],
+        "comments": ["no additional observations", "", "this is a negative sample"],
+    }
+    return annot_data
 
 
 # --- old fixtures below this point ---

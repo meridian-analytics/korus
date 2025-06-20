@@ -1,5 +1,6 @@
 from tqdm import tqdm
 import pandas as pd
+import numpy as np
 from datetime import datetime
 from korus.database.backend import TableBackend
 from .interface import TableInterface
@@ -346,7 +347,6 @@ class AnnotationInterface(TableInterface):
         exclude: tuple[str, str] | list[tuple[str, str]] = None,
         data_support: bool = True,
         progress_bar: bool = False,
-        full_path: str = True,
     ):
         """Create uniform-length selection windows on a set of annotations.
 
@@ -377,12 +377,10 @@ class AnnotationInterface(TableInterface):
                 Default is True.
             progress_bar: bool
                 Whether to display a progress bar. Default is False.
-            full_path: bool
-                Whether to include the full audio file paths in the output table. Default is True.
 
         Returns:
             : Pandas DataFrame
-                Selection table
+                Selection table with columns `sel_id`, `filename`, `start`, `end`, `annot_id`
         """
         if exclude:
             raise NotImplementedError(
@@ -395,15 +393,16 @@ class AnnotationInterface(TableInterface):
             fields=[
                 "deployment_id",
                 "file_id",
+                "file_id_list",
                 "channel",
                 "start_utc",
                 "start",
                 "duration",
             ],
-            return_index=True,
+            return_indices=True,
             as_pandas=True,
         )
-        annots = annots.rename(columns={"id": "annot_id"})
+        annots["annot_id"] = annots.index.values
 
         # if exclusive=True, discard all annotations shorter than @window_ms
         if exclusive:
@@ -416,15 +415,18 @@ class AnnotationInterface(TableInterface):
         annots = annots[annots.num_view != 0]
 
         # get file data
+        file_ids = np.unique(np.concatenate(annots.file_id_list.values))
         files = self._file.get(
-            indices=annots.file_id.unique(),
+            indices=file_ids,
             fields=["deployment_id", "start_utc", "end_utc"],
-            return_index=True,
+            return_indices=True,
             as_pandas=True,
         )
-        files = files.set_index("id")
-        files["duration"] = self._file.get_duration(indices)
-        files["absolute_path"] = self._file.get_absolute_path(indices)
+        files["duration"] = self._file.get_duration(files.index)
+        files["absolute_path"] = self._file.get_absolute_path(files.index)
+
+        # sort files
+        files = files.sort_values(by=["deployment_id", "start_utc", "end_utc"])
 
         # loop over annotations
         selections = []
@@ -436,9 +438,7 @@ class AnnotationInterface(TableInterface):
             view_centers = compute_view_centers(row, window, step, center)
 
             # map times to audio files
-            views = map_to_audiofile(
-                row, window, view_centers, files, full_path, data_support
-            )
+            views = map_to_audiofile(row, window, view_centers, files, data_support)
 
             if len(views) == 0:
                 continue
@@ -452,11 +452,9 @@ class AnnotationInterface(TableInterface):
             # collect selections and increment counter
             selections.append(views)
 
-        # concatenate into a pandas DataFrame, set index and round to appropriate digits
-        selections = (
-            pd.concat(selections, ignore_index=True)
-            .set_index(["sel_id", "filename"])
-            .round({"start": 3, "end": 3})
+        # concatenate into a pandas DataFrame and round to appropriate digits
+        selections = pd.concat(selections, ignore_index=True).round(
+            {"start": 3, "end": 3}
         )
 
         return selections
