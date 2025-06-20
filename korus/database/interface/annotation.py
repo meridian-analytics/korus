@@ -22,6 +22,7 @@ from .utils.validate import (
     validate_timestamps,
     validate_frequency,
 )
+from .utils.io import export_to_raven
 
 
 def _id_from_name(interface: TableInterface, name: str | list[str]) -> list[int]:
@@ -333,8 +334,23 @@ class AnnotationInterface(TableInterface):
 
     def to_raven(
         self,
+        path: str,
+        indices: int | list[int] = None,
     ):
-        raise NotImplementedError()
+        """Export annotations to a TSV file in RavenPro format.
+
+        Args:
+            path: str
+                Output path
+            indices: int | list[int]
+                The indices of the annotations to be exported. If None, all annotations are exported.
+        """
+        export_to_raven(
+            path,
+            annotation=self,
+            file=self._file,
+            indices=indices,
+        )
 
     def create_selections(
         self,
