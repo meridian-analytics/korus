@@ -5,7 +5,6 @@ import pandas as pd
 import numpy as np
 import korus.db as kdb
 import korus.db_util.table as ktb
-from korus.util import list_to_str
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -393,7 +392,7 @@ def test_comprehensive_example(basic_db, deploy_data, file_data):
     )
     annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1, error="ignore")
     rows = c.execute(
-        f"SELECT label_id, ambiguous_label_id FROM annotation WHERE id IN {list_to_str(annot_ids)}"
+        f"SELECT label_id, ambiguous_label_id FROM annotation WHERE id IN {kdb.list_to_str(annot_ids)}"
     ).fetchall()
     assert rows[0] == (36, "[null]")
     assert rows[1] == (37, "[null]")
