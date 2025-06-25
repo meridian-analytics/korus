@@ -351,6 +351,8 @@ class TableInterface:
     def add(self, row: dict):
         """Add an entry to the table
 
+        TODO: method should return indices of added entries
+
         Args:
             row: dict
                 Input data in the form of a dict, where the keys are the field names
