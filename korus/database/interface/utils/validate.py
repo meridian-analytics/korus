@@ -25,6 +25,15 @@ def _get_file_ids(
     return sorted_indices
 
 
+def validate_annotation(row: dict, file: FileInterface) -> dict:
+    row = validate_deployment_id(row, file)
+    row = validate_timestamps(row, file)
+    row = validate_file_id(row, file)
+    row = validate_duration(row, file)
+    row = validate_frequency(row, file)
+    return row
+
+
 def validate_file_id(row: dict, file: FileInterface) -> dict:
     """Helper function for validating file IDs.
     If annotation spans multiple files, attempt to determine the IDs of the secondary files, if not provided.

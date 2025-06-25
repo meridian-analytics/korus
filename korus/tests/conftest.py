@@ -22,6 +22,10 @@ from korus.database.interface import (
 path_to_assets = os.path.join(os.path.dirname(__file__), "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
 
+#ensure tmp directory exists
+if not os.path.exists(path_to_tmp):
+    os.makedirs(path_to_tmp)
+
 
 @pytest.fixture
 def in_memory_table_backend():
@@ -317,6 +321,33 @@ def three_annotations():
         "comments": ["no additional observations", "", "this is a negative sample"],
     }
     return annot_data
+
+
+@pytest.fixture
+def sqlite_database_with_some_data(
+    sqlite_database_with_taxonomy,
+    one_deployment,
+    one_storage_location,
+    one_job,
+    two_files,
+    three_annotations,
+):
+    db = sqlite_database_with_taxonomy
+
+    db.deployment.add(one_deployment)
+    db.storage.add(one_storage_location)
+    for file in two_files:
+        db.file.add(file)
+
+    db.job.add(one_job)
+    db.job.add_file(0, 0)
+    db.job.add_file(0, 1)
+    db.tag.add({"name": "NEGATIVE", "description": "a negative sample"})
+    df = pd.DataFrame(three_annotations)
+    for _, row in df.iterrows():
+        db.annotation.add(row)
+
+    yield db
 
 
 # --- old fixtures below this point ---

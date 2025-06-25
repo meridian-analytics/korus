@@ -1,8 +1,12 @@
+import os
 import pytest
 import numpy as np
 import pandas as pd
 from datetime import datetime, timezone
 
+
+path_to_assets = os.path.join("korus", "tests", "assets")
+path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 np.random.seed(1)
 
@@ -673,29 +677,8 @@ def test_comprehensive_example(
     assert indices == [12, 13, 19]
 
 
-def test_create_selections(
-    sqlite_database_with_taxonomy,
-    one_deployment,
-    one_storage_location,
-    one_job,
-    two_files,
-    three_annotations,
-):
-    db = sqlite_database_with_taxonomy
-
-    # add data to the database
-    db.deployment.add(one_deployment)
-    db.storage.add(one_storage_location)
-    for file in two_files:
-        db.file.add(file)
-
-    db.job.add(one_job)
-    db.job.add_file(0, 0)
-    db.job.add_file(0, 1)
-    db.tag.add({"name": "NEGATIVE", "description": "a negative sample"})
-    df = pd.DataFrame(three_annotations)
-    for _, row in df.iterrows():
-        db.annotation.add(row)
+def test_create_selections(sqlite_database_with_some_data):
+    db = sqlite_database_with_some_data
 
     # search for annotations
     indices = db.annotation.filter(select=("KW", "PC"), taxonomy_version=3).indices
@@ -741,3 +724,11 @@ def test_create_selections(
     assert len(df_1.sel_id.unique()) == 5
     assert df.iloc[0].start > 21.2
     assert df.iloc[-1].end < 21.2
+
+
+def test_to_raven(sqlite_database_with_some_data):
+    path = os.path.join(path_to_tmp, "raven.csv")
+    db = sqlite_database_with_some_data
+    db.annotation.to_raven(path)
+    #TODO: check that file was created with correct content
+    os.remove(path)

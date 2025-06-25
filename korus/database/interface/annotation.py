@@ -15,13 +15,7 @@ from .utils.selection import (
     compute_view_centers,
     map_to_audiofile,
 )
-from .utils.validate import (
-    validate_deployment_id,
-    validate_duration,
-    validate_file_id,
-    validate_timestamps,
-    validate_frequency,
-)
+from .utils.validate import validate_annotation
 from .utils.io import export_to_raven
 
 
@@ -220,22 +214,22 @@ class AnnotationInterface(TableInterface):
         """Alias transform: convert tag to tag ID"""
         return _id_from_name(self._tag, name)
 
-    def _get_tag(self, id: int | list[int], **kwargs) -> str | list[str]:
+    def _get_tag(self, tag_id: int | list[int], **kwargs) -> str | list[str]:
         """Reverse alias transform: convert tag ID to tag"""
-        if id is None:
+        if tag_id is None:
             return None
         else:
-            return self._tag.get(id, "name", always_tuple=False)
+            return self._tag.get(tag_id, "name", always_tuple=False)
 
     def _get_granularity_id(self, name: str | list[str], **kwargs) -> int | list[int]:
         """Alias transform: convert granularity to granularity ID"""
         indices = _id_from_name(self._granularity, name)
         return indices if isinstance(name, list) else indices[0]
 
-    def _get_granularity(self, id: int | list[int], **kwargs) -> str | list[str]:
+    def _get_granularity(self, granularity_id: int | list[int], **kwargs) -> str | list[str]:
         """Reverse alias transform: convert granularity ID to granularity"""
-        values = self._granularity.get(id, "name", always_tuple=False)
-        return values if isinstance(id, list) else values[0]
+        values = self._granularity.get(granularity_id, "name", always_tuple=False)
+        return values if isinstance(granularity_id, list) else values[0]
 
     def add(self, row: dict):
         """Add an entry to the table.
@@ -257,22 +251,7 @@ class AnnotationInterface(TableInterface):
         """
         row = row.copy()
         row = self._apply_alias_transforms(row)
-
-        # validate/infer deployment ID
-        row = validate_deployment_id(row, self._file)
-
-        # validate/infer start time
-        row = validate_timestamps(row, self._file)
-
-        # validate/infer file IDs
-        row = validate_file_id(row, self._file)
-
-        # validate/infer duration
-        row = validate_duration(row, self._file)
-
-        # validate/infer frequency limits
-        row = validate_frequency(row, self._file)
-
+        row = validate_annotation(row, self._file)
         super().add(row)
 
     def generate_negatives(self, job_id: int):

@@ -49,6 +49,10 @@ class FileInterface(TableInterface):
 
         super().add(row)
 
+    def get_id(self, deployment_id: int, filename: str | list[str]) -> list[int]:
+        #TODO: implement this method
+        pass
+
     def get_duration(self, indices: int | list[int]) -> list[float]:
         """Get file duration.
 
