@@ -14,7 +14,7 @@ class TableBackend:
     ) -> list[tuple]:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "get"))
 
-    def add(self, row: dict):
+    def add(self, row: dict) -> int:
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "add"))
 
     def remove(self, indices: int | list[int] = None):

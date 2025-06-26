@@ -3,7 +3,8 @@ import numpy as np
 import pandas as pd
 
 
-def read_raven(path: str):
+def read_raven(path: str) -> pd.DataFrame:
+    """read and validate Raven Pro formatted annotation table"""
     pass
 
 
@@ -14,7 +15,7 @@ def export_to_raven(
     indices: int | list[int] = None,
 ):
     """Helper function for exporting annotations to a TSV file in RavenPro format.
-    
+
     Args:
         path: str
             Output path. Overwrites any pre-existing file.

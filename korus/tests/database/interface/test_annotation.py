@@ -730,5 +730,5 @@ def test_to_raven(sqlite_database_with_some_data):
     path = os.path.join(path_to_tmp, "raven.csv")
     db = sqlite_database_with_some_data
     db.annotation.to_raven(path)
-    #TODO: check that file was created with correct content
+    # TODO: check that file was created with correct content
     os.remove(path)

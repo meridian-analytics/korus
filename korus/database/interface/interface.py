@@ -348,22 +348,24 @@ class TableInterface:
         values = [v for v in row.values()]
         return tuple(values)
 
-    def add(self, row: dict):
+    def add(self, row: dict) -> int:
         """Add an entry to the table
-
-        TODO: method should return indices of added entries
 
         Args:
             row: dict
                 Input data in the form of a dict, where the keys are the field names
                 and the values are the values to be added to the database.
+
+        Returns:
+            : int
+                Index assigned to the added entry.
         """
         row = row.copy()
         row = self._apply_alias_transforms(row)
         row = self._replace_missing_values(row)
         row = self._validate_data(row)
         try:
-            self.backend.add(row)
+            return self.backend.add(row)
         except Exception as err:
             err_msg = f"Attempt to add a new row to the {self.name} table failed due to an error in the backend."
             err.args = (err_msg,) + err.args
@@ -556,8 +558,6 @@ class TableInterface:
 
     def __str__(self) -> str:
         """Nicely formatted summary of the table definition
-
-        TODO: also print summary of aliases
 
         Returns:
             res: str

@@ -47,11 +47,31 @@ class FileInterface(TableInterface):
                 microseconds=row["num_samples"] / row["sample_rate"] * 1e6
             )
 
-        super().add(row)
+        return super().add(row)
 
     def get_id(self, deployment_id: int, filename: str | list[str]) -> list[int]:
-        #TODO: implement this method
-        pass
+        """Given the deployment ID and the file names, get the file IDs
+
+        Args:
+            deployment_id: int
+                Deployment ID
+            filename: str | list[str]
+                File name(s)
+
+        Returns:
+            indices: list[int]
+                File IDs. If a filename is not found in the database, its ID is set to None.
+        """
+        filenames = [filename] if isinstance(filename, str) else filename
+        cond = {"deployment_id": deployment_id}
+        indices = []
+        for fname in filenames:
+            cond["filename"] = fname
+            idx = self.reset_filter().filter(cond).indices
+            idx = idx[0] if len(idx) > 0 else None
+            indices.append(idx)
+
+        return indices
 
     def get_duration(self, indices: int | list[int]) -> list[float]:
         """Get file duration.

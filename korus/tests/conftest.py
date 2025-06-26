@@ -22,7 +22,7 @@ from korus.database.interface import (
 path_to_assets = os.path.join(os.path.dirname(__file__), "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
 
-#ensure tmp directory exists
+# ensure tmp directory exists
 if not os.path.exists(path_to_tmp):
     os.makedirs(path_to_tmp)
 

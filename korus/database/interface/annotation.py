@@ -226,7 +226,9 @@ class AnnotationInterface(TableInterface):
         indices = _id_from_name(self._granularity, name)
         return indices if isinstance(name, list) else indices[0]
 
-    def _get_granularity(self, granularity_id: int | list[int], **kwargs) -> str | list[str]:
+    def _get_granularity(
+        self, granularity_id: int | list[int], **kwargs
+    ) -> str | list[str]:
         """Reverse alias transform: convert granularity ID to granularity"""
         values = self._granularity.get(granularity_id, "name", always_tuple=False)
         return values if isinstance(granularity_id, list) else values[0]
@@ -252,7 +254,7 @@ class AnnotationInterface(TableInterface):
         row = row.copy()
         row = self._apply_alias_transforms(row)
         row = validate_annotation(row, self._file)
-        super().add(row)
+        return super().add(row)
 
     def generate_negatives(self, job_id: int):
         """Generate negative annotations.
