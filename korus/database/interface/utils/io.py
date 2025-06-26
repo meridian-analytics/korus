@@ -93,14 +93,39 @@ def export_to_raven(
     df["Tentative Sound Type"] = annots.tentative_label.apply(
         lambda x: "" if x is None else x[1]
     )
-    df["Tag"] = annots.tag
     df["Granularity"] = annots.granularity
     df["Korus ID"] = annots.index
     df["Comments"] = annots.comments
 
-    df["Ambiguous Label"] = annots.ambiguous_label
-    df["Multiple Label"] = annots.multiple_label
-    df["Excluded Label"] = annots.excluded_label
+    # encode lists as & or / -separated strings
+    df["Tag"] = annots.tag.apply(lambda x: "" if x is None else " & ".join(x))
+
+    def as_list(x, i):
+        return [] if x is None else sorted(list(set([a[i] for a in x])))
+
+    df["Excluded Sound Source"] = annots.excluded_label.apply(
+        lambda x: " & ".join(as_list(x, 0))
+    )
+    df["Excluded Sound Type"] = annots.excluded_label.apply(
+        lambda x: " & ".join(as_list(x, 1))
+    )
+
+    # overwrite label, if ambiguous or multiple label field is not null
+    idx = annots.ambiguous_label.isna()
+    df.loc[~idx, "Sound Source"] = annots.ambiguous_label.apply(
+        lambda x: " / ".join(as_list(x, 0))
+    )
+    df.loc[~idx, "Sound Type"] = annots.ambiguous_label.apply(
+        lambda x: " / ".join(as_list(x, 1))
+    )
+
+    idx = annots.multiple_label.isna()
+    df.loc[~idx, "Sound Source"] = annots.multiple_label.apply(
+        lambda x: " & ".join(as_list(x, 0))
+    )
+    df.loc[~idx, "Sound Type"] = annots.multiple_label.apply(
+        lambda x: " & ".join(as_list(x, 1))
+    )
 
     # round to appropriate number of digits
     df = df.round(

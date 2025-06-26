@@ -2,6 +2,7 @@ import os
 import pytest
 import numpy as np
 import pandas as pd
+from pandas.testing import assert_frame_equal
 from datetime import datetime, timezone
 
 
@@ -729,10 +730,38 @@ def test_create_selections(sqlite_database_with_some_data):
 def test_to_raven(sqlite_database_with_some_data):
     path = os.path.join(path_to_tmp, "raven.csv")
     db = sqlite_database_with_some_data
+    # add another few tags and annotations
+    db.tag.add({"name": "loud", "description": "A loud noise"})
+    db.tag.add({"name": "unusual", "description": "An unusual noise"})
+    annot_data = {
+        "deployment_id": [0, 0, 0],
+        "job_id": [0, 0, 0],
+        "file_id": [1, 1, 1],
+        "channel": [0, 0, 0],
+        "label": [("Bio", "Unknown"), ("SRKW", "PC"), ("SRKW", "PC")],
+        "excluded_label": [[("KW", "TC"), ("HW", "Unknown")], None, None],
+        "multiple_label": [None, [("SRKW", "S01"), ("SRKW", "S02")], None],
+        "ambiguous_label": [None, None, [("SRKW", "S01"), ("SRKW", "S02")]],
+        "tag": [["loud", "unusual"], None, None],
+        "duration_ms": [3000, 4000, 5000],
+        "start_ms": [2500, 3500, 4500],
+        "freq_min_hz": [600, 700, 800],
+        "freq_max_hz": [4400, 3300, 2200],
+        "granularity": ["unit", "window", "window"],
+    }
+    df = pd.DataFrame(annot_data)
+    for _, row in df.iterrows():
+        db.annotation.add(row)
+
+    # export to Raven format
     db.annotation.to_raven(path)
-    # TODO: check that file was created with correct content
+
+    # check that file was created with correct content
     assert os.path.exists(path)
-    df = pd.read_csv(path, sep="\t")
-    print()
-    print(df.to_string())
-    #os.remove(path)
+    result = pd.read_csv(path, sep="\t")
+    expected = pd.read_csv(
+        os.path.join(path_to_assets, "raven-export-test.csv"), sep="\t"
+    )
+    assert_frame_equal(result, expected, check_dtype=False)
+
+    os.remove(path)
