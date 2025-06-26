@@ -731,4 +731,8 @@ def test_to_raven(sqlite_database_with_some_data):
     db = sqlite_database_with_some_data
     db.annotation.to_raven(path)
     # TODO: check that file was created with correct content
-    os.remove(path)
+    assert os.path.exists(path)
+    df = pd.read_csv(path, sep="\t")
+    print()
+    print(df.to_string())
+    #os.remove(path)
