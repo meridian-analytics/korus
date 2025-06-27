@@ -5,7 +5,7 @@ import pandas as pd
 
 def read_raven(
     path: str,
-    annotation,
+    taxonomy,
     file,
     deployment_id: int = None,
     taxonomy_version: int = None,
@@ -20,8 +20,8 @@ def read_raven(
     Args:
         path: str
             Path to the RavenPro file with tab-separated values (TSV).
-        annotation: korus.database.interface.annotation.AnnotationInterface
-            Annotation interface
+        taxonomy: korus.database.interface.taxonomy.TaxonomyInterface
+            Taxonomy interface
         file: korus.database.interface.annotation.FileInterface
             File interface
         deployment_id: int
@@ -32,13 +32,28 @@ def read_raven(
 
     Returns:
         : pandas.DataFrame    
-            The validated annotation table. Contains the extra columns,
+            The validated annotation table, formatted to facilitate ingestion into the Korus database. 
+            Contains the extra columns,
 
              * valid (bool): True, if the row was successfully validated. False, if errors were detected. 
              * warning (str): Warning messages produced by the validation algorithm.
              * error (str): Error messages produced by the validation algorithm.
     """
-    pass
+    df = pd.read_csv(path, sep="\t")
+
+    if deployment_id is not None:
+        df["Deployment ID"] = deployment_id
+
+    assert_msg = "Deployment ID must be specified, either using the `deployment_id` arg or by including a column named `Deployment ID` in the input table."
+    assert "Deployment ID" in df.columns, assert_msg
+
+    # check for other required columns
+
+    # rename columns
+
+    # check that files exist in database
+    #file_ids = file.get_id()
+
 
 
 def export_to_raven(
