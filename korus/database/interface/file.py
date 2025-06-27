@@ -49,7 +49,9 @@ class FileInterface(TableInterface):
 
         return super().add(row)
 
-    def get_id(self, deployment_id: int | list[int], filename: str | list[str]) -> list[int]:
+    def get_id(
+        self, deployment_id: int | list[int], filename: str | list[str]
+    ) -> list[int]:
         """Given the deployment ID and the file names, get the file IDs
 
         Args:
@@ -64,7 +66,11 @@ class FileInterface(TableInterface):
         """
         # convert to lists
         filenames = [filename] if isinstance(filename, str) else filename
-        deployment_ids = [deployment_id for _ in filenames] if isinstance(deployment_id, int) else deployment_id
+        deployment_ids = (
+            [deployment_id for _ in filenames]
+            if isinstance(deployment_id, int)
+            else deployment_id
+        )
 
         assert_msg = "deployment_id and filename have incompatible shapes"
         assert len(filenames) == len(deployment_ids), assert_msg

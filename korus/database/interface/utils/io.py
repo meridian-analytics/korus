@@ -11,8 +11,8 @@ def read_raven(
     taxonomy_version: int = None,
 ) -> pd.DataFrame:
     """Read and validate a RavenPro formatted annotation table.
-    
-    The validation algorithm verifies that 
+
+    The validation algorithm verifies that
 
      * the audiofiles exist in the database
      * the labels exist in the taxonomy
@@ -31,33 +31,108 @@ def read_raven(
             the latest version will be used.
 
     Returns:
-        : pandas.DataFrame    
-            The validated annotation table, formatted to facilitate ingestion into the Korus database. 
+        : pandas.DataFrame
+            The validated annotation table, formatted to facilitate ingestion into the Korus database.
             Contains the extra columns,
 
-             * valid (bool): True, if the row was successfully validated. False, if errors were detected. 
+             * valid (bool): True, if the row was successfully validated. False, if errors were detected.
              * warning (str): Warnings produced by the validation algorithm.
              * error (str): Errors produced by the validation algorithm.
     """
-    df = pd.read_csv(path, sep="\t")
+    df_raven = pd.read_csv(path, sep="\t")
+    num_entries = len(df_raven)
 
     if deployment_id is not None:
-        df["Deployment ID"] = deployment_id
+        df_raven["Deployment ID"] = deployment_id
 
     assert_msg = "Deployment ID must be specified, either using the `deployment_id` arg or by including a column named `Deployment ID` in the input table."
-    assert "Deployment ID" in df.columns, assert_msg
+    assert "Deployment ID" in df_raven.columns, assert_msg
 
-    # check for other required columns
+    # other required columns
+    required_cols = [
+        "Begin File",
+    ]
 
-    # rename columns
+    # optional columns with default values
+    optional_cols = {
+        "Channel": 1,
+        "File Offset (s)": 0,
+        "Delta Time (s)": None,
+        "Low Freq (Hz)": 0,
+        "High Freq (Hz)": None,
+        "Sound Source": None,
+        "Sound Type": None,
+        "Tentative Sound Source": None,
+        "Tentative Sound Type": None,
+        "Excluded Sound Source": None,
+        "Excluded Sound Type": None,
+        "Comments": None,
+        "Tag": None,
+    }
 
-    # check that files exist in database
-    #file_ids = file.get_id()
+    # check that required columns are present
+    for name in required_cols:
+        assert_msg = f"Required column {name} missing in input table: {path}"
+        assert name in df_raven.columns, assert_msg
 
+    # add default values for missing, optional columns
+    for name, value in optional_cols.items():
+        if name not in df_raven.columns:
+            df_raven[name] = value
+
+    # sort according to filename and start time
+    df_raven = df_raven.sort_values(by=["Begin File", "File Offset (s)"])
+
+    # map filenames to file IDs
+    deployment_ids = df.groupby("Begin File").first()["Deployment ID"]
+    filenames = df_raven["Begin File"].unique()
+    file_ids = file.get_id(deployment_ids, filenames)
+    fname_to_id = {fname: id for fname, id in zip(filenames, file_ids)}
+
+    # define structure of output csv file
+    def as_list(x, n=num_entries):
+        return [x for _ in range(n)]
+
+    data = {
+        "file_id": as_list(None),
+        "channel": as_list(0),
+        "start": as_list(0),
+        "duration": as_list(None),
+        "freq_min_hz": as_list(0),
+        "freq_max_hz": as_list(None),
+        "sound_source": as_list(None),
+        "sound_type": as_list(None),
+        "tentative_sound_source": as_list(None),
+        "tentative_sound_type": as_list(None),
+        "excluded_sound_source": as_list(None),
+        "excluded_sound_type": as_list(None),
+        "ambiguous_sound_source": as_list(None),
+        "ambiguous_sound_type": as_list(None),
+        "multiple_sound_source": as_list(None),
+        "multiple_sound_type": as_list(None),
+        "granularity": as_list(None),
+        "tag": as_list(None),
+        "comments": as_list(None),
+        "valid": as_list(True),
+        "warning": as_list([]),
+        "error": as_list([]),
+    }
+    df = pd.DataFrame(data)
+
+    # --- enter data ---
+
+    # file ID
+    df["file_id"] = df_raven["Begin File"].apply(lambda x: fname_to_id[x])
+
+    # validate file IDs
+    idx = df["file_id"] == None
+    df.loc[idx, "valid"] = False
+    df.loc[idx, "error"] += ["FileNotFoundError"]
+
+    # TODO:
     # parse labels (& = AND, / = OR) and map sound sources and sound types to labels
     # for entries with multiple labels, evaluate all possible combinations
     # check that labels are valid
-
 
 
 def export_to_raven(
