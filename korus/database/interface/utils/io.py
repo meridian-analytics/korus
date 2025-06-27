@@ -3,8 +3,41 @@ import numpy as np
 import pandas as pd
 
 
-def read_raven(path: str) -> pd.DataFrame:
-    """read and validate Raven Pro formatted annotation table"""
+def read_raven(
+    path: str,
+    annotation,
+    file,
+    deployment_id: int = None,
+    taxonomy_version: int = None,
+) -> pd.DataFrame:
+    """Read and validate a RavenPro formatted annotation table.
+    
+    The validation algorithm verifies that 
+
+     * the audiofiles exist in the database
+     * the labels exist in the taxonomy
+
+    Args:
+        path: str
+            Path to the RavenPro file with tab-separated values (TSV).
+        annotation: korus.database.interface.annotation.AnnotationInterface
+            Annotation interface
+        file: korus.database.interface.annotation.FileInterface
+            File interface
+        deployment_id: int
+            If not specified, the annotation table must be specified in the annotation table in a column named `Deployment ID`.
+        taxonomy_version: int
+            Acoustic taxonomy that the (source,type) label arguments refer to. If not specified,
+            the latest version will be used.
+
+    Returns:
+        : pandas.DataFrame    
+            The validated annotation table. Contains the extra columns,
+
+             * valid (bool): True, if the row was successfully validated. False, if errors were detected. 
+             * warning (str): Warning messages produced by the validation algorithm.
+             * error (str): Error messages produced by the validation algorithm.
+    """
     pass
 
 
