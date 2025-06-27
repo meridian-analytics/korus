@@ -8,6 +8,7 @@ def read_raven(
     taxonomy,
     file,
     deployment_id: int = None,
+    granularity: str = "unit",
     taxonomy_version: int = None,
 ) -> pd.DataFrame:
     """Read and validate a RavenPro formatted annotation table.
@@ -25,7 +26,9 @@ def read_raven(
         file: korus.database.interface.annotation.FileInterface
             File interface
         deployment_id: int
-            If not specified, the annotation table must be specified in the annotation table in a column named `Deployment ID`.
+            If not specified, the annotation table must contain the column `Deployment ID`.
+        granularity: str
+            Annotation granularity for entries not marked as 'Batch' annotations.
         taxonomy_version: int
             Acoustic taxonomy that the (source,type) label arguments refer to. If not specified,
             the latest version will be used.
@@ -66,6 +69,7 @@ def read_raven(
         "Tentative Sound Type": None,
         "Excluded Sound Source": None,
         "Excluded Sound Type": None,
+        "Batch": False,
         "Comments": None,
         "Tag": None,
     }
@@ -80,7 +84,7 @@ def read_raven(
         if name not in df_raven.columns:
             df_raven[name] = value
 
-    # sort according to filename and start time
+    # sort according to filename and start time["FileNotFoundError;"
     df_raven = df_raven.sort_values(by=["Begin File", "File Offset (s)"])
 
     # map filenames to file IDs
