@@ -36,8 +36,8 @@ def read_raven(
             Contains the extra columns,
 
              * valid (bool): True, if the row was successfully validated. False, if errors were detected. 
-             * warning (str): Warning messages produced by the validation algorithm.
-             * error (str): Error messages produced by the validation algorithm.
+             * warning (str): Warnings produced by the validation algorithm.
+             * error (str): Errors produced by the validation algorithm.
     """
     df = pd.read_csv(path, sep="\t")
 
@@ -53,6 +53,10 @@ def read_raven(
 
     # check that files exist in database
     #file_ids = file.get_id()
+
+    # parse labels (& = AND, / = OR) and map sound sources and sound types to labels
+    # for entries with multiple labels, evaluate all possible combinations
+    # check that labels are valid
 
 
 
