@@ -18,6 +18,10 @@ def read_raven(
      * the audiofiles exist in the database
      * the labels exist in the taxonomy
 
+    In case of multiple labels (AND), use ampersand (&) to separate values.
+    In case of ambiguous labels (OR), use slash (/) to separate values.
+    Note: It is not possible to use both separators in the same field.
+
     Args:
         path: str
             Path to the RavenPro file with tab-separated values (TSV).
@@ -93,10 +97,11 @@ def read_raven(
     file_ids = file.get_id(deployment_ids, filenames)
     fname_to_id = {fname: id for fname, id in zip(filenames, file_ids)}
 
-    # define structure of output csv file
+    # helper function for creating lists
     def as_list(x, n=num_entries):
         return [x for _ in range(n)]
 
+    # define structure of output csv file
     data = {
         "file_id": as_list(None),
         "channel": as_list(0),
@@ -104,16 +109,11 @@ def read_raven(
         "duration": as_list(None),
         "freq_min_hz": as_list(0),
         "freq_max_hz": as_list(None),
-        "sound_source": as_list(None),
-        "sound_type": as_list(None),
-        "tentative_sound_source": as_list(None),
-        "tentative_sound_type": as_list(None),
-        "excluded_sound_source": as_list(None),
-        "excluded_sound_type": as_list(None),
-        "ambiguous_sound_source": as_list(None),
-        "ambiguous_sound_type": as_list(None),
-        "multiple_sound_source": as_list(None),
-        "multiple_sound_type": as_list(None),
+        "label": as_list(None),
+        "tentative_label": as_list(None),
+        "excluded_label": as_list(None),
+        "ambiguous_label": as_list(None),
+        "multiple_label": as_list(None),
         "granularity": as_list(None),
         "tag": as_list(None),
         "comments": as_list(None),
@@ -133,10 +133,31 @@ def read_raven(
     df.loc[idx, "valid"] = False
     df.loc[idx, "error"] += ["FileNotFoundError"]
 
-    # TODO:
-    # parse labels (& = AND, / = OR) and map sound sources and sound types to labels
-    # for entries with multiple labels, evaluate all possible combinations
-    # check that labels are valid
+    # parse labels
+    for idx, row in df_raven.iterrows():
+        res = _parse_labels(row)
+
+        df.loc[idx, "label"] = res["label"]
+        df.loc[idx, "tentative_label"] = res["tentative_label"]
+        df.loc[idx, "excluded_label"] = res["excluded_label"]
+        df.loc[idx, "ambiguous_label"] = res["ambiguous_label"]
+        df.loc[idx, "multiple_label"] = res["multiple_label"]
+        df.loc[idx, "label"] = res["label"]
+        df.loc[idx, "valid"] = res["valid"]
+        df.loc[idx, "warning"] = res["warning"]
+        df.loc[idx, "error"] = res["error"]
+
+
+def _parse_labels(row: pd.Series) -> dict:
+    """Helper function for parsing the sound-source and sound-type columns in RavenPro annotation tables.
+
+    TODO: implement this method
+
+     * Combines sound sources and sound types into Korus labels
+     * If multiple values are specified using & or /, all possible combinations are evaluated
+     * Checks that labels exist in the taxonomy
+    """
+    raise NotImplementedError
 
 
 def export_to_raven(
@@ -146,6 +167,10 @@ def export_to_raven(
     indices: int | list[int] = None,
 ):
     """Helper function for exporting annotations to a TSV file in RavenPro format.
+
+    Values in the `ambiguous_label` field are joined using an slash (/) and replace the value in the `label` field.
+
+    Values in the `multiple_label` field are joined using an ampersand (&) and replace the value in the `label` field.
 
     Args:
         path: str
@@ -241,7 +266,7 @@ def export_to_raven(
         lambda x: " & ".join(as_list(x, 1))
     )
 
-    # overwrite label, if ambiguous or multiple label field is not null
+    # overwrite confident label, if ambiguous label is not null
     idx = annots.ambiguous_label.isna()
     df.loc[~idx, "Sound Source"] = annots.ambiguous_label.apply(
         lambda x: " / ".join(as_list(x, 0))
@@ -250,6 +275,7 @@ def export_to_raven(
         lambda x: " / ".join(as_list(x, 1))
     )
 
+    # overwrite confident label, if multiple label is not null
     idx = annots.multiple_label.isna()
     df.loc[~idx, "Sound Source"] = annots.multiple_label.apply(
         lambda x: " & ".join(as_list(x, 0))
