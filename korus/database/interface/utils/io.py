@@ -173,11 +173,9 @@ def _parse_labels(
 ) -> dict:
     """Helper function for parsing the sound-source and sound-type columns in RavenPro annotation tables.
 
-    TODO: implement this method
-
-     * Combines sound sources and sound types into Korus labels
-     * If multiple values are specified using & or /, evaluate all possible combinations
-     * Checks that labels exist in the taxonomy
+    * Combines sound sources and sound types into Korus labels
+    * If multiple values are specified using & or /, evaluate all possible combinations
+    * Checks that labels exist in the taxonomy
     """
     tax = interface.current if version is None else interface.releases[version - 1]
 
@@ -193,8 +191,8 @@ def _parse_labels(
         "errors": [],
     }
 
-    def parse_label(x, default=None, split=True):
-        """Helper function for parsing individual source/type labels"""
+    def parse_source_or_type(x, default=None, split=True, allow_ambiguous=True):
+        """Helper function for parsing individual source or type labels"""
         ambiguous = False
         multiple = False
 
@@ -220,22 +218,29 @@ def _parse_labels(
         if ambiguous and multiple:
             err_msg = "LabelError: & and / cannot be used together"
             res["errors"].append(err_msg)
+            x = default
+
+        if ambiguous and not allow_ambiguous:
+            err_msg = "LabelError: Ambiguous label not allowed"
+            res["errors"].append(err_msg)
+            x = default
 
         return x, ambiguous, multiple
 
-    src_list, src_amb, src_mul = parse_label(row["Sound Source"], default=root)
-    typ_list, typ_amb, typ_mul = parse_label(row["Sound Type"], default=root)
-
-    src = tax.last_common_ancestor(src_list)
-
-    try:
-        typ = tax.sound_types(src).last_common_ancestor(typ_list)
-    except:
-        typ = root
-
-    # ambiguous and multiple labels
-    def make_labels(src_list, typ_list):
+    def make_label(src_list, typ_list):
         """Helper function for making and validating (source,type) labels"""
+        if src_list is None or typ_list is None:
+            return None
+
+        is_list = isinstance(src_list, list) or isinstance(typ_list, list)
+
+        if not isinstance(src_list, list):
+            src_list = [src_list]
+
+        if not isinstance(typ_list, list):
+            typ_list = [typ_list]
+
+        # all possible combinations
         labels = [(s, t) for s in src_list for t in typ_list]
 
         # validate labels
@@ -252,70 +257,63 @@ def _parse_labels(
             err_msg = "LabelError: Invalid label"
             res["errors"].append(err_msg)
 
+        if not is_list and len(valid_labels) == 1:
+            valid_labels = valid_labels[0]
+
+        elif len(valid_labels) == 0:
+            valid_labels = None
+
         return valid_labels
 
+    # parse `Sound Source` and `Sound Type`
+    src_list, src_amb, src_mul = parse_source_or_type(row["Sound Source"], default=root)
+    typ_list, typ_amb, typ_mul = parse_source_or_type(row["Sound Type"], default=root)
+
+    # 'confident' source and type assignments
+    src = tax.last_common_ancestor(src_list)
+    try:
+        typ = tax.sound_types(src).last_common_ancestor(typ_list)
+    except:
+        typ = root
+
+    # ambiguous and multiple labels
     if src_amb or src_mul or typ_amb or typ_mul:
-        valid_labels = make_labels(src_list, typ_list)
+        labels = make_label(src_list, typ_list)
 
         if src_amb or typ_amb:
-            res["ambiguous_label"] = valid_labels
+            res["ambiguous_label"] = labels
 
         elif src_mul or typ_mul:
-            res["multiple_label"] = valid_labels
+            res["multiple_label"] = labels
 
         else:
             err_msg = "LabelError: & and / cannot be used together"
             res["errors"].append(err_msg)
 
-    # excluded label
-    src_list, src_amb, src_mul = parse_label(row["Excluded Sound Source"], default=root)
-    typ_list, typ_amb, typ_mul = parse_label(row["Excluded Sound Type"], default=root)
-    if src_amb or typ_amb:
-        err_msg = "LabelError: Excluded sound sources and types can only be combined with & (AND)"
-        res["errors"].append(err_msg)
-        excl_label = None
+    # parse `Excluded Sound Source` and `Excluded Sound Type`
+    src_list, src_amb, src_mul = parse_source_or_type(
+        row["Excluded Sound Source"], default=root, allow_ambiguous=False
+    )
+    typ_list, typ_amb, typ_mul = parse_source_or_type(
+        row["Excluded Sound Type"], default=root, allow_ambiguous=False
+    )
 
-    else:
-        excl_label = make_labels(src_list, typ_list)
+    # excluded labels
+    res["excluded_label"] = make_label(src_list, typ_list)
 
-    res["excluded_label"] = excl_label
-
-    # tentative label
+    # parse `Tentative Sound Source` and `Tentative Sound Type`
     tent_src = row["Tentative Sound Source"]
     tent_typ = row["Tentative Sound Type"]
-    if tent_src is None and tent_typ is None:
-        tent_label = None
+    if tent_src is None and tent_typ is not None:
+        tent_src = src
+    if tent_typ is None and tent_src is not None:
+        tent_typ = typ
 
-    else:
-        if tent_src is None:
-            tent_src = src
-        if tent_typ is None:
-            tent_typ = typ
-
-        tent_label = (tent_src, tent_typ)
-
-        # check that label is valid
-        try:
-            interface.get_label_id(tent_label, version)
-
-        except ValueError:
-            err_msg = f"LabelError: label {tent_label} does not exist in taxonomy"
-            res["errors"].append(err_msg)
-            tent_label = None
-
-    res["tentative_label"] = tent_label
+    # tentative label
+    res["tentative_label"] = make_label(tent_src, tent_typ)
 
     # confident label
-    label = (src, typ)
-    try:
-        interface.get_label_id(label, version)
-
-    except ValueError:
-        err_msg = f"LabelError: label {label} does not exist in taxonomy"
-        res["errors"].append(err_msg)
-        label = None
-
-    res["label"] = label
+    res["label"] = make_label(src, typ)
 
     # validation status
     res["valid"] = len(res["errors"]) == 0
