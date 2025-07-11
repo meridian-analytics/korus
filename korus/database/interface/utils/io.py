@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+from korus.database.interface import TaxonomyInterface
 
 
 def read_raven(
@@ -20,7 +21,9 @@ def read_raven(
 
     In case of multiple labels (AND), use ampersand (&) to separate values.
     In case of ambiguous labels (OR), use slash (/) to separate values.
-    Note: It is not possible to use both separators in the same field.
+    Note: It is not possible to use both separators in the same row.
+
+    In case of multiple tags (AND), use ampersand (&) to separate values.
 
     Args:
         path: str
@@ -38,12 +41,12 @@ def read_raven(
             the latest version will be used.
 
     Returns:
-        : pandas.DataFrame
+        df: pandas.DataFrame
             The validated annotation table, formatted to facilitate ingestion into the Korus database.
-            Contains the extra columns,
+        df_raven: pandas.DataFrame
+            The input table with the extra columns,
 
              * valid (bool): True, if the row was successfully validated. False, if errors were detected.
-             * warning (str): Warnings produced by the validation algorithm.
              * error (str): Errors produced by the validation algorithm.
     """
     df_raven = pd.read_csv(path, sep="\t")
@@ -117,11 +120,13 @@ def read_raven(
         "granularity": as_list(None),
         "tag": as_list(None),
         "comments": as_list(None),
-        "valid": as_list(True),
-        "warning": as_list([]),
-        "error": as_list([]),
     }
     df = pd.DataFrame(data)
+
+    # add validation columns to input dataframe
+    df_raven["Valid"] = as_list(True)
+    df_raven["Warnings"] = as_list([])
+    df_raven["Errors"] = as_list([])
 
     # --- enter data ---
 
@@ -130,12 +135,26 @@ def read_raven(
 
     # validate file IDs
     idx = df["file_id"] == None
-    df.loc[idx, "valid"] = False
-    df.loc[idx, "error"] += ["FileNotFoundError"]
+    df_raven.loc[idx, "Valid"] = False
+    df_raven.loc[idx, "Errors"] += ["FileNotFoundError"]
+
+    # copy data
+    df["channel"] = df_raven["Channel"] - 1
+    df["start"] = df_raven["File Offset (s)"]
+    df["duration"] = df_raven["Delta Time (s)"]
+    df["freq_min_hz"] = df_raven["Low Freq (Hz)"]
+    df["freq_max_hz"] = df_raven["High Freq (Hz)"]
+    df["comments"] = df_raven["Commens"]
+
+    # tag
+    df["tag"] = df_raven["Tag"].apply(lambda x: None if x is None else x.split("&"))
+
+    # granularity
+    df["granularity"] = df_raven["Batch"].apply(lambda x: "batch" if x else granularity)
 
     # parse labels
     for idx, row in df_raven.iterrows():
-        res = _parse_labels(row)
+        res = _parse_labels(row, taxonomy, taxonomy_version)
 
         df.loc[idx, "label"] = res["label"]
         df.loc[idx, "tentative_label"] = res["tentative_label"]
@@ -143,21 +162,165 @@ def read_raven(
         df.loc[idx, "ambiguous_label"] = res["ambiguous_label"]
         df.loc[idx, "multiple_label"] = res["multiple_label"]
         df.loc[idx, "label"] = res["label"]
-        df.loc[idx, "valid"] = res["valid"]
-        df.loc[idx, "warning"] = res["warning"]
-        df.loc[idx, "error"] = res["error"]
+        df_raven.loc[idx, "Valid"] *= res["valid"]
+        df_raven.loc[idx, "Errors"] += res["errors"]
+
+    return df, df_raven
 
 
-def _parse_labels(row: pd.Series) -> dict:
+def _parse_labels(
+    row: pd.Series, interface: TaxonomyInterface, version: int = None
+) -> dict:
     """Helper function for parsing the sound-source and sound-type columns in RavenPro annotation tables.
 
     TODO: implement this method
 
      * Combines sound sources and sound types into Korus labels
-     * If multiple values are specified using & or /, all possible combinations are evaluated
+     * If multiple values are specified using & or /, evaluate all possible combinations
      * Checks that labels exist in the taxonomy
     """
-    raise NotImplementedError
+    tax = interface.current if version is None else interface.releases[version - 1]
+
+    root = tax.root.tag
+
+    res = {
+        "label": None,
+        "tentative_label": None,
+        "excluded_label": None,
+        "ambiguous_label": None,
+        "multiple_label": None,
+        "valid": True,
+        "errors": [],
+    }
+
+    def parse_label(x, default=None, split=True):
+        """Helper function for parsing individual source/type labels"""
+        ambiguous = False
+        multiple = False
+
+        if x is None:
+            x = default
+
+        if x is not None:
+            x = x.replace(" ", "")
+
+        if x is not None and split:
+            ambiguous = "/" in x
+            multiple = "&" in x
+
+            if ambiguous:
+                x = x.split("/")
+
+            elif multiple:
+                x = x.split("&")
+
+            else:
+                x = [x]
+
+        if ambiguous and multiple:
+            err_msg = "LabelError: & and / cannot be used together"
+            res["errors"].append(err_msg)
+
+        return x, ambiguous, multiple
+
+    src_list, src_amb, src_mul = parse_label(row["Sound Source"], default=root)
+    typ_list, typ_amb, typ_mul = parse_label(row["Sound Type"], default=root)
+
+    src = tax.last_common_ancestor(src_list)
+
+    try:
+        typ = tax.sound_types(src).last_common_ancestor(typ_list)
+    except:
+        typ = root
+
+    # ambiguous and multiple labels
+    def make_labels(src_list, typ_list):
+        """Helper function for making and validating (source,type) labels"""
+        labels = [(s, t) for s in src_list for t in typ_list]
+
+        # validate labels
+        valid_labels = []
+        for label in labels:
+            try:
+                interface.get_label_id(label, version)
+                valid_labels.append(label)
+
+            except ValueError:
+                continue
+
+        if len(valid_labels) < max(len(src_list), len(typ_list)):
+            err_msg = "LabelError: Invalid label"
+            res["errors"].append(err_msg)
+
+        return valid_labels
+
+    if src_amb or src_mul or typ_amb or typ_mul:
+        valid_labels = make_labels(src_list, typ_list)
+
+        if src_amb or typ_amb:
+            res["ambiguous_label"] = valid_labels
+
+        elif src_mul or typ_mul:
+            res["multiple_label"] = valid_labels
+
+        else:
+            err_msg = "LabelError: & and / cannot be used together"
+            res["errors"].append(err_msg)
+
+    # excluded label
+    src_list, src_amb, src_mul = parse_label(row["Excluded Sound Source"], default=root)
+    typ_list, typ_amb, typ_mul = parse_label(row["Excluded Sound Type"], default=root)
+    if src_amb or typ_amb:
+        err_msg = "LabelError: Excluded sound sources and types can only be combined with & (AND)"
+        res["errors"].append(err_msg)
+        excl_label = None
+
+    else:
+        excl_label = make_labels(src_list, typ_list)
+
+    res["excluded_label"] = excl_label
+
+    # tentative label
+    tent_src = row["Tentative Sound Source"]
+    tent_typ = row["Tentative Sound Type"]
+    if tent_src is None and tent_typ is None:
+        tent_label = None
+
+    else:
+        if tent_src is None:
+            tent_src = src
+        if tent_typ is None:
+            tent_typ = typ
+
+        tent_label = (tent_src, tent_typ)
+
+        # check that label is valid
+        try:
+            interface.get_label_id(tent_label, version)
+
+        except ValueError:
+            err_msg = f"LabelError: label {tent_label} does not exist in taxonomy"
+            res["errors"].append(err_msg)
+            tent_label = None
+
+    res["tentative_label"] = tent_label
+
+    # confident label
+    label = (src, typ)
+    try:
+        interface.get_label_id(label, version)
+
+    except ValueError:
+        err_msg = f"LabelError: label {label} does not exist in taxonomy"
+        res["errors"].append(err_msg)
+        label = None
+
+    res["label"] = label
+
+    # validation status
+    res["valid"] = len(res["errors"]) == 0
+
+    return res
 
 
 def export_to_raven(
