@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import pandas as pd
-from korus.database.interface import TaxonomyInterface
 
 
 def read_raven(
@@ -11,7 +10,7 @@ def read_raven(
     deployment_id: int = None,
     granularity: str = "unit",
     taxonomy_version: int = None,
-) -> pd.DataFrame:
+):
     """Read and validate a RavenPro formatted annotation table.
 
     The validation algorithm verifies that
@@ -44,10 +43,9 @@ def read_raven(
         df: pandas.DataFrame
             The validated annotation table, formatted to facilitate ingestion into the Korus database.
         df_raven: pandas.DataFrame
-            The input table with the extra columns,
-
-             * valid (bool): True, if the row was successfully validated. False, if errors were detected.
-             * error (str): Errors produced by the validation algorithm.
+            The input table with two extra columns:
+             * Valid (bool): True, if the row was successfully validated. False, if errors were detected.
+             * Errors (str): Errors produced by the validation algorithm.
     """
     df_raven = pd.read_csv(path, sep="\t")
     num_entries = len(df_raven)
@@ -81,6 +79,25 @@ def read_raven(
         "Tag": None,
     }
 
+    # dtypes
+    dtypes = {
+        "Begin File": str,
+        "Channel": int,
+        "File Offset (s)": float,
+        "Delta Time (s)": float,
+        "Low Freq (Hz)": float,
+        "High Freq (Hz)": float,
+        "Sound Source": str,
+        "Sound Type": str,
+        "Tentative Sound Source": str,
+        "Tentative Sound Type": str,
+        "Excluded Sound Source": str,
+        "Excluded Sound Type": str,
+        "Batch": bool,
+        "Comments": str,
+        "Tag": str,
+    }
+
     # check that required columns are present
     for name in required_cols:
         assert_msg = f"Required column {name} missing in input table: {path}"
@@ -91,11 +108,19 @@ def read_raven(
         if name not in df_raven.columns:
             df_raven[name] = value
 
-    # sort according to filename and start time["FileNotFoundError;"
+    # set dtype
+    df_raven = df_raven.astype(dtypes)
+
+    # replace 'nan'
+    for name, dtype in dtypes.items():
+        if dtype == str:
+            df_raven = df_raven.replace({name: "nan"}, None)
+
+    # sort according to filename and start time
     df_raven = df_raven.sort_values(by=["Begin File", "File Offset (s)"])
 
     # map filenames to file IDs
-    deployment_ids = df.groupby("Begin File").first()["Deployment ID"]
+    deployment_ids = df_raven.groupby("Begin File").first()["Deployment ID"]
     filenames = df_raven["Begin File"].unique()
     file_ids = file.get_id(deployment_ids, filenames)
     fname_to_id = {fname: id for fname, id in zip(filenames, file_ids)}
@@ -123,10 +148,26 @@ def read_raven(
     }
     df = pd.DataFrame(data)
 
+    dtypes = {
+        #"file_id": int,
+        "channel": int,
+        "start": float,
+        "duration": float,
+        "freq_min_hz": float,
+        "freq_max_hz": float,
+        "label": object,
+        "tentative_label": object,
+        "excluded_label": object,
+        "ambiguous_label": object,
+        "multiple_label": object,
+        "granularity": str,
+        "tag": object,
+        "comments": str,
+    }
+
     # add validation columns to input dataframe
     df_raven["Valid"] = as_list(True)
-    df_raven["Warnings"] = as_list([])
-    df_raven["Errors"] = as_list([])
+    df_raven["Errors"] = as_list("")
 
     # --- enter data ---
 
@@ -134,9 +175,9 @@ def read_raven(
     df["file_id"] = df_raven["Begin File"].apply(lambda x: fname_to_id[x])
 
     # validate file IDs
-    idx = df["file_id"] == None
+    idx = df["file_id"].isna()
     df_raven.loc[idx, "Valid"] = False
-    df_raven.loc[idx, "Errors"] += ["FileNotFoundError"]
+    df_raven.loc[idx, "Errors"] += "FileNotFoundError | "
 
     # copy data
     df["channel"] = df_raven["Channel"] - 1
@@ -144,33 +185,45 @@ def read_raven(
     df["duration"] = df_raven["Delta Time (s)"]
     df["freq_min_hz"] = df_raven["Low Freq (Hz)"]
     df["freq_max_hz"] = df_raven["High Freq (Hz)"]
-    df["comments"] = df_raven["Commens"]
+    df["comments"] = df_raven["Comments"]
+
+    # set dtypes
+    df = df.astype(dtypes)
 
     # tag
-    df["tag"] = df_raven["Tag"].apply(lambda x: None if x is None else x.split("&"))
+    df["tag"] = df_raven["Tag"].apply(lambda x: x.split("&") if isinstance(x, str) else None)
 
     # granularity
     df["granularity"] = df_raven["Batch"].apply(lambda x: "batch" if x else granularity)
 
     # parse labels
+    label = []
+    tentative_label = []
+    excluded_label = []
+    ambiguous_label = []
+    multiple_label = []
     for idx, row in df_raven.iterrows():
         res = _parse_labels(row, taxonomy, taxonomy_version)
 
-        df.loc[idx, "label"] = res["label"]
-        df.loc[idx, "tentative_label"] = res["tentative_label"]
-        df.loc[idx, "excluded_label"] = res["excluded_label"]
-        df.loc[idx, "ambiguous_label"] = res["ambiguous_label"]
-        df.loc[idx, "multiple_label"] = res["multiple_label"]
-        df.loc[idx, "label"] = res["label"]
+        label.append(res["label"])
+        tentative_label.append(res["tentative_label"])
+        excluded_label.append(res["excluded_label"])
+        ambiguous_label.append(res["ambiguous_label"])
+        multiple_label.append(res["multiple_label"])
+
         df_raven.loc[idx, "Valid"] *= res["valid"]
-        df_raven.loc[idx, "Errors"] += res["errors"]
+        df_raven.loc[idx, "Errors"] += " | ".join(res["errors"])
+
+    df["label"] = label
+    df["tentative_label"] = tentative_label
+    df["excluded_label"] = excluded_label
+    df["ambiguous_label"] = ambiguous_label
+    df["multiple_label"] = multiple_label
 
     return df, df_raven
 
 
-def _parse_labels(
-    row: pd.Series, interface: TaxonomyInterface, version: int = None
-) -> dict:
+def _parse_labels(row: pd.Series, interface, version: int = None) -> dict:
     """Helper function for parsing the sound-source and sound-type columns in RavenPro annotation tables.
 
     * Combines sound sources and sound types into Korus labels
@@ -179,7 +232,7 @@ def _parse_labels(
     """
     tax = interface.current if version is None else interface.releases[version - 1]
 
-    root = tax.root.tag
+    root = tax.get_node(tax.root).tag
 
     res = {
         "label": None,
@@ -270,11 +323,21 @@ def _parse_labels(
     typ_list, typ_amb, typ_mul = parse_source_or_type(row["Sound Type"], default=root)
 
     # 'confident' source and type assignments
-    src = tax.last_common_ancestor(src_list)
     try:
-        typ = tax.sound_types(src).last_common_ancestor(typ_list)
+        src = tax.last_common_ancestor(src_list)
+
+        try:
+            typ = tax.sound_types(src).last_common_ancestor(typ_list)
+
+        except:
+            typ = root
+
     except:
-        typ = root
+        err_msg = "LabelError: Invalid `Sound Source` label"
+        res["errors"].append(err_msg)
+
+        src = None
+        typ = None
 
     # ambiguous and multiple labels
     if src_amb or src_mul or typ_amb or typ_mul:
@@ -292,10 +355,10 @@ def _parse_labels(
 
     # parse `Excluded Sound Source` and `Excluded Sound Type`
     src_list, src_amb, src_mul = parse_source_or_type(
-        row["Excluded Sound Source"], default=root, allow_ambiguous=False
+        row["Excluded Sound Source"], allow_ambiguous=False
     )
     typ_list, typ_amb, typ_mul = parse_source_or_type(
-        row["Excluded Sound Type"], default=root, allow_ambiguous=False
+        row["Excluded Sound Type"], allow_ambiguous=False
     )
 
     # excluded labels

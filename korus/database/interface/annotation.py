@@ -16,7 +16,7 @@ from .utils.selection import (
     map_to_audiofile,
 )
 from .utils.validate import validate_annotation
-from .utils.io import export_to_raven
+from .utils.io import export_to_raven, read_raven
 
 
 def _id_from_name(interface: TableInterface, name: str | list[str]) -> list[int]:
@@ -234,7 +234,7 @@ class AnnotationInterface(TableInterface):
         return values if isinstance(granularity_id, list) else values[0]
 
     def add(self, row: dict):
-        """Add an entry to the table.
+        """Add a single annotation to the table.
 
         If the deployment ID is not specified, it will be inferred from file ID.
 
@@ -255,6 +255,16 @@ class AnnotationInterface(TableInterface):
         row = self._apply_alias_transforms(row)
         row = validate_annotation(row, self._file)
         return super().add(row)
+
+    def add_batch(self, df):
+        """Add a batch of annotations to the table
+        
+        Args:
+            df: pandas.DataFrame
+                Annotations to be added to the table.
+        """
+        for _,row in df.iterrows():
+            self.add(row.to_dict())
 
     def generate_negatives(self, job_id: int):
         """Generate negative annotations.
@@ -303,15 +313,44 @@ class AnnotationInterface(TableInterface):
         for _, row in negatives.iterrows():
             self.add(row.to_dict())
 
-    def validate_raven(
+    def load_raven(
         self,
+        path: str,
+        deployment_id: int = None,
+        granularity: str = "unit",
+        taxonomy_version: int = None,
     ):
-        raise NotImplementedError()
+        """Load annotations from a RavenPro TSV file.
 
-    def from_raven(
-        self,
-    ):
-        raise NotImplementedError()
+        Checks that the audio files exist in the database and that the labels exist in the taxonomy.
+
+        Args:
+            path: str
+                Path to the RavenPro file with tab-separated values (TSV).
+            deployment_id: int
+                If not specified, the annotation table must contain the column `Deployment ID`.
+            granularity: str
+                Annotation granularity for entries not marked as 'Batch' annotations.
+            taxonomy_version: int
+                Acoustic taxonomy that the (source,type) label arguments refer to. If not specified,
+                the latest version will be used.
+
+        Returns:
+            df: pandas.DataFrame
+                The validated annotation table, with the format expected by the `add_batch` method.
+            df_raven: pandas.DataFrame
+                The input table with two extra columns:
+                * Valid (bool): True, if the row was successfully validated. False, if errors were detected.
+                * Errors (str): Errors produced by the validation algorithm.
+        """
+        return read_raven(
+            path = path,
+            taxonomy = self._taxonomy,
+            file = self._file,
+            deployment_id = deployment_id,
+            granularity = granularity,
+            taxonomy_version = taxonomy_version,
+        )
 
     def to_raven(
         self,

@@ -765,3 +765,12 @@ def test_to_raven(sqlite_database_with_some_data):
     assert_frame_equal(result, expected, check_dtype=False)
 
     os.remove(path)
+
+def test_load_raven(sqlite_database_with_some_data):
+    path = os.path.join(path_to_assets, "raven-export-test.csv")
+    db = sqlite_database_with_some_data
+    df, df_raven = db.annotation.load_raven(path, deployment_id=0, taxonomy_version=2)
+    
+    print()
+    print(df_raven.to_string())
+    print(df.to_string())
