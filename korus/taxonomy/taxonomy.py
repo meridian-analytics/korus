@@ -558,8 +558,16 @@ class Taxonomy(Tree):
         Returns:
             : str
                 The tag of the last common ancestor, which may be one of the input nodes
+
+        Raises:
+            AssertionError: if one of the nodes does not exist in the taxonomy
         """
-        nids = [self.get_id(n) for n in x]
+        # get node IDs
+        nids = []
+        for n in x:
+            node = self.get_node(n)
+            assert node is not None, f"Taxonomy does not have node {n}"
+            nids.append(self.get_id(n))
 
         # find the shallowest node
         level_min = self.level(nids[0])

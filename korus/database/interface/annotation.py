@@ -258,12 +258,12 @@ class AnnotationInterface(TableInterface):
 
     def add_batch(self, df):
         """Add a batch of annotations to the table
-        
+
         Args:
             df: pandas.DataFrame
                 Annotations to be added to the table.
         """
-        for _,row in df.iterrows():
+        for _, row in df.iterrows():
             self.add(row.to_dict())
 
     def generate_negatives(self, job_id: int):
@@ -344,12 +344,12 @@ class AnnotationInterface(TableInterface):
                 * Errors (str): Errors produced by the validation algorithm.
         """
         return read_raven(
-            path = path,
-            taxonomy = self._taxonomy,
-            file = self._file,
-            deployment_id = deployment_id,
-            granularity = granularity,
-            taxonomy_version = taxonomy_version,
+            path=path,
+            taxonomy=self._taxonomy,
+            file=self._file,
+            deployment_id=deployment_id,
+            granularity=granularity,
+            taxonomy_version=taxonomy_version,
         )
 
     def to_raven(

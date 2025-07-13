@@ -18,6 +18,7 @@ from korus.database.interface import (
     GranularityInterface,
     StorageInterface,
 )
+from korus.taxonomy.acoustic import AcousticTaxonomy
 
 path_to_assets = os.path.join(os.path.dirname(__file__), "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
@@ -25,6 +26,31 @@ path_to_tmp = os.path.join(path_to_assets, "tmp")
 # ensure tmp directory exists
 if not os.path.exists(path_to_tmp):
     os.makedirs(path_to_tmp)
+
+
+@pytest.fixture
+def toy_acoustic_taxonomy():
+    """A toy acoustic taxonomy"""
+    tax = AcousticTaxonomy()
+
+    tax.create_sound_source("A", parent="Unknown")
+    tax.create_sound_source("AA", parent="A")
+    tax.create_sound_source("AB", parent="A")
+    tax.create_sound_source("ABA", parent="AB")
+
+    tax.create_sound_type("a", "Unknown")
+    tax.create_sound_type("b", "A")
+    tax.create_sound_type("b1", "A", parent="b")
+    tax.create_sound_type("b2", "A", parent="b")
+    tax.create_sound_type("b3", "A", parent="b", recursive=False)
+    tax.create_sound_type("b4", "A", parent="b", recursive=False)
+    tax.create_sound_type("b3", "AA", parent="b")
+    tax.create_sound_type("b4", "AB", parent="b")
+    tax.create_sound_type("c", "ABA")
+    tax.create_sound_type("a1", "ABA", parent="a")
+    tax.create_sound_type("a2", "ABA", parent="a")
+
+    yield tax
 
 
 @pytest.fixture

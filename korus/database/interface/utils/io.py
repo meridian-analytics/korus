@@ -149,7 +149,7 @@ def read_raven(
     df = pd.DataFrame(data)
 
     dtypes = {
-        #"file_id": int,
+        # "file_id": int,
         "channel": int,
         "start": float,
         "duration": float,
@@ -191,7 +191,9 @@ def read_raven(
     df = df.astype(dtypes)
 
     # tag
-    df["tag"] = df_raven["Tag"].apply(lambda x: x.split("&") if isinstance(x, str) else None)
+    df["tag"] = df_raven["Tag"].apply(
+        lambda x: x.split("&") if isinstance(x, str) else None
+    )
 
     # granularity
     df["granularity"] = df_raven["Batch"].apply(lambda x: "batch" if x else granularity)

@@ -32,7 +32,13 @@ class AcousticTaxonomy(Taxonomy):
         super().__init__(name=name, root_tag=root_tag, **kwargs)
 
     @property
-    def all_labels(self):
+    def all_labels(self) -> list[tuple]:
+        """Tags and identifiers of all the nodes in the taxonomy.
+
+        Returns:
+            : list[tuple]
+                Each item is a tuple of the form (sound-source tag, sound-type tag, sound-source identifer, sound-type identifier)
+        """
         _labels = []
         for sound_source in self.all_nodes_itr():
             for sound_type in sound_source.data["sound_types"].all_nodes_itr():
@@ -257,21 +263,43 @@ class AcousticTaxonomy(Taxonomy):
         for source_id in self.expand_tree(mode=Tree.DEPTH):
             self.get_node(source_id).data["sound_types"].clear_history()
 
-    def sound_types(self, source_tag):
-        """Returns the KTree of sound types associated with a given sound source
+    def sound_types(self, source_tag: str) -> Taxonomy:
+        """Returns the taxonomy of sound types associated with a given sound source
 
         Args:
             source_tag: str
                 Sound source tag or identifier
 
         Returns:
-            t: korus.tree.KTree
+            t: Taxonomy
                 Sound types. Returns None if the sound source does not exist.
         """
         try:
             return self.get_node(source_tag).data["sound_types"]
         except:
             return None
+
+    def label_exists(self, source_tag, type_tag):
+        """Check if certain (source,type) label exists in the taxonomy.
+
+        Args:
+            source_tag: str
+                Sound-source tag or identifier of starting node.
+            type_tag: str
+                Sound-type tag or identifier of starting node.
+
+        Returns:
+            exists: bool
+                True if label exists, False otherwise.
+        """
+        types = self.sound_types(source_tag)
+        if types is None:
+            exists = False
+
+        else:
+            exists = types.get_node(type_tag) is not None
+
+        return exists
 
     @property
     def changes(self):
@@ -408,3 +436,44 @@ class AcousticTaxonomy(Taxonomy):
                         yield source.tag, types.get_node(tid).tag
 
                     counter += 1
+
+    def last_common_ancestor(self, labels: list[tuple[str, str]]):
+        """Finds the last common ancestor of a set of labels.
+
+        Args:
+            labels: list[tuple[str,str]]
+                List of labels. Each label is a tuple of the form (sound-source tag, sound-type tag)
+                or (sound-source identifier, sound-type identifier)
+
+        Returns:
+            : tuple[str, str]
+                The label of the last common ancestor, which may be one of the input labels
+
+        Raises:
+            AssertionError: if one of the labels does not exist in the taxonomy
+        """
+        # last common sound-source ancestor
+        source_tags = [label[0] for label in labels]
+        common_source_tag = super().last_common_ancestor(source_tags)
+
+        # for each sound source, iterate over sound types until a common sound type is found with the common source
+        type_tags = []
+        for label in labels:
+            assert_msg = f"Taxonomy does not have label {label}"
+            assert self.label_exists(*label), assert_msg
+
+            source_tag, type_tag = label
+            types = self.sound_types(source_tag)
+
+            for id in types.rsearch(type_tag):
+                tag = types.get_node(id).tag
+                if self.label_exists(common_source_tag, tag):
+                    break
+
+            type_tags.append(tag)
+
+        # last common sound-type ancestor
+        common_types = self.sound_types(common_source_tag)
+        common_type_tag = common_types.last_common_ancestor(type_tags)
+
+        return (common_source_tag, common_type_tag)
