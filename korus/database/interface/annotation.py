@@ -321,6 +321,7 @@ class AnnotationInterface(TableInterface):
         deployment_id: int = None,
         granularity: str = "unit",
         taxonomy_version: int = None,
+        progress_bar: bool = False,
     ):
         """Load annotations from a RavenPro TSV file.
 
@@ -352,6 +353,7 @@ class AnnotationInterface(TableInterface):
             deployment_id=deployment_id,
             granularity=granularity,
             taxonomy_version=taxonomy_version,
+            progress_bar=progress_bar,
         )
 
     def to_raven(
