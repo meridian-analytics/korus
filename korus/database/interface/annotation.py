@@ -256,14 +256,16 @@ class AnnotationInterface(TableInterface):
         row = validate_annotation(row, self._file)
         return super().add(row)
 
-    def add_batch(self, df):
+    def add_batch(self, df: pd.DataFrame, progress_bar: bool = False):
         """Add a batch of annotations to the table
 
         Args:
             df: pandas.DataFrame
                 Annotations to be added to the table.
+            progress_bar: bool
+                Whether to display a progress bar.
         """
-        for _, row in df.iterrows():
+        for _, row in tqdm(df.iterrows(), total=df.shape[0], disable=not progress_bar):
             self.add(row.to_dict())
 
     def generate_negatives(self, job_id: int):
