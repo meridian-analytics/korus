@@ -3,6 +3,289 @@ import numpy as np
 import pandas as pd
 
 
+# Sound source/type ENUM
+SINGLE_VALUE = 0
+AMBIGUOUS_VALUE = 1
+MULTIPLE_VALUE = 2
+INVALID_VALUE = 3
+
+
+def _parse_source_type(
+    row: pd.Series,
+    column_name: str,
+    errors: list[str],
+    default=None,
+    split: bool = True,
+    allow_ambiguous: bool = True,
+    allow_multiple: bool = True,
+):
+    """Helper function for parsing individual sound-source or sound-type values.
+
+    Returns a str if split is False, and a list of strings otherwise.
+
+    Args:
+        row: pd.Series
+            A single row in the RavenPro annotation table
+        column_name: str
+            The column to be parsed, e.g. `Sound Source`
+        errors: list[str]
+            List for storing error messages from the parsing algorithm
+        default: any
+            Default value
+        split: bool
+            If True, split the string at every & and /
+        allow_ambiguous: bool
+            If False, any occurrence of / will be logged as an error
+        allow_multiple: bool
+            If True, any occurrence of & will be logged as an error
+
+    Returns:
+        x: str | list[str]
+            The parsed value(s)
+        kind: int
+            The source/type ENUM. Only returned if split is True and both ambiguous and mulitple values are allowed.
+    """
+    kind = SINGLE_VALUE
+    x = row[column_name]
+
+    if x is None:
+        x = default
+
+    if x is not None:
+        x = x.replace(" ", "")
+
+    if x is not None and split:
+        ambiguous = "/" in x
+        multiple = "&" in x
+
+        if ambiguous:
+            kind = AMBIGUOUS_VALUE
+            x = x.split("/")
+
+        elif multiple:
+            kind = MULTIPLE_VALUE
+            x = x.split("&")
+
+        else:
+            kind = SINGLE_VALUE
+            x = [x]
+
+    if kind == AMBIGUOUS_VALUE and kind == MULTIPLE_VALUE:
+        errors.append(f"LabelError in {column_name}: & and / cannot be used together")
+        x = default
+        kind = INVALID_VALUE
+
+    if kind == AMBIGUOUS_VALUE and not allow_ambiguous:
+        errors.append(f"LabelError in {column_name}: Ambiguous label not allowed")
+        x = default
+        kind = INVALID_VALUE
+
+    if kind == MULTIPLE_VALUE and not allow_multiple:
+        errors.append(f"LabelError in {column_name}: Multiple label not allowed")
+        x = default
+        kind = INVALID_VALUE
+
+    if x is not None and split and allow_ambiguous and allow_multiple:
+        return x, kind
+
+    else:
+        return x
+
+
+def _create_labels(
+    sources: str | list[str],
+    types: str | list[str],
+    errors: list[str],
+    taxonomy_interface,
+    version: int = None,
+) -> tuple[str, str] | list[tuple[str, str]]:
+    """Helper function for making and validating (source,type) labels.
+
+    Args:
+        sources: str | list[str]
+            The sound sources
+        types: str | list[str]
+            The sound types
+        errors: list[str]
+            List for storing validation errors
+        taxonomy_interface: TaxonomyInterface
+            The taxonomy table interface
+        version: int
+            The taxonomy version
+
+    Returns:
+        valid_labels: tuple[str,str] | list[tuple[str,str]
+            The validated labels
+    """
+    if sources is None or types is None:
+        return None
+
+    is_list = isinstance(sources, list) or isinstance(types, list)
+
+    if not isinstance(sources, list):
+        sources = [sources]
+
+    if not isinstance(types, list):
+        types = [types]
+
+    # create all possible combinations
+    labels = [(s, t) for s in sources for t in types]
+
+    # validate labels
+    valid_labels = []
+    for label in labels:
+        try:
+            taxonomy_interface.get_label_id(label, version)
+            valid_labels.append(label)
+
+        except ValueError:
+            continue
+
+    if len(valid_labels) < max(len(sources), len(types)):
+        errors.append("LabelError: Invalid label")
+
+    if not is_list and len(valid_labels) == 1:
+        valid_labels = valid_labels[0]
+
+    elif len(valid_labels) == 0:
+        valid_labels = None
+
+    return valid_labels
+
+
+def _parse_labels(row: pd.Series, taxonomy_interface, version: int = None) -> dict:
+    """Helper function for parsing the sound-source and sound-type columns in RavenPro annotation tables.
+
+        * Combines sound sources and sound types into Korus labels
+        * If multiple values are specified using & or /, evaluate all possible combinations
+        * Checks that labels exist in the taxonomy
+
+    Args:
+        row: pd.Series
+            A single row in the RavenPro annotation table
+        taxonomy_interface: TaxonomyInterface
+            The taxonomy table interface
+        version: int
+            The taxonomy version
+
+    Returns:
+        res: dict
+            Dictionary with keys `label`, `tentative_label`, `excluded_label`, `ambiguous_label`, `multiple_label`, `valid`, `errors`
+    """
+    tax = (
+        interface.current
+        if version is None
+        else taxonomy_interface.releases[version - 1]
+    )
+
+    root = tax.get_node(tax.root).tag
+
+    res = {
+        "label": None,
+        "tentative_label": None,
+        "excluded_label": None,
+        "ambiguous_label": None,
+        "multiple_label": None,
+        "valid": True,
+        "errors": [],
+    }
+
+    # parse `Sound Source`
+    sources, src_kind = _parse_source_type(
+        row,
+        column_name="Sound Source",
+        errors=res["errors"],
+        default=root,
+    )
+
+    # parse `Sound Type`
+    types, typ_kind = _parse_source_type(
+        row,
+        column_name="Sound Type",
+        errors=res["errors"],
+        default=root,
+    )
+
+    # create labels
+    labels = _create_labels(sources, types, res["errors"], taxonomy_interface, version)
+
+    # confident label
+    conf_src, conf_typ = tax.last_common_ancestor(labels)
+
+    # ambiguous and multiple labels
+    if src_kind in [AMBIGUOUS_VALUE, MULTIPLE_VALUE] or typ_kind in [
+        AMBIGUOUS_VALUE,
+        MULTIPLE_VALUE,
+    ]:
+        if (src_kind == AMBIGUOUS_VALUE and typ_kind == MULTIPLE_VALUE) or (
+            src_kind == MULTIPLE_VALUE and typ_kind == AMBIGUOUS_VALUE
+        ):
+            err_msg = "LabelError: & and / cannot be used together"
+            res["errors"].append(err_msg)
+
+        elif src_kind == AMBIGUOUS_VALUE or typ_kind == AMBIGUOUS_VALUE:
+            res["ambiguous_label"] = labels
+
+        elif src_kind == MULTIPLE_VALUE or typ_kind == MULTIPLE_VALUE:
+            res["multiple_label"] = labels
+
+    # parse `Excluded Sound Source`
+    sources = _parse_source_type(
+        row,
+        column_name="Excluded Sound Source",
+        errors=res["errors"],
+        allow_ambiguous=False,
+    )
+
+    # parse `Excluded Sound Type`
+    types = _parse_source_type(
+        row,
+        column_name="Excluded Sound Type",
+        errors=res["errors"],
+        allow_ambiguous=False,
+    )
+
+    # excluded labels
+    res["excluded_label"] = _create_labels(
+        sources, types, res["errors"], taxonomy_interface, version
+    )
+
+    # parse `Tentative Sound Source`
+    tent_src = _parse_source_type(
+        row,
+        column_name="Tentative Sound Source",
+        errors=res["errors"],
+        split=False,
+    )
+
+    #  and `Tentative Sound Type`
+    tent_typ = _parse_source_type(
+        row,
+        column_name="Tentative Sound Type",
+        errors=res["errors"],
+        split=False,
+    )
+
+    if tent_src is None and tent_typ is not None:
+        tent_src = conf_src
+
+    if tent_typ is None and tent_src is not None:
+        tent_typ = conf_typ
+
+    # tentative label
+    res["tentative_label"] = _create_labels(
+        tent_src, tent_typ, res["errors"], taxonomy_interface, version
+    )
+
+    # confident label
+    res["label"] = (conf_src, conf_typ)
+
+    # validation status
+    res["valid"] = len(res["errors"]) == 0
+
+    return res
+
+
 def read_raven(
     path: str,
     taxonomy,
@@ -223,167 +506,6 @@ def read_raven(
     df["multiple_label"] = multiple_label
 
     return df, df_raven
-
-
-def _parse_labels(row: pd.Series, interface, version: int = None) -> dict:
-    """Helper function for parsing the sound-source and sound-type columns in RavenPro annotation tables.
-
-    * Combines sound sources and sound types into Korus labels
-    * If multiple values are specified using & or /, evaluate all possible combinations
-    * Checks that labels exist in the taxonomy
-    """
-    tax = interface.current if version is None else interface.releases[version - 1]
-
-    root = tax.get_node(tax.root).tag
-
-    res = {
-        "label": None,
-        "tentative_label": None,
-        "excluded_label": None,
-        "ambiguous_label": None,
-        "multiple_label": None,
-        "valid": True,
-        "errors": [],
-    }
-
-    def parse_source_or_type(x, default=None, split=True, allow_ambiguous=True):
-        """Helper function for parsing individual source or type labels"""
-        ambiguous = False
-        multiple = False
-
-        if x is None:
-            x = default
-
-        if x is not None:
-            x = x.replace(" ", "")
-
-        if x is not None and split:
-            ambiguous = "/" in x
-            multiple = "&" in x
-
-            if ambiguous:
-                x = x.split("/")
-
-            elif multiple:
-                x = x.split("&")
-
-            else:
-                x = [x]
-
-        if ambiguous and multiple:
-            err_msg = "LabelError: & and / cannot be used together"
-            res["errors"].append(err_msg)
-            x = default
-
-        if ambiguous and not allow_ambiguous:
-            err_msg = "LabelError: Ambiguous label not allowed"
-            res["errors"].append(err_msg)
-            x = default
-
-        return x, ambiguous, multiple
-
-    def make_label(src_list, typ_list):
-        """Helper function for making and validating (source,type) labels"""
-        if src_list is None or typ_list is None:
-            return None
-
-        is_list = isinstance(src_list, list) or isinstance(typ_list, list)
-
-        if not isinstance(src_list, list):
-            src_list = [src_list]
-
-        if not isinstance(typ_list, list):
-            typ_list = [typ_list]
-
-        # all possible combinations
-        labels = [(s, t) for s in src_list for t in typ_list]
-
-        # validate labels
-        valid_labels = []
-        for label in labels:
-            try:
-                interface.get_label_id(label, version)
-                valid_labels.append(label)
-
-            except ValueError:
-                continue
-
-        if len(valid_labels) < max(len(src_list), len(typ_list)):
-            err_msg = "LabelError: Invalid label"
-            res["errors"].append(err_msg)
-
-        if not is_list and len(valid_labels) == 1:
-            valid_labels = valid_labels[0]
-
-        elif len(valid_labels) == 0:
-            valid_labels = None
-
-        return valid_labels
-
-    # parse `Sound Source` and `Sound Type`
-    src_list, src_amb, src_mul = parse_source_or_type(row["Sound Source"], default=root)
-    typ_list, typ_amb, typ_mul = parse_source_or_type(row["Sound Type"], default=root)
-
-    # 'confident' source and type assignments
-    try:
-        src = tax.last_common_ancestor(src_list)
-
-        try:
-            typ = tax.sound_types(src).last_common_ancestor(typ_list)
-
-        except:
-            typ = root
-
-    except:
-        err_msg = "LabelError: Invalid `Sound Source` label"
-        res["errors"].append(err_msg)
-
-        src = None
-        typ = None
-
-    # ambiguous and multiple labels
-    if src_amb or src_mul or typ_amb or typ_mul:
-        labels = make_label(src_list, typ_list)
-
-        if src_amb or typ_amb:
-            res["ambiguous_label"] = labels
-
-        elif src_mul or typ_mul:
-            res["multiple_label"] = labels
-
-        else:
-            err_msg = "LabelError: & and / cannot be used together"
-            res["errors"].append(err_msg)
-
-    # parse `Excluded Sound Source` and `Excluded Sound Type`
-    src_list, src_amb, src_mul = parse_source_or_type(
-        row["Excluded Sound Source"], allow_ambiguous=False
-    )
-    typ_list, typ_amb, typ_mul = parse_source_or_type(
-        row["Excluded Sound Type"], allow_ambiguous=False
-    )
-
-    # excluded labels
-    res["excluded_label"] = make_label(src_list, typ_list)
-
-    # parse `Tentative Sound Source` and `Tentative Sound Type`
-    tent_src = row["Tentative Sound Source"]
-    tent_typ = row["Tentative Sound Type"]
-    if tent_src is None and tent_typ is not None:
-        tent_src = src
-    if tent_typ is None and tent_src is not None:
-        tent_typ = typ
-
-    # tentative label
-    res["tentative_label"] = make_label(tent_src, tent_typ)
-
-    # confident label
-    res["label"] = make_label(src, typ)
-
-    # validation status
-    res["valid"] = len(res["errors"]) == 0
-
-    return res
 
 
 def export_to_raven(
