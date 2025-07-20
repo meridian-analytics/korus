@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 
 # Sound source/type ENUM
@@ -293,6 +294,7 @@ def read_raven(
     deployment_id: int = None,
     granularity: str = "unit",
     taxonomy_version: int = None,
+    progress_bar: bool = False,
 ):
     """Read and validate a RavenPro formatted annotation table.
 
@@ -321,6 +323,8 @@ def read_raven(
         taxonomy_version: int
             Acoustic taxonomy that the (source,type) label arguments refer to. If not specified,
             the latest version will be used.
+        progress_bar: bool
+            Whether to display a progress bar.
 
     Returns:
         df: pandas.DataFrame
@@ -487,7 +491,9 @@ def read_raven(
     excluded_label = []
     ambiguous_label = []
     multiple_label = []
-    for idx, row in df_raven.iterrows():
+    for idx, row in tqdm(
+        df_raven.iterrows(), total=df.shape[0], disable=not progress_bar
+    ):
         res = _parse_labels(row, taxonomy, taxonomy_version)
 
         label.append(res["label"])
