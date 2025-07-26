@@ -1,8 +1,13 @@
+import os
 import pytest
 import numpy as np
 import pandas as pd
+from pandas.testing import assert_frame_equal
 from datetime import datetime, timezone
 
+
+path_to_assets = os.path.join("korus", "tests", "assets")
+path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 np.random.seed(1)
 
@@ -673,29 +678,8 @@ def test_comprehensive_example(
     assert indices == [12, 13, 19]
 
 
-def test_create_selections(
-    sqlite_database_with_taxonomy,
-    one_deployment,
-    one_storage_location,
-    one_job,
-    two_files,
-    three_annotations,
-):
-    db = sqlite_database_with_taxonomy
-
-    # add data to the database
-    db.deployment.add(one_deployment)
-    db.storage.add(one_storage_location)
-    for file in two_files:
-        db.file.add(file)
-
-    db.job.add(one_job)
-    db.job.add_file(0, 0)
-    db.job.add_file(0, 1)
-    db.tag.add({"name": "NEGATIVE", "description": "a negative sample"})
-    df = pd.DataFrame(three_annotations)
-    for _, row in df.iterrows():
-        db.annotation.add(row)
+def test_create_selections(sqlite_database_with_some_data):
+    db = sqlite_database_with_some_data
 
     # search for annotations
     indices = db.annotation.filter(select=("KW", "PC"), taxonomy_version=3).indices
@@ -741,3 +725,62 @@ def test_create_selections(
     assert len(df_1.sel_id.unique()) == 5
     assert df.iloc[0].start > 21.2
     assert df.iloc[-1].end < 21.2
+
+
+def test_to_raven(sqlite_database_with_some_data):
+    path = os.path.join(path_to_tmp, "raven.csv")
+    db = sqlite_database_with_some_data
+    # add another few tags and annotations
+    db.tag.add({"name": "loud", "description": "A loud noise"})
+    db.tag.add({"name": "unusual", "description": "An unusual noise"})
+    annot_data = {
+        "deployment_id": [0, 0, 0],
+        "job_id": [0, 0, 0],
+        "file_id": [1, 1, 1],
+        "channel": [0, 0, 0],
+        "label": [("Bio", "Unknown"), ("SRKW", "PC"), ("SRKW", "PC")],
+        "excluded_label": [[("KW", "TC"), ("HW", "Unknown")], None, None],
+        "multiple_label": [None, [("SRKW", "S01"), ("SRKW", "S02")], None],
+        "ambiguous_label": [None, None, [("SRKW", "S01"), ("SRKW", "S02")]],
+        "tag": [["loud", "unusual"], None, None],
+        "duration_ms": [3000, 4000, 5000],
+        "start_ms": [2500, 3500, 4500],
+        "freq_min_hz": [600, 700, 800],
+        "freq_max_hz": [4400, 3300, 2200],
+        "granularity": ["unit", "window", "window"],
+    }
+    df = pd.DataFrame(annot_data)
+    for _, row in df.iterrows():
+        db.annotation.add(row)
+
+    # export to Raven format
+    db.annotation.to_raven(path)
+
+    # check that file was created with correct content
+    assert os.path.exists(path)
+    result = pd.read_csv(path, sep="\t")
+    expected = pd.read_csv(
+        os.path.join(path_to_assets, "raven-export-test.csv"), sep="\t"
+    )
+    assert_frame_equal(result, expected, check_dtype=False)
+
+    os.remove(path)
+
+
+def test_load_raven(sqlite_database_with_some_data):
+    path = os.path.join(path_to_assets, "raven-export-test.csv")
+    db = sqlite_database_with_some_data
+    df, df_raven = db.annotation.load_raven(path, deployment_id=0, taxonomy_version=2)
+
+    assert np.all(df_raven["Valid"] == 1)
+
+    expected = """                label tentative_label                                      excluded_label
+0  (Unknown, Unknown)            None                                                None
+1         (SRKW, S01)            None                                                None
+2            (KW, PC)     (SRKW, S01)                                                None
+3      (Bio, Unknown)            None  [(HW, TC), (HW, Unknown), (KW, TC), (KW, Unknown)]
+4          (SRKW, PC)            None                                                None
+5          (SRKW, PC)            None                                                None"""
+
+    result = df[["label", "tentative_label", "excluded_label"]].to_string()
+    assert result == expected

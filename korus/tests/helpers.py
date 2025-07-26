@@ -64,6 +64,7 @@ class InMemoryTableBackend(TableBackend):
     def add(self, row):
         self.fields += [k for k in row.keys() if k not in self.fields]
         self.rows.append(row)
+        return len(self.rows) - 1
 
     def remove(self, indices=None):
         if isinstance(indices, int):

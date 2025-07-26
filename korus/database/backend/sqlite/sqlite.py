@@ -50,9 +50,10 @@ class SQLiteTableBackend(TableBackend):
     def reset_cursor(self):
         self._cursor = self.conn.cursor().execute(f"SELECT id FROM {self.name}")
 
-    def add(self, row: dict):
-        insert_row(self.conn, self.name, self.codec.encode(row, self.name))
+    def add(self, row: dict) -> int:
+        cursor = insert_row(self.conn, self.name, self.codec.encode(row, self.name))
         self.conn.commit()
+        return decode_key(cursor.lastrowid)
 
     def remove(self, indices: int | list[int] = None):
         delete_row(self.conn, self.name, index_to_key(indices))

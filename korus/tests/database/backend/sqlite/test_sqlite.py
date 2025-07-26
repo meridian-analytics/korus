@@ -12,7 +12,8 @@ def test_add_file_to_job(minimal_sqlite_backend):
     backend = minimal_sqlite_backend
 
     # add a 2nd job
-    backend.job.add({"taxonomy_id": 0})
+    id = backend.job.add({"taxonomy_id": 0})
+    assert id == 1
 
     # add a 2nd file
     backend.file.add(
