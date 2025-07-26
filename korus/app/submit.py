@@ -6,7 +6,7 @@ from termcolor import colored, cprint
 import subprocess
 import sqlite3
 from datetime import datetime
-from korus.util import list_to_str
+from korus.utils import list_to_str
 import korus.db as kdb
 import korus.app.app_util.view as vw
 import korus.app.app_util.add as add
