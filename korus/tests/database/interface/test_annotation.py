@@ -772,6 +772,15 @@ def test_load_raven(sqlite_database_with_some_data):
     db = sqlite_database_with_some_data
     df, df_raven = db.annotation.load_raven(path, deployment_id=0, taxonomy_version=2)
 
-    print()
-    print(df_raven.to_string())
-    print(df.to_string())
+    assert np.all(df_raven["Valid"] == 1)
+
+    expected = """                label tentative_label                                      excluded_label
+0  (Unknown, Unknown)            None                                                None
+1         (SRKW, S01)            None                                                None
+2            (KW, PC)     (SRKW, S01)                                                None
+3      (Bio, Unknown)            None  [(HW, TC), (HW, Unknown), (KW, TC), (KW, Unknown)]
+4          (SRKW, PC)            None                                                None
+5          (SRKW, PC)            None                                                None"""
+
+    result = df[["label", "tentative_label", "excluded_label"]].to_string()
+    assert result == expected
