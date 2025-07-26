@@ -19,6 +19,7 @@ setup(
         "tqdm",
         "tabulate",
         "pyyaml",
+        "inquirer",
     ],
     entry_points={
         "console_scripts": [
