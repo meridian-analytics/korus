@@ -1,10 +1,22 @@
 import inquirer
+from korus.database import SQLiteDatabase
 
 #https://python-inquirer.readthedocs.io/en/latest/usage.html#question-types
 
 
+def add_row(db, table_name):
 
-def cli_fcn(path):
+    tbl = getattr(db, table_name)
+
+    row = {}
+
+    for field in tbl.fields:
+        print(field.name)
+
+
+
+
+def cli_fcn(db: SQLiteDatabase):
 
     def table_options(answers):
         if answers["table"] == "deployment":
