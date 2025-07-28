@@ -1,6 +1,7 @@
 import inquirer
 from datetime import datetime
 from korus.database import SQLiteDatabase
+import korus.cli.parse as parse
 
 #https://python-inquirer.readthedocs.io/en/latest/usage.html#question-types
 
@@ -15,22 +16,37 @@ def create_question(table_name, field):
         default=field.default,
     )
 
+    parser = lambda x: x
+
     if field.options is not None:
-        q = inquirer.List(**kwargs, choices=field.options)
+        question = inquirer.List(**kwargs, choices=field.options)
 
     if field.is_path:
-        q = inquirer.Path(**kwargs)
+        question = inquirer.Path(**kwargs)
 
     elif field.type == bool:
-        q = inquirer.Confirm(**kwargs)
+        question = inquirer.Confirm(**kwargs)
 
     elif field.type == datetime:
-        q = inquirer.Text(**kwargs)
+        kwargs["message"] += f" ({parse.DATETIME_FORMAT})"
+        validate = parse.validate_datetime_required if field.required else parse.validate_datetime
+        question = inquirer.Text(**kwargs, validate=validate)
+        parser = lambda x: parse.parse_datetime(None, current=x, required=field.required)
 
+    elif field.type == int:
+        validate = parse.validate_int_required if field.required else parse.validate_int
+        question = inquirer.Text(**kwargs, validate=validate)
+        parser = lambda x: parse.parse_int(None, current=x, required=field.required)
+
+    elif field.type == float:
+        validate = parse.validate_float_required if field.required else parse.validate_float
+        question = inquirer.Text(**kwargs, validate=validate)
+        parser = lambda x: parse.parse_float(None, current=x, required=field.required)
+    
     else:
-        q = inquirer.Text(**kwargs)
+        question = inquirer.Text(**kwargs)
 
-    return q    
+    return question, parser
 
 
 def add_row(db, table_name):
@@ -40,11 +56,19 @@ def add_row(db, table_name):
     row = {}
 
     questions = []
+    parsers = {}
     for field in tbl.fields:
-        q = create_question(table_name, field)
-        questions.append(q)
+        question, parser = create_question(table_name, field)
+        questions.append(question)
+        parsers[question.name] = parser
 
     answers = inquirer.prompt(questions)
+
+    # parse inputs
+    if answers is not None:
+        answers = {name: parsers[name](value) for name,value in answers.items()}
+
+        print(answers)
 
 
 
