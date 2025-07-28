@@ -1,7 +1,36 @@
 import inquirer
+from datetime import datetime
 from korus.database import SQLiteDatabase
 
 #https://python-inquirer.readthedocs.io/en/latest/usage.html#question-types
+
+
+def create_question(table_name, field):
+
+    name = table_name + "." + field.name
+
+    kwargs = dict(
+        name=name, 
+        message=field.description,
+        default=field.default,
+    )
+
+    if field.options is not None:
+        q = inquirer.List(**kwargs, choices=field.options)
+
+    if field.is_path:
+        q = inquirer.Path(**kwargs)
+
+    elif field.type == bool:
+        q = inquirer.Confirm(**kwargs)
+
+    elif field.type == datetime:
+        q = inquirer.Text(**kwargs)
+
+    else:
+        q = inquirer.Text(**kwargs)
+
+    return q    
 
 
 def add_row(db, table_name):
@@ -10,9 +39,12 @@ def add_row(db, table_name):
 
     row = {}
 
+    questions = []
     for field in tbl.fields:
-        print(field.name)
+        q = create_question(table_name, field)
+        questions.append(q)
 
+    answers = inquirer.prompt(questions)
 
 
 

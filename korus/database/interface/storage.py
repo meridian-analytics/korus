@@ -6,7 +6,7 @@ class StorageInterface(TableInterface):
         super().__init__("storage", backend)
 
         self.add_field("name", str, "Name of storage location")
-        self.add_field("path", str, "Directory path", default="/")
+        self.add_field("path", str, "Directory path", default="/", is_path=True)
         self.add_field(
             "address", str, "URL address or physical location", required=False
         )

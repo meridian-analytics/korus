@@ -13,6 +13,8 @@ class FieldDefinition:
 
         bool,str,int,float,datetime
 
+    Table indices are stored in fields with type `str` and name ending in `_id`.
+
     Attrs:
         name: str
             The name of the field
@@ -26,6 +28,12 @@ class FieldDefinition:
             The field default value
         options: list (optional)
             Allowed values
+        is_path: bool
+            Whether the field is an OS path.
+
+    Properties:            
+        is_index: bool
+            Whether the field is a table index
     """
 
     name: str
@@ -34,6 +42,11 @@ class FieldDefinition:
     required: bool = True
     default: "typing.Any" = None
     options: list = None
+    is_path: bool = False
+
+    @property
+    def is_index(self) -> bool:
+        return self.type == str and len(self.name) > 2 and self.name[-3:] == "_id"
 
     def options_as_str(self) -> str:
         """Returns:
@@ -209,6 +222,7 @@ class TableInterface:
         required: bool = True,
         default: "typing.Any" = None,
         options: list = None,
+        is_path: bool = False,
     ):
         """Add a field to the table interface.
 
@@ -225,9 +239,11 @@ class TableInterface:
                 The field default value
             options: list (optional)
                 Allowed values
+            is_path: bool
+                Whether the field is an OS path.
         """
         self._fields.append(
-            FieldDefinition(name, type, description, required, default, options)
+            FieldDefinition(name, type, description, required, default, options, is_path)
         )
 
     def add_alias(
