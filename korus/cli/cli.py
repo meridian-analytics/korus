@@ -6,14 +6,33 @@ import korus.cli.parse as parse
 #https://python-inquirer.readthedocs.io/en/latest/usage.html#question-types
 
 
-def create_question(table_name, field):
+'''
+# tab completion for directory/file paths
+# https://stackoverflow.com/a/56119373
+import readline
+readline.parse_and_bind("tab: complete")
+readline.set_completer_delims("\t\n=")
 
-    name = table_name + "." + field.name
+# https://stackoverflow.com/a/53260487
+import sys
+original_stdout = sys.stdout
+sys.stdout = sys.__stdout__
+foo = input()
+sys.stdout = original_stdout
+'''
+
+
+def new_field_value_question(question_name, field, ignore=False):
+
+    name = question_name + ":new"
+
+    ignore = lambda x: x[question_name] != "Enter new value"
 
     kwargs = dict(
         name=name, 
         message=field.description,
         default=field.default,
+        ignore=ignore,
     )
 
     parser = lambda x: x
@@ -22,7 +41,7 @@ def create_question(table_name, field):
         question = inquirer.List(**kwargs, choices=field.options)
 
     if field.is_path:
-        question = inquirer.Path(**kwargs)
+        question = inquirer.Path(**kwargs, exists=True)
 
     elif field.type == bool:
         question = inquirer.Confirm(**kwargs)
@@ -58,17 +77,53 @@ def add_row(db, table_name):
     questions = []
     parsers = {}
     for field in tbl.fields:
-        question, parser = create_question(table_name, field)
+
+        name = table_name + ":" + field.name
+        choices = ["Enter new value", "Select from existing values"]
+
+        if field.default is not None:
+            choices.append(f"Select default: {field.default}")
+
+        if not field.required:
+            choices.append("Skip")
+
+        question = inquirer.List(
+            name=name, 
+            message=field.description,
+            choices=choices  
+        )
+
         questions.append(question)
-        parsers[question.name] = parser
+
+        # --- new value ---
+        question, parser = new_field_value_question(name, field)
+        questions.append(question)
+
+        # --- new-value parser ---
+        parsers[name] = parser
+
+        # TODO: --- select from existing value
+        #question = existing_value_question(name, field)
+        #questions.append(question)
 
     answers = inquirer.prompt(questions)
 
-    # parse inputs
-    if answers is not None:
-        answers = {name: parsers[name](value) for name,value in answers.items()}
+    # parse 'new value' inputs
+    if answers is None:
+        parsed_answers = None
 
-        print(answers)
+    else:
+        parsed_answers = {}
+        for name,value in answers.items():
+            if name[-3:] == "new":
+                name = name[:-4]   
+                parsed_answers[name] = parsers[name](value)
+
+            else:
+                parsed_answers[name] = answers[name]
+
+
+    print(parsed_answers)
 
 
 

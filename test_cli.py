@@ -7,4 +7,5 @@ db = SQLiteDatabase("test.sqlite")
 #cli.cli_fcn(db)
 
 
-cli.add_row(db, "deployment")
+cli.add_row(db, "storage")
+#cli.add_row(db, "deployment")
