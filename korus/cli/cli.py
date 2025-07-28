@@ -22,15 +22,28 @@ sys.stdout = original_stdout
 '''
 
 
-def new_field_value_question(question_name, field, ignore=False):
+def existing_value_question(question_name, field, tbl):
+    name = question_name + ":existing"
+
+    ignore = lambda x: x[question_name] != "Select from existing values"
+
+    values = tbl.get(fields=field.name)
+    values = list(set(values))
+
+    question = inquirer.List(name, message="Select value", choices=values, ignore=ignore)
+
+    return question
+
+
+def new_value_question(question_name, field):
 
     name = question_name + ":new"
 
-    ignore = lambda x: x[question_name] != "Enter new value"
+    ignore = lambda x: x[question_name] != "Enter a new value"
 
     kwargs = dict(
         name=name, 
-        message=field.description,
+        message="Enter value",
         default=field.default,
         ignore=ignore,
     )
@@ -79,7 +92,7 @@ def add_row(db, table_name):
     for field in tbl.fields:
 
         name = table_name + ":" + field.name
-        choices = ["Enter new value", "Select from existing values"]
+        choices = ["Enter a new value", "Select from existing values"]
 
         if field.default is not None:
             choices.append(f"Select default: {field.default}")
@@ -96,15 +109,15 @@ def add_row(db, table_name):
         questions.append(question)
 
         # --- new value ---
-        question, parser = new_field_value_question(name, field)
+        question, parser = new_value_question(name, field)
         questions.append(question)
 
         # --- new-value parser ---
         parsers[name] = parser
 
-        # TODO: --- select from existing value
-        #question = existing_value_question(name, field)
-        #questions.append(question)
+        #--- select from existing value
+        question = existing_value_question(name, field, tbl)
+        questions.append(question)
 
     answers = inquirer.prompt(questions)
 
