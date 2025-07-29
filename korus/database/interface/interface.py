@@ -31,7 +31,7 @@ class FieldDefinition:
         is_path: bool
             Whether the field is an OS path.
 
-    Properties:            
+    Properties:
         is_index: bool
             Whether the field is a table index
     """
@@ -46,7 +46,7 @@ class FieldDefinition:
 
     @property
     def is_index(self) -> bool:
-        return self.type == str and len(self.name) > 2 and self.name[-3:] == "_id"
+        return self.type == int and len(self.name) > 2 and self.name[-3:] == "_id"
 
     def options_as_str(self) -> str:
         """Returns:
@@ -243,7 +243,9 @@ class TableInterface:
                 Whether the field is an OS path.
         """
         self._fields.append(
-            FieldDefinition(name, type, description, required, default, options, is_path)
+            FieldDefinition(
+                name, type, description, required, default, options, is_path
+            )
         )
 
     def add_alias(
@@ -486,6 +488,17 @@ class TableInterface:
 
         return data
 
+    def get_next(
+        self,
+        fields: str | list[str] = None,
+        return_indices: bool = False,
+        always_tuple: bool = True,
+        as_pandas: bool = False,
+    ) -> list[tuple]:
+        """Get the next row from the table"""
+        idx = next(self.backend)
+        return self.get(idx, fields, return_indices, always_tuple, as_pandas)
+
     def __len__(self) -> int:
         """Number of rows in the table"""
         return len(self.backend)
@@ -572,15 +585,15 @@ class TableInterface:
 
         return condition
 
-    def __str__(self) -> str:
-        """Nicely formatted summary of the table definition
+    def info(self) -> str:
+        """Nicely formatted summary of the table definition.
 
         Returns:
             res: str
-                Table summary
+                Table definition
         """
-        # table name and no. entries
-        res = f"\nName: {self.name}\nEntries: {len(self)}"
+        # table name
+        res = f"\nName: {self.name}"
 
         # fields
         res += "\nFields:\n"
@@ -612,6 +625,50 @@ class TableInterface:
         )
 
         return res
+
+    def __str__(self) -> str:
+        return self.info()
+
+
+class TableViewer:
+    """Class for viewing table contents
+
+    Args:
+        table: TableInterface
+            The table interface
+        fields: str | list[str]
+            Which fields to include
+        nrows: int
+            Number of rows printed per page
+    """
+
+    def __init__(
+        self, table: TableInterface, fields: str | list[str] = None, nrows: int = 20
+    ):
+        self.table = table
+        self.fields = fields
+        self.nrows = nrows
+        self.counter = 0
+
+    def __next__(self):
+        """Returns a nicely formatted view of the next `nrows` of the table"""
+        df = []
+        for _ in range(self.nrows):
+            df.append(
+                self.table.get_next(self.fields, return_indices=True, as_pandas=True)
+            )
+            self.counter += 1
+
+        df = pd.concat(df, ignore_index=True)
+
+        header = f"Showing {self.counter - len(df) + 1}-{self.counter + 1} of {len(self.table)} entries"
+        contents = tabulate(df, headers="keys", tablefmt="psql")
+        return header + "\n" + contents
+
+    def __iter__(self):
+        self.table.backend.reset_cursor()
+        self.counter = 0
+        return self
 
 
 def _as_pandas_dataframe(

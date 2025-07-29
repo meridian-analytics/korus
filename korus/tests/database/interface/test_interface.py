@@ -20,10 +20,14 @@ def test_create_a_field_definition():
     assert f.description == "Deployment identifier"
     assert f.required == False
     assert f.default is None
+    assert f.is_index
+    assert not f.is_path
 
     # with default value
     f = itf.FieldDefinition("channel", int, "Audio channel", False, 0)
     assert f.default == 0
+    assert not f.is_index
+    assert not f.is_path
 
 
 def test_add_get_set_data(in_memory_table_backend):
