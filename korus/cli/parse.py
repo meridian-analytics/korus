@@ -87,13 +87,20 @@ def parse_datetime(answers, current, required=False, return_bool=False):
         else:
             return True if return_bool else None
 
-    for fmt in DATETIME_FORMATS:
-        try:
-            v = datetime.strptime(current, fmt)
-            return True if return_bool else v
+    # try ISO first
+    try:
+        v = datetime.fromisoformat(current)
+        return True if return_bool else v
 
-        except:
-            continue
+    except:
+        # then try a bunch of other formats
+        for fmt in DATETIME_FORMATS:
+            try:
+                v = datetime.strptime(current, fmt)
+                return True if return_bool else v
+
+            except:
+                continue
 
     raise inquirer.errors.ValidationError(
         "", reason=f"Invalid input. Please enter a valid date-time as {DATETIME_FORMAT}"

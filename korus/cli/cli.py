@@ -7,7 +7,14 @@ import korus.cli.parse as parse
 # https://python-inquirer.readthedocs.io/en/latest/usage.html#question-types
 
 
-def add_row(db, table_name):
+def get_existing_values(tbl, field):
+    values = tbl.get(fields=field.name, always_tuple=False)
+    values = list(set(values))
+    values = [v for v in values if v is not None]
+    return values
+
+
+def add_row(db, table_name) -> int:
 
     tbl = getattr(db, table_name)
 
@@ -18,6 +25,7 @@ def add_row(db, table_name):
     EXISTING = 2
     VIEW = 3
     SKIP = 4
+    ABORT = 5
 
     for field in tbl.fields:
 
@@ -36,11 +44,14 @@ def add_row(db, table_name):
         else:
             choices["Enter a new value"] = NEW
 
-            if len(tbl) > 0:
+            existing_values = get_existing_values(tbl, field)
+            if len(existing_values) > 0:
                 choices["Select from existing values"] = EXISTING
 
         if not field.required:
             choices["Skip"] = SKIP
+
+        choices["Abort"] = ABORT
 
         question = inquirer.List(
             name=name, message=field.description, choices=list(choices.keys())
@@ -59,11 +70,15 @@ def add_row(db, table_name):
                     value = prompt.prompt_new_value(name, field)
 
                 elif choice == NEW_EXT:
-                    # TODO: implement this
-                    value = 1
+                    idx = add_row(db, ext_name)
+                    if idx is None:
+                        return None
+                    
+                    print(idx)
+                    value = str(idx)
 
                 elif choice == EXISTING:
-                    value = prompt.prompt_existing_value(name, field, tbl)
+                    value = prompt.prompt_existing_value(name, field, existing_values)
 
                 elif choice == VIEW:
                     ext_tbl = getattr(db, ext_name)
@@ -77,15 +92,21 @@ def add_row(db, table_name):
                 elif choice == SKIP:
                     break
 
+                elif choice == ABORT:
+                    return None
+
             except:
                 continue
+
+            print(value)
 
             value = parse.parse_value(field, value)
 
             row[field.name] = value
             break
 
-    print(row)
+    idx = tbl.add(row)
+    return idx
 
 
 def cli_fcn(db: SQLiteDatabase):

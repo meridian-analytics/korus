@@ -1,3 +1,4 @@
+import os
 import sys
 import inquirer
 import readline
@@ -11,14 +12,9 @@ readline.parse_and_bind("tab: complete")
 readline.set_completer_delims("\t\n=")
 
 
-def prompt_existing_value(question_name, field, tbl):
+def prompt_existing_value(question_name, field, values):
     name = question_name + ":value"
-
-    values = tbl.get(fields=field.name)
-    values = list(set(values))
-
-    question = inquirer.List(name, message="Select value", choices=values)
-
+    question = inquirer.List(name, message=field.description, choices=values)
     answers = inquirer.prompt([question])
 
     if answers is None:
@@ -42,43 +38,51 @@ def prompt_new_value(question_name, field):
         # https://stackoverflow.com/a/53260487
         original_stdout = sys.stdout
         sys.stdout = sys.__stdout__
-        path = input(f"[?] {field.description}: ")  #TODO: make question mark yellow
+        while True:
+            path = input(f"[?] {field.description}: ")  #TODO: make question mark yellow
+            if os.path.exists(path):
+                break
+            else:
+                print(">> Invalid path, please try again.")  #TODO: make indentation marks red and text bold
+
         sys.stdout = original_stdout
-        
-        kwargs["message"] = "Validate path"
-        kwargs["default"] = path
-        question = inquirer.Path(**kwargs, exists=True)
 
-    elif field.options is not None:
-        question = inquirer.List(**kwargs, choices=field.options)
+        if path is None:
+            answers = None
 
-    elif field.type == bool:
-        question = inquirer.Confirm(**kwargs)
-
-    elif field.type == datetime:
-        kwargs["message"] += f" ({parse.DATETIME_FORMAT})"
-        validate = (
-            parse.validate_datetime_required
-            if field.required
-            else parse.validate_datetime
-        )
-        question = inquirer.Text(**kwargs, validate=validate)
-
-    elif field.type == int:
-        validate = parse.validate_int_required if field.required else parse.validate_int
-        question = inquirer.Text(**kwargs, validate=validate)
-
-    elif field.type == float:
-        validate = (
-            parse.validate_float_required if field.required else parse.validate_float
-        )
-        question = inquirer.Text(**kwargs, validate=validate)
+        else:
+            answers = {name: path}
 
     else:
-        question = inquirer.Text(**kwargs)
+        if field.options is not None:
+            question = inquirer.List(**kwargs, choices=field.options)
 
-    answers = inquirer.prompt([question])
+        elif field.type == bool:
+            question = inquirer.Confirm(**kwargs)
 
+        elif field.type == datetime:
+            kwargs["message"] += f" ({parse.DATETIME_FORMAT})"
+            validate = (
+                parse.validate_datetime_required
+                if field.required
+                else parse.validate_datetime
+            )
+            question = inquirer.Text(**kwargs, validate=validate)
+
+        elif field.type == int:
+            validate = parse.validate_int_required if field.required else parse.validate_int
+            question = inquirer.Text(**kwargs, validate=validate)
+
+        elif field.type == float:
+            validate = (
+                parse.validate_float_required if field.required else parse.validate_float
+            )
+            question = inquirer.Text(**kwargs, validate=validate)
+
+        else:
+            question = inquirer.Text(**kwargs)
+
+        answers = inquirer.prompt([question])
 
     if answers is None:
         raise Exception
