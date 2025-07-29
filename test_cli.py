@@ -15,9 +15,9 @@ db = SQLiteDatabase("test.sqlite")
 #cli.cli_fcn(db)
 
 
-#idx = cli.add_row(db, "storage")
+idx = cli.add_row(db, "storage")
 
-idx = cli.add_row(db, "job")
+#idx = cli.add_row(db, "job")
 
 print(idx)
 

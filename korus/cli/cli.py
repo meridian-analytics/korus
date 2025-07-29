@@ -42,11 +42,11 @@ def add_row(db, table_name) -> int:
             choices[f"Add a new entry to the {ext_name} table"] = NEW_EXT
 
         else:
-            choices["Enter a new value"] = NEW
+            choices["Enter value"] = NEW
 
             existing_values = get_existing_values(tbl, field)
             if len(existing_values) > 0:
-                choices["Select from existing values"] = EXISTING
+                choices["Select value"] = EXISTING
 
         if not field.required:
             choices["Skip"] = SKIP
@@ -74,7 +74,6 @@ def add_row(db, table_name) -> int:
                     if idx is None:
                         return None
                     
-                    print(idx)
                     value = str(idx)
 
                 elif choice == EXISTING:
@@ -98,14 +97,20 @@ def add_row(db, table_name) -> int:
             except:
                 continue
 
-            print(value)
-
             value = parse.parse_value(field, value)
 
             row[field.name] = value
             break
 
-    idx = tbl.add(row)
+    #print(row)
+
+    try:
+        idx = tbl.add(row)
+
+    except:
+        print("Failed to add row to table")
+        idx = None
+
     return idx
 
 
