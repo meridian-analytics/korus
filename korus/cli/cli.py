@@ -47,9 +47,12 @@ def add_row(db, table_name):
         )
 
         while True:
-            answers = inquirer.prompt([question])
-
-            choice = choices[answers[name]]
+            if len(choices) > 1:
+                answers = inquirer.prompt([question])
+                choice = choices[answers[name]]
+            
+            else:
+                choice = choices[list(choices.keys())[0]]
 
             try:
                 if choice == NEW:

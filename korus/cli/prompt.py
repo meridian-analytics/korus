@@ -1,22 +1,14 @@
+import sys
 import inquirer
+import readline
 from datetime import datetime
 import korus.cli.parse as parse
 
 
-"""
 # tab completion for directory/file paths
 # https://stackoverflow.com/a/56119373
-import readline
 readline.parse_and_bind("tab: complete")
 readline.set_completer_delims("\t\n=")
-
-# https://stackoverflow.com/a/53260487
-import sys
-original_stdout = sys.stdout
-sys.stdout = sys.__stdout__
-foo = input()
-sys.stdout = original_stdout
-"""
 
 
 def prompt_existing_value(question_name, field, tbl):
@@ -41,16 +33,24 @@ def prompt_new_value(question_name, field):
 
     kwargs = dict(
         name=name,
-        message="Enter value",
+        message=field.description,
         default=field.default,
     )
 
-    if field.options is not None:
-        question = inquirer.List(**kwargs, choices=field.options)
-
     if field.is_path:
-        # TODO: use python input() function to allow tab-completion
+        # reset stdout to allow tab-completion 
+        # https://stackoverflow.com/a/53260487
+        original_stdout = sys.stdout
+        sys.stdout = sys.__stdout__
+        path = input(f"[?] {field.description}: ")  #TODO: make question mark yellow
+        sys.stdout = original_stdout
+        
+        kwargs["message"] = "Validate path"
+        kwargs["default"] = path
         question = inquirer.Path(**kwargs, exists=True)
+
+    elif field.options is not None:
+        question = inquirer.List(**kwargs, choices=field.options)
 
     elif field.type == bool:
         question = inquirer.Confirm(**kwargs)
@@ -78,6 +78,7 @@ def prompt_new_value(question_name, field):
         question = inquirer.Text(**kwargs)
 
     answers = inquirer.prompt([question])
+
 
     if answers is None:
         raise Exception
