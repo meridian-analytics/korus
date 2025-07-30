@@ -131,7 +131,6 @@ def field_action(db: Database, table_name: str, field: FieldDefinition):
 
         # if the external table is empty, instruct the user to add some data to it
         else:
-            # TODO: make indentation marks red and text bold
             msg = f"The {ext_name} table is empty. To add a row to the {table_name} table, you must first add a {ext_name}."
             print(txt.error(msg))
             raise KeyboardInterrupt()
@@ -217,7 +216,7 @@ def enter_path(table_name, field):
         try:
             # TODO: make question mark yellow
             message = txt.header(table_name, field.name) + "Enter path"
-            path = input(f"[?] {message}: ")
+            path = input(txt.question(message))
 
         except KeyboardInterrupt:
             sys.stdout = original_stdout
