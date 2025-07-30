@@ -18,82 +18,46 @@ def add_row(db, table_name) -> int:
     EXISTING = 2
     VIEW = 3
     SKIP = 4
-    ABORT = 5
 
     for field in tbl.fields:
 
         name = table_name + ":" + field.name
-        choices = {}
 
-        if field.is_index:
-            ext_name = field.name[: field.name.rfind("_id")]
-            ext_tbl = getattr(db, ext_name)
+        action, info = prompt.prompt_field_action(db, table_name, field)
 
-            if len(ext_tbl) > 0:
-                choices[f"View the {ext_name} table"] = VIEW
+        if action == NEW:
+            value = prompt.prompt_new_value(name, field)
 
-            choices[f"Add a new entry to the {ext_name} table"] = NEW_EXT
+        elif action == NEW_EXT:
+            ext_tbl = getattr(db, info["ext_name"])
+            idx = add_row(db, ext_tbl)
+            if idx is None:
+                return None
 
-        else:
-            choices["Enter value"] = NEW
+            value = str(idx)
 
-            existing_values = tbl.unique(field.name)
-            if len(existing_values) > 0:
-                choices["Select value"] = EXISTING
+        elif action == EXISTING:
+            value = prompt.prompt_existing_value(name, field, info["existing_values"])
 
-        if not field.required:
-            choices["Skip"] = SKIP
+        elif action == VIEW:
+            ext_tbl = getattr(db, info["ext_name"])
 
-        choices["Abort"] = ABORT
+            viewer = TableViewer(ext_tbl)
+            for page in iter(viewer):
+                print(page)
 
-        question = inquirer.List(
-            name=name, message=field.description, choices=list(choices.keys())
-        )
+            continue
 
-        while True:
-            if len(choices) > 1:
-                answers = inquirer.prompt([question])
-                choice = choices[answers[name]]
-
-            else:
-                choice = choices[list(choices.keys())[0]]
-
-            try:
-                if choice == NEW:
-                    value = prompt.prompt_new_value(name, field)
-
-                elif choice == NEW_EXT:
-                    idx = add_row(db, ext_name)
-                    if idx is None:
-                        return None
-
-                    value = str(idx)
-
-                elif choice == EXISTING:
-                    value = prompt.prompt_existing_value(name, field, existing_values)
-
-                elif choice == VIEW:
-                    ext_tbl = getattr(db, ext_name)
-
-                    viewer = TableViewer(ext_tbl)
-                    for page in iter(viewer):
-                        print(page)
-
-                    continue
-
-                elif choice == SKIP:
-                    break
-
-                elif choice == ABORT:
-                    return None
-
-            except:
-                continue
-
-            value = parse.parse_value(field, value)
-
-            row[field.name] = value
+        elif action == SKIP:
             break
+
+    except:
+        continue
+
+    value = parse.parse_value(field, value)
+
+    row[field.name] = value
+    break
 
     # print(row)
 
@@ -121,10 +85,10 @@ def cli_fcn(db: SQLiteDatabase):
             inquirer.List(
                 name="table",
                 message="Select a table",
-                choices=["deployment", "annotation", "Exit"],
+                actions=["deployment", "annotation", "Exit"],
             ),
             inquirer.List(
-                name="options", message="Select an option", choices=table_options
+                name="options", message="Select an option", actions=table_options
             ),
         ]
 

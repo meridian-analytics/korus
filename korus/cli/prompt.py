@@ -18,9 +18,88 @@ def prompt_existing_value(question_name, field, values):
     answers = inquirer.prompt([question])
 
     if answers is None:
-        raise Exception
+        raise KeyboardInterrupt
 
     return answers[name]
+
+
+NEW = 0
+NEW_EXT = 1
+EXISTING = 2
+VIEW = 3
+SKIP = 4
+
+
+def prompt_field_action(db, table_name, field):
+    name = table_name + ":" + field.name
+
+    tbl = getattr(db, table_name)
+
+    choices = {}
+
+    if field.is_index:
+        ext_name = field.name[: field.name.rfind("_id")]
+        ext_tbl = getattr(db, ext_name)
+
+        info = {"ext_name": ext_name}
+
+        if len(ext_tbl) > 0:
+            choices[f"View the {ext_name} table"] = (VIEW, info)
+
+        choices[f"Add a new entry to the {ext_name} table"] = (NEW_EXT, info)
+
+    else:
+        choices["Enter value"] = (NEW, {})
+
+        existing_values = tbl.unique(field.name)
+        if len(existing_values) > 0:
+            info = {"existing_values": existing_values}
+            choices["Select value"] = (EXISTING, info)
+
+    if not field.required:
+        choices["Skip"] = (SKIP, {})
+
+    question = inquirer.List(
+        name=name, message=field.description, choices=list(choices.keys())
+    )
+
+    if len(choices) > 1:
+        answers = inquirer.prompt([question])
+
+        if answers is None:
+            raise KeyboardInterrupt
+
+        choice = choices[answers[name]]
+
+    else:
+        choice = choices[list(choices.keys())[0]]
+
+    return choice
+
+
+def prompt_path(question_name, field):
+    # reset stdout to allow tab-completion
+    # https://stackoverflow.com/a/53260487
+    original_stdout = sys.stdout
+    sys.stdout = sys.__stdout__
+    while True:
+        try:
+            # TODO: make question mark yellow
+            path = input(f"[?] {field.description}: ")  
+
+        except KeyboardInterrupt:
+            sys.stdout = original_stdout
+            raise
+
+        if os.path.exists(path):
+            break
+
+        else:
+            # TODO: make indentation marks red and text bold
+            print(">> Invalid path, please try again.")  
+
+    sys.stdout = original_stdout
+    return path
 
 
 def prompt_new_value(question_name, field):
@@ -34,65 +113,43 @@ def prompt_new_value(question_name, field):
     )
 
     if field.is_path:
-        # reset stdout to allow tab-completion
-        # https://stackoverflow.com/a/53260487
-        original_stdout = sys.stdout
-        sys.stdout = sys.__stdout__
-        while True:
-            path = input(
-                f"[?] {field.description}: "
-            )  # TODO: make question mark yellow
-            if os.path.exists(path):
-                break
-            else:
-                print(
-                    ">> Invalid path, please try again."
-                )  # TODO: make indentation marks red and text bold
+        return prompt_path(question_name, field)
 
-        sys.stdout = original_stdout
+    if field.options is not None:
+        question = inquirer.List(**kwargs, choices=field.options)
 
-        if path is None:
-            answers = None
+    elif field.type == bool:
+        question = inquirer.Confirm(**kwargs)
 
-        else:
-            answers = {name: path}
+    elif field.type == datetime:
+        kwargs["message"] += f" ({parse.DATETIME_FORMAT})"
+        validate = (
+            parse.validate_datetime_required
+            if field.required
+            else parse.validate_datetime
+        )
+        question = inquirer.Text(**kwargs, validate=validate)
+
+    elif field.type == int:
+        validate = (
+            parse.validate_int_required if field.required else parse.validate_int
+        )
+        question = inquirer.Text(**kwargs, validate=validate)
+
+    elif field.type == float:
+        validate = (
+            parse.validate_float_required
+            if field.required
+            else parse.validate_float
+        )
+        question = inquirer.Text(**kwargs, validate=validate)
 
     else:
-        if field.options is not None:
-            question = inquirer.List(**kwargs, choices=field.options)
+        question = inquirer.Text(**kwargs)
 
-        elif field.type == bool:
-            question = inquirer.Confirm(**kwargs)
-
-        elif field.type == datetime:
-            kwargs["message"] += f" ({parse.DATETIME_FORMAT})"
-            validate = (
-                parse.validate_datetime_required
-                if field.required
-                else parse.validate_datetime
-            )
-            question = inquirer.Text(**kwargs, validate=validate)
-
-        elif field.type == int:
-            validate = (
-                parse.validate_int_required if field.required else parse.validate_int
-            )
-            question = inquirer.Text(**kwargs, validate=validate)
-
-        elif field.type == float:
-            validate = (
-                parse.validate_float_required
-                if field.required
-                else parse.validate_float
-            )
-            question = inquirer.Text(**kwargs, validate=validate)
-
-        else:
-            question = inquirer.Text(**kwargs)
-
-        answers = inquirer.prompt([question])
+    answers = inquirer.prompt([question])
 
     if answers is None:
-        raise Exception
+        raise KeyboardInterrupt
 
     return answers[name]
