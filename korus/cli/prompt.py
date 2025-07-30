@@ -12,25 +12,41 @@ readline.parse_and_bind("tab: complete")
 readline.set_completer_delims("\t\n=")
 
 
-def prompt_existing_value(question_name, field, values):
-    name = question_name + ":value"
-    question = inquirer.List(name, message=field.description, choices=values)
-    answers = inquirer.prompt([question])
+FIELD_NEW = 0
+FIELD_EXISTING = 1
+FIELD_VIEW = 2
+FIELD_SKIP = 3
 
+TABLE_VIEW_INFO = 0
+TABLE_VIEW_CONTENTS = 1
+TABLE_ADD = 2
+
+
+def select_table(db):
+    name="main"
+    question = inquirer.List(name, message="Select table", choices=list(db.tables.keys()))
+    answers = inquirer.prompt([question])
     if answers is None:
         raise KeyboardInterrupt
 
     return answers[name]
 
 
-NEW = 0
-NEW_EXT = 1
-EXISTING = 2
-VIEW = 3
-SKIP = 4
+def table_action(table_name):
+    name = table_name
+    choices = {}
+    choices["View info"] = TABLE_VIEW_INFO
+    choices["View contents"] = TABLE_VIEW_CONTENTS
+    choices["Add row"] = TABLE_ADD
+    question = inquirer.List(name=table_name, message=f"[{table_name}] Select action", choices=list(choices.keys()))
+    answers = inquirer.prompt([question])
+    if answers is None:
+        raise KeyboardInterrupt
+
+    return choices[answers[name]]
 
 
-def prompt_field_action(db, table_name, field):
+def field_action(db, table_name, field):
     name = table_name + ":" + field.name
 
     tbl = getattr(db, table_name)
@@ -44,20 +60,18 @@ def prompt_field_action(db, table_name, field):
         info = {"ext_name": ext_name}
 
         if len(ext_tbl) > 0:
-            choices[f"View the {ext_name} table"] = (VIEW, info)
-
-        choices[f"Add a new entry to the {ext_name} table"] = (NEW_EXT, info)
+            choices[f"View the {ext_name} table"] = (FIELD_VIEW, info)
 
     else:
-        choices["Enter value"] = (NEW, {})
+        choices["Enter value"] = (FIELD_NEW, {})
 
         existing_values = tbl.unique(field.name)
         if len(existing_values) > 0:
             info = {"existing_values": existing_values}
-            choices["Select value"] = (EXISTING, info)
+            choices["Select value"] = (FIELD_EXISTING, info)
 
     if not field.required:
-        choices["Skip"] = (SKIP, {})
+        choices["Skip"] = (FIELD_SKIP, {})
 
     question = inquirer.List(
         name=name, message=field.description, choices=list(choices.keys())
@@ -75,6 +89,16 @@ def prompt_field_action(db, table_name, field):
         choice = choices[list(choices.keys())[0]]
 
     return choice
+
+
+def prompt_existing_value(question_name, field, values):
+    name = question_name + ":value"
+    question = inquirer.List(name, message=field.description, choices=values)
+    answers = inquirer.prompt([question])
+    if answers is None:
+        raise KeyboardInterrupt
+
+    return answers[name]
 
 
 def prompt_path(question_name, field):

@@ -12,15 +12,17 @@ if os.path.exists(path):
 
 db = SQLiteDatabase("test.sqlite")
 
+
+cli.main(db)
+
 #cli.cli_fcn(db)
 
-
-idx = cli.add_row(db, "storage")
+#idx = cli.add_row(db, "storage")
 
 #idx = cli.add_row(db, "job")
 
-print(idx)
+#print(idx)
 
-db.backend.close()
+#db.backend.close()
 
 #cli.add_row(db, "deployment")

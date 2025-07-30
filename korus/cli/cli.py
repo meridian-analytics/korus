@@ -7,68 +7,73 @@ import korus.cli.parse as parse
 # https://python-inquirer.readthedocs.io/en/latest/usage.html#question-types
 
 
+def main(db):
+
+    while True:
+        try:
+            tbl_name = prompt.select_table(db)
+
+        except KeyboardInterrupt:
+            break
+
+        while True:
+            try:
+                tbl_action = prompt.table_action(tbl_name)
+            except KeyboardInterrupt:
+                break
+
+            try:
+                if tbl_action == prompt.TABLE_ADD:
+                    add_row(db, tbl_name)
+
+                elif tbl_action == prompt.TABLE_VIEW_INFO:
+                    tbl = getattr(db, tbl_name)
+                    print(tbl)
+
+            except KeyboardInterrupt:
+                continue
+
+    db.backend.close()
+    
+
 def add_row(db, table_name) -> int:
 
     tbl = getattr(db, table_name)
 
     row = {}
 
-    NEW = 0
-    NEW_EXT = 1
-    EXISTING = 2
-    VIEW = 3
-    SKIP = 4
-
     for field in tbl.fields:
 
         name = table_name + ":" + field.name
 
-        action, info = prompt.prompt_field_action(db, table_name, field)
+        while True:
+            action, info = prompt.field_action(db, table_name, field)
 
-        if action == NEW:
-            value = prompt.prompt_new_value(name, field)
+            try:
+                if action == prompt.FIELD_NEW:
+                    value = prompt.prompt_new_value(name, field)
 
-        elif action == NEW_EXT:
-            ext_tbl = getattr(db, info["ext_name"])
-            idx = add_row(db, ext_tbl)
-            if idx is None:
-                return None
+                elif action == prompt.FIELD_EXISTING:
+                    value = prompt.prompt_existing_value(name, field, info["existing_values"])
 
-            value = str(idx)
+                elif action == prompt.FIELD_VIEW:
+                    ext_tbl = getattr(db, info["ext_name"])
 
-        elif action == EXISTING:
-            value = prompt.prompt_existing_value(name, field, info["existing_values"])
+                    viewer = TableViewer(ext_tbl)
+                    for page in iter(viewer):
+                        print(page)
 
-        elif action == VIEW:
-            ext_tbl = getattr(db, info["ext_name"])
+                    continue
 
-            viewer = TableViewer(ext_tbl)
-            for page in iter(viewer):
-                print(page)
+                elif action == prompt.FIELD_SKIP:
+                    break
 
-            continue
+            except KeyboardInterrupt:
+                continue
 
-        elif action == SKIP:
-            break
+        row[field.name] = parse.parse_value(field, value)
 
-    except:
-        continue
-
-    value = parse.parse_value(field, value)
-
-    row[field.name] = value
-    break
-
-    # print(row)
-
-    try:
-        idx = tbl.add(row)
-
-    except:
-        print("Failed to add row to table")
-        idx = None
-
-    return idx
+    return tbl.add(row)
 
 
 def cli_fcn(db: SQLiteDatabase):
