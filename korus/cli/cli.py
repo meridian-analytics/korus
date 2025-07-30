@@ -7,13 +7,6 @@ import korus.cli.parse as parse
 # https://python-inquirer.readthedocs.io/en/latest/usage.html#question-types
 
 
-def get_existing_values(tbl, field):
-    values = tbl.get(fields=field.name, always_tuple=False)
-    values = list(set(values))
-    values = [v for v in values if v is not None]
-    return values
-
-
 def add_row(db, table_name) -> int:
 
     tbl = getattr(db, table_name)
@@ -44,7 +37,7 @@ def add_row(db, table_name) -> int:
         else:
             choices["Enter value"] = NEW
 
-            existing_values = get_existing_values(tbl, field)
+            existing_values = tbl.unique(field.name)
             if len(existing_values) > 0:
                 choices["Select value"] = EXISTING
 
@@ -61,7 +54,7 @@ def add_row(db, table_name) -> int:
             if len(choices) > 1:
                 answers = inquirer.prompt([question])
                 choice = choices[answers[name]]
-            
+
             else:
                 choice = choices[list(choices.keys())[0]]
 
@@ -73,7 +66,7 @@ def add_row(db, table_name) -> int:
                     idx = add_row(db, ext_name)
                     if idx is None:
                         return None
-                    
+
                     value = str(idx)
 
                 elif choice == EXISTING:
@@ -102,7 +95,7 @@ def add_row(db, table_name) -> int:
             row[field.name] = value
             break
 
-    #print(row)
+    # print(row)
 
     try:
         idx = tbl.add(row)

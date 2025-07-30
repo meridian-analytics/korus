@@ -27,6 +27,7 @@ class InMemoryTableBackend(TableBackend):
     def __next__(self):
         self._idx += 1
         if self._idx >= len(self):
+            self.reset_cursor()
             raise StopIteration
 
         return self._idx

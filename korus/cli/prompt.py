@@ -34,16 +34,20 @@ def prompt_new_value(question_name, field):
     )
 
     if field.is_path:
-        # reset stdout to allow tab-completion 
+        # reset stdout to allow tab-completion
         # https://stackoverflow.com/a/53260487
         original_stdout = sys.stdout
         sys.stdout = sys.__stdout__
         while True:
-            path = input(f"[?] {field.description}: ")  #TODO: make question mark yellow
+            path = input(
+                f"[?] {field.description}: "
+            )  # TODO: make question mark yellow
             if os.path.exists(path):
                 break
             else:
-                print(">> Invalid path, please try again.")  #TODO: make indentation marks red and text bold
+                print(
+                    ">> Invalid path, please try again."
+                )  # TODO: make indentation marks red and text bold
 
         sys.stdout = original_stdout
 
@@ -70,12 +74,16 @@ def prompt_new_value(question_name, field):
             question = inquirer.Text(**kwargs, validate=validate)
 
         elif field.type == int:
-            validate = parse.validate_int_required if field.required else parse.validate_int
+            validate = (
+                parse.validate_int_required if field.required else parse.validate_int
+            )
             question = inquirer.Text(**kwargs, validate=validate)
 
         elif field.type == float:
             validate = (
-                parse.validate_float_required if field.required else parse.validate_float
+                parse.validate_float_required
+                if field.required
+                else parse.validate_float
             )
             question = inquirer.Text(**kwargs, validate=validate)
 

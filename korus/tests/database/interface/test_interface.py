@@ -96,6 +96,16 @@ def test_add_get_set_data(in_memory_table_backend):
     row["C"] = 3
     i.add(row)
 
+    # get next
+    row = i.get_next()
+    row0 = i.get(0)[0]
+    assert row == row0
+
+    # table viewer
+    viewer = itf.TableViewer(i, "A", 2)
+    for page in iter(viewer):
+        print(page)
+
 
 def test_use_alias(in_memory_table_backend):
     """Check that aliases work as they should"""

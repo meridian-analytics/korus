@@ -494,10 +494,30 @@ class TableInterface:
         return_indices: bool = False,
         always_tuple: bool = True,
         as_pandas: bool = False,
-    ) -> list[tuple]:
+    ):
         """Get the next row from the table"""
         idx = next(self.backend)
-        return self.get(idx, fields, return_indices, always_tuple, as_pandas)
+        res = self.get(idx, fields, return_indices, always_tuple, as_pandas)
+        if not as_pandas:
+            res = res[0]
+
+        return res
+
+    def unique(self, field: str) -> list:
+        """Get the unique values of a given field.
+
+        Args:
+            field: str
+                The field name
+
+        Returns:
+            values: list
+                The non-null, unique values
+        """
+        values = self.get(fields=field, always_tuple=False)
+        values = list(set(values))
+        values = [v for v in values if v is not None]
+        return values
 
     def __len__(self) -> int:
         """Number of rows in the table"""
@@ -649,19 +669,28 @@ class TableViewer:
         self.fields = fields
         self.nrows = nrows
         self.counter = 0
+        self.table.backend.reset_cursor()
 
     def __next__(self):
         """Returns a nicely formatted view of the next `nrows` of the table"""
+        if self.counter >= len(self.table):
+            raise StopIteration
+
         df = []
         for _ in range(self.nrows):
-            df.append(
-                self.table.get_next(self.fields, return_indices=True, as_pandas=True)
-            )
-            self.counter += 1
+            try:
+                row = self.table.get_next(
+                    self.fields, return_indices=True, as_pandas=True
+                )
+                df.append(row)
+                self.counter += 1
 
-        df = pd.concat(df, ignore_index=True)
+            except StopIteration:
+                break
 
-        header = f"Showing {self.counter - len(df) + 1}-{self.counter + 1} of {len(self.table)} entries"
+        df = pd.concat(df)
+
+        header = f"Showing {self.counter - len(df) + 1}-{self.counter} of {len(self.table)} entries"
         contents = tabulate(df, headers="keys", tablefmt="psql")
         return header + "\n" + contents
 
