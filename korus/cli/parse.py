@@ -2,6 +2,15 @@ import inquirer
 from datetime import datetime
 
 
+def validation_chain(fcns: list):
+    def validate(answers, current):
+        res = True
+        for fcn in fcns:
+            res *= fcn(answers, current)
+
+    return validate
+
+
 def parse_value(field, value):
     if field.type == datetime:
         return parse_datetime(None, current=value, required=field.required)

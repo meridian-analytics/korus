@@ -4,6 +4,7 @@ import inquirer
 import readline
 from datetime import datetime
 from korus.database.database import Database
+from korus.database.interface import FieldDefinition
 import korus.cli.parse as parse
 
 
@@ -15,8 +16,8 @@ readline.set_completer_delims("\t\n=")
 
 # Field action ENUMs
 FIELD_INFO = 0
-FIELD_NEW = 1
-FIELD_EXISTING = 2
+FIELD_ENTER = 1
+FIELD_SELECT = 2
 FIELD_EXTERNAL = 3
 FIELD_SKIP = 4
 
@@ -92,7 +93,7 @@ def table_action(table_name: str) -> int:
     return choices[answers[name]]
 
 
-def field_action(db, table_name, field):
+def field_action(db: Database, table_name: str, field: FieldDefinition):
     """Prompt user to select a field action.
     
     Args:
@@ -120,20 +121,35 @@ def field_action(db, table_name, field):
         # get the name of the external/linked table
         ext_name = field.name[: field.name.rfind("_id")]
 
-        # if external table has data, give the user the option to view the data
+        # if the external table has data, give the user the option to view the data and/or enter a valid index
         ext_table = getattr(db, ext_name)
         if len(ext_table) > 0:
             kwargs = {"table_name": ext_name}
             choices[f"View {ext_name} table"] = (FIELD_EXTERNAL, kwargs)
 
+            def validate(answers, current):
+                id = int(current)
+                if id not in ext_table.unique():
+                    raise inquirer.errors.ValidationError("", reason="Invalid index.")
+                
+                return True
+
+            choices["Enter index"] = (FIELD_ENTER, {"validate": validate})
+
+        # if the external table is empty, instruct the user to add some data to it
+        else:
+            print(f"The {ext_name} table is empty. To add an entry to the {table_name} table, you must first add a {ext_name}.")
+            raise KeyboardInterrupt()
+
+
     else:
-        choices["Enter new value"] = (FIELD_NEW, {})
+        choices["Enter value"] = (FIELD_ENTER, {})
 
         # if table has data, give user option to select from existing values
         existing_values = tbl.unique(field.name)
         if len(existing_values) > 0:
             kwargs = {"values": existing_values}
-            choices["Reuse existing value"] = (FIELD_EXISTING, kwargs)
+            choices["Reuse existing value"] = (FIELD_SELECT, kwargs)
 
     if not field.required:
         choices["Skip"] = (FIELD_SKIP, {})
@@ -154,7 +170,24 @@ def field_action(db, table_name, field):
     return choices[answers[name]]
 
 
-def prompt_existing_value(table_name, field, values):
+def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
+    """ Prompt user to select a value from a list of options.
+    
+    Args:
+        table_name: str
+            Table name
+        field: korus.database.interface.FieldDefinition
+            The field definition
+        values: list
+            The values to choose from
+
+    Returns:
+        : str
+            The string representation of the selected value
+
+    Raises:
+        KeyboardInterrupt: if the user hits Ctrl+C            
+    """
     name = table_name + ":" + field.name + ":value"
     message = header(table_name, field.name) + "Select value"
     question = inquirer.List(name, message=message, choices=values)
@@ -165,7 +198,25 @@ def prompt_existing_value(table_name, field, values):
     return answers[name]
 
 
-def prompt_path(question_name, field):
+def enter_path(table_name, field):
+    """ Prompt user to enter a file or directory path.
+
+    Checks that the path is valid.
+    Allows for tab auto completion.
+    
+    Args:
+        table_name: str
+            Table name
+        field: korus.database.interface.FieldDefinition
+            The field definition
+
+    Returns:
+        path: str
+            The path
+
+    Raises:
+        KeyboardInterrupt: if the user hits Ctrl+C            
+    """
     # reset stdout to allow tab-completion
     # https://stackoverflow.com/a/53260487
     original_stdout = sys.stdout
@@ -173,7 +224,8 @@ def prompt_path(question_name, field):
     while True:
         try:
             # TODO: make question mark yellow
-            path = input(f"[?] {field.description}: ")  
+            message = header(table_name, field.name) + "Enter path"
+            path = input(f"[?] {message}: ") 
 
         except KeyboardInterrupt:
             sys.stdout = original_stdout
@@ -190,7 +242,22 @@ def prompt_path(question_name, field):
     return path
 
 
-def prompt_new_value(table_name, field):
+def enter_value(table_name, field, validate=None):
+    """ Prompt user to enter a field value.
+    
+    Args:
+        table_name: str
+            Table name
+        field: korus.database.interface.FieldDefinition
+            The field definition
+
+    Returns:
+        : str
+            The input value
+
+    Raises:
+        KeyboardInterrupt: if the user hits Ctrl+C            
+    """
 
     name = table_name + ":" + field.name + ":value"
     message = header(table_name, field.name) + "Enter value"
@@ -201,8 +268,13 @@ def prompt_new_value(table_name, field):
         default=field.default,
     )
 
+    if validate is None:
+        validate = lambda answers, current: True
+
+    validates = [validate]
+
     if field.is_path:
-        return prompt_path(question_name, field)
+        return enter_path(table_name, field)
 
     if field.options is not None:
         question = inquirer.List(**kwargs, choices=field.options)
@@ -212,25 +284,29 @@ def prompt_new_value(table_name, field):
 
     elif field.type == datetime:
         kwargs["message"] += f" ({parse.DATETIME_FORMAT})"
-        validate = (
+        validates.append(
             parse.validate_datetime_required
             if field.required
             else parse.validate_datetime
         )
+        
+        validate = parse.validation_chain(validates)
         question = inquirer.Text(**kwargs, validate=validate)
 
     elif field.type == int:
-        validate = (
+        validates.append(
             parse.validate_int_required if field.required else parse.validate_int
         )
+        validate = parse.validation_chain(validates)
         question = inquirer.Text(**kwargs, validate=validate)
 
     elif field.type == float:
-        validate = (
+        validates.append(
             parse.validate_float_required
             if field.required
             else parse.validate_float
         )
+        validate = parse.validation_chain(validates)
         question = inquirer.Text(**kwargs, validate=validate)
 
     else:

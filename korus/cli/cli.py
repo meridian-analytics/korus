@@ -68,12 +68,12 @@ def add_row(db, table_name) -> int:
                 if action == prompt.FIELD_INFO:
                     print(field.info())
 
-                if action == prompt.FIELD_NEW:
-                    value = prompt.prompt_new_value(table_name, field, **kwargs)
+                if action == prompt.FIELD_ENTER:
+                    value = prompt.enter_value(table_name, field, **kwargs)
                     break
 
-                elif action == prompt.FIELD_EXISTING:
-                    value = prompt.prompt_existing_value(table_name, field, **kwargs)
+                elif action == prompt.FIELD_SELECT:
+                    value = prompt.select_value(table_name, field, **kwargs)
                     break
 
                 elif action == prompt.FIELD_EXTERNAL:
