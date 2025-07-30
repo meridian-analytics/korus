@@ -24,8 +24,9 @@ FIELD_SKIP = 4
 
 # Table action ENUMs
 TABLE_INFO = 0
-TABLE_CONTENTS = 1
-TABLE_ADD = 2
+TABLE_CONTENTS_CONDENSED = 1
+TABLE_CONTENTS_DETAILED = 2
+TABLE_ADD = 3
 
 
 def select_table(db: Database) -> str:
@@ -70,7 +71,8 @@ def table_action(table_name: str) -> int:
     name = table_name
     choices = {}
     choices["View info"] = TABLE_INFO
-    choices["View contents"] = TABLE_CONTENTS
+    choices["View contents (condensed)"] = TABLE_CONTENTS_CONDENSED
+    choices["View contents (detailed)"] = TABLE_CONTENTS_DETAILED
     choices["Add row"] = TABLE_ADD
     message = txt.header(table_name) + "Select table action"
     question = inquirer.List(

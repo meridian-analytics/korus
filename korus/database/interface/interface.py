@@ -703,7 +703,11 @@ class TableViewer:
 
         df = pd.concat(df)
 
-        header = f"Showing {self.counter - len(df) + 1}-{self.counter} of {len(self.table)} entries"
+        if len(df) == 1:
+            header = f"Showing entry no. {self.counter} of {len(self.table)} entries"
+        else:
+            header = f"Showing entries {self.counter - len(df) + 1}-{self.counter} of {len(self.table)} entries"
+
         contents = tabulate(df, headers="keys", tablefmt="psql")
         return header + "\n" + contents
 

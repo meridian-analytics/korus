@@ -28,8 +28,11 @@ def main(db: Database):
                     tbl = getattr(db, table_name)
                     print(tbl)
 
-                elif tbl_action == prompt.TABLE_CONTENTS:
-                    act.view_contents(db, table_name)
+                elif tbl_action == prompt.TABLE_CONTENTS_CONDENSED:
+                    act.view_contents_condensed(db, table_name)
+
+                elif tbl_action == prompt.TABLE_CONTENTS_DETAILED:
+                    act.view_contents_detailed(db, table_name)
 
             except KeyboardInterrupt:
                 continue
