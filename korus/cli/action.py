@@ -6,6 +6,14 @@ import korus.cli.parse as parse
 
 
 def view_contents(db: Database, table_name: str):
+    """View table contents
+
+    Args:
+        db: korus.database.Database
+            The database instance
+        table_name: str
+            Table name
+    """
     tbl = getattr(db, table_name)
     viewer = TableViewer(tbl)
     counter = 0
@@ -20,7 +28,21 @@ def view_contents(db: Database, table_name: str):
 
 
 def add_row(db: Database, table_name: str) -> int:
+    """Add a row to the specified table.
 
+    Args:
+        db: korus.database.Database
+            The database instance
+        table_name: str
+            Table name
+
+    Returns:
+        : int
+            The index assigned to the added row
+
+    Raises:
+        KeyboardInterrupt: if the user hits Ctrl+C
+    """
     tbl = getattr(db, table_name)
 
     row = {}
