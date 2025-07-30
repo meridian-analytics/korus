@@ -2,7 +2,7 @@ from termcolor import colored
 
 
 def info(msg):
-    return colored(">> ", "green") + colored(msg, "white") + "\n"
+    return colored(">> ", "green") + colored(msg, "white", attrs=["bold"]) + "\n"
 
 
 def error(msg):
