@@ -28,12 +28,13 @@ TABLE_ADD = 2
 
 
 def header(table_name: str = None, field_name: str = None):
-    h = []
+    h = ["main"]
+
     if table_name is not None:
-        h.append(f"{table_name}")
+        h.append(table_name)
 
     if field_name is not None:
-        h.append(f"|{field_name}")
+        h.append(field_name)
 
     h = "|".join(h)
     if len(h) > 0:
@@ -129,8 +130,9 @@ def field_action(db: Database, table_name: str, field: FieldDefinition):
 
             def validate(answers, current):
                 id = int(current)
-                if id not in ext_table.unique():
-                    raise inquirer.errors.ValidationError("", reason="Invalid index.")
+                all_indices = ext_table.reset_filter().filter().indices
+                if id not in all_indices:
+                    raise inquirer.errors.ValidationError("", reason="Invalid index. Please enter a valid index.")
                 
                 return True
 

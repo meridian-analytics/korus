@@ -80,12 +80,14 @@ def add_row(db, table_name) -> int:
                     view_contents(db, **kwargs)
 
                 elif action == prompt.FIELD_SKIP:
+                    value = None
                     break
 
             except KeyboardInterrupt:
                 continue
 
-        row[field.name] = parse.parse_value(field, value)
+        if value is not None:
+            row[field.name] = parse.parse_value(field, value)
 
     return tbl.add(row)
 

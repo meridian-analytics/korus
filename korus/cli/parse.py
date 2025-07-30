@@ -8,6 +8,8 @@ def validation_chain(fcns: list):
         for fcn in fcns:
             res *= fcn(answers, current)
 
+        return res
+
     return validate
 
 
