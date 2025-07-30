@@ -73,6 +73,18 @@ class FieldDefinition:
             self.options_as_str(),
         )
 
+    def info(self) -> str:
+        return tabulate(
+            [self.as_tuple_str()],
+            headers=[
+                "Name",
+                "Type",
+                "Description",
+                "Required",
+                "Default Value",
+                "Allowed Values",
+            ],
+        )
 
 @dataclass
 class FieldAlias:

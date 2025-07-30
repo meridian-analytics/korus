@@ -26,15 +26,21 @@ def main(db):
                 if tbl_action == prompt.TABLE_ADD:
                     add_row(db, tbl_name)
 
-                elif tbl_action == prompt.TABLE_VIEW_INFO:
+                elif tbl_action == prompt.TABLE_INFO:
                     tbl = getattr(db, tbl_name)
                     print(tbl)
+
+                elif tbl_action == prompt.TABLE_CONTENTS:
+                    tbl = getattr(db, tbl_name)
+                    viewer = TableViewer(tbl)
+                    for page in iter(viewer):
+                        print(page)
 
             except KeyboardInterrupt:
                 continue
 
     db.backend.close()
-    
+
 
 def add_row(db, table_name) -> int:
 
@@ -50,11 +56,16 @@ def add_row(db, table_name) -> int:
             action, info = prompt.field_action(db, table_name, field)
 
             try:
+                if action == prompt.FIELD_INFO:
+                    print(field.info())
+
                 if action == prompt.FIELD_NEW:
                     value = prompt.prompt_new_value(name, field)
+                    break
 
                 elif action == prompt.FIELD_EXISTING:
                     value = prompt.prompt_existing_value(name, field, info["existing_values"])
+                    break
 
                 elif action == prompt.FIELD_VIEW:
                     ext_tbl = getattr(db, info["ext_name"])
@@ -62,8 +73,6 @@ def add_row(db, table_name) -> int:
                     viewer = TableViewer(ext_tbl)
                     for page in iter(viewer):
                         print(page)
-
-                    continue
 
                 elif action == prompt.FIELD_SKIP:
                     break

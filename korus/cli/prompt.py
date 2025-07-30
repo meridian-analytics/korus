@@ -12,13 +12,14 @@ readline.parse_and_bind("tab: complete")
 readline.set_completer_delims("\t\n=")
 
 
-FIELD_NEW = 0
-FIELD_EXISTING = 1
-FIELD_VIEW = 2
-FIELD_SKIP = 3
+FIELD_INFO = 0
+FIELD_NEW = 1
+FIELD_EXISTING = 2
+FIELD_VIEW = 3
+FIELD_SKIP = 4
 
-TABLE_VIEW_INFO = 0
-TABLE_VIEW_CONTENTS = 1
+TABLE_INFO = 0
+TABLE_CONTENTS = 1
 TABLE_ADD = 2
 
 
@@ -35,10 +36,10 @@ def select_table(db):
 def table_action(table_name):
     name = table_name
     choices = {}
-    choices["View info"] = TABLE_VIEW_INFO
-    choices["View contents"] = TABLE_VIEW_CONTENTS
+    choices["View info"] = TABLE_INFO
+    choices["View contents"] = TABLE_CONTENTS
     choices["Add row"] = TABLE_ADD
-    question = inquirer.List(name=table_name, message=f"[{table_name}] Select action", choices=list(choices.keys()))
+    question = inquirer.List(name=table_name, message=f"[{table_name}] Select table action", choices=list(choices.keys()))
     answers = inquirer.prompt([question])
     if answers is None:
         raise KeyboardInterrupt
@@ -52,6 +53,8 @@ def field_action(db, table_name, field):
     tbl = getattr(db, table_name)
 
     choices = {}
+
+    choices["View info"] = (FIELD_INFO, {})
 
     if field.is_index:
         ext_name = field.name[: field.name.rfind("_id")]
@@ -74,21 +77,15 @@ def field_action(db, table_name, field):
         choices["Skip"] = (FIELD_SKIP, {})
 
     question = inquirer.List(
-        name=name, message=field.description, choices=list(choices.keys())
+        name=name, message=f"[{table_name}|{field.name}] Select field action", choices=list(choices.keys())
     )
 
-    if len(choices) > 1:
-        answers = inquirer.prompt([question])
+    answers = inquirer.prompt([question])
 
-        if answers is None:
-            raise KeyboardInterrupt
+    if answers is None:
+        raise KeyboardInterrupt
 
-        choice = choices[answers[name]]
-
-    else:
-        choice = choices[list(choices.keys())[0]]
-
-    return choice
+    return choices[answers[name]]
 
 
 def prompt_existing_value(question_name, field, values):
