@@ -141,7 +141,7 @@ def field_action(db: Database, table_name: str, field: FieldDefinition):
         # if the external table is empty, instruct the user to add some data to it
         else:
             # TODO: make indentation marks red and text bold
-            print(f">> The {ext_name} table is empty. To add a row to the {table_name} table, you must first add a {ext_name}.")
+            print(f">> The {ext_name} table is empty. To add a row to the {table_name} table, you must first add a {ext_name}.\n")
             raise KeyboardInterrupt()
 
 
