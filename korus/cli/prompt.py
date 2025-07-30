@@ -3,6 +3,7 @@ import sys
 import inquirer
 import readline
 from datetime import datetime
+from korus.database.database import Database
 import korus.cli.parse as parse
 
 
@@ -12,18 +13,48 @@ readline.parse_and_bind("tab: complete")
 readline.set_completer_delims("\t\n=")
 
 
+# Field action ENUMs
 FIELD_INFO = 0
 FIELD_NEW = 1
 FIELD_EXISTING = 2
-FIELD_VIEW = 3
+FIELD_EXTERNAL = 3
 FIELD_SKIP = 4
 
+# Table action ENUMs
 TABLE_INFO = 0
 TABLE_CONTENTS = 1
 TABLE_ADD = 2
 
 
-def select_table(db):
+def header(table_name: str = None, field_name: str = None):
+    h = []
+    if table_name is not None:
+        h.append(f"{table_name}")
+
+    if field_name is not None:
+        h.append(f"|{field_name}")
+
+    h = "|".join(h)
+    if len(h) > 0:
+        h = "[" + h + "] "
+
+    return h
+
+
+def select_table(db: Database) -> str:
+    """Prompt user to select a table
+    
+    Args:
+        db: korus.database.Database
+            The database instance
+
+    Returns:
+        : str
+            The selected table's name
+
+    Raises:
+        KeyboardInterrupt: if the user hits Ctrl+C
+    """
     name="main"
     question = inquirer.List(name, message="Select table", choices=list(db.tables.keys()))
     answers = inquirer.prompt([question])
@@ -33,13 +64,27 @@ def select_table(db):
     return answers[name]
 
 
-def table_action(table_name):
+def table_action(table_name: str) -> int:
+    """Prompt user to select a table action.
+    
+    Args:
+        table_name: str
+            Table name
+
+    Returns:
+        : int
+            The table action ENUM
+
+    Raises:
+        KeyboardInterrupt: if the user hits Ctrl+C
+    """
     name = table_name
     choices = {}
     choices["View info"] = TABLE_INFO
     choices["View contents"] = TABLE_CONTENTS
     choices["Add row"] = TABLE_ADD
-    question = inquirer.List(name=table_name, message=f"[{table_name}] Select table action", choices=list(choices.keys()))
+    message = header(table_name) + "Select table action"
+    question = inquirer.List(name=table_name, message=message, choices=list(choices.keys()))
     answers = inquirer.prompt([question])
     if answers is None:
         raise KeyboardInterrupt
@@ -48,38 +93,59 @@ def table_action(table_name):
 
 
 def field_action(db, table_name, field):
-    name = table_name + ":" + field.name
+    """Prompt user to select a field action.
+    
+    Args:
+        db: korus.database.Database
+            The database instance
+        table_name: str
+            Table name
+        field: korus.database.interface.FieldDefinition
+            The field definition
 
+    Returns:
+        : tuple(int, dict)
+            The table action ENUM and any keyword args required for carrying out the action
+
+    Raises:
+        KeyboardInterrupt: if the user hits Ctrl+C
+    """
     tbl = getattr(db, table_name)
 
+    # choices
     choices = {}
-
     choices["View info"] = (FIELD_INFO, {})
 
     if field.is_index:
+        # get the name of the external/linked table
         ext_name = field.name[: field.name.rfind("_id")]
-        ext_tbl = getattr(db, ext_name)
 
-        info = {"ext_name": ext_name}
-
-        if len(ext_tbl) > 0:
-            choices[f"View the {ext_name} table"] = (FIELD_VIEW, info)
+        # if external table has data, give the user the option to view the data
+        ext_table = getattr(db, ext_name)
+        if len(ext_table) > 0:
+            kwargs = {"table_name": ext_name}
+            choices[f"View {ext_name} table"] = (FIELD_EXTERNAL, kwargs)
 
     else:
-        choices["Enter value"] = (FIELD_NEW, {})
+        choices["Enter new value"] = (FIELD_NEW, {})
 
+        # if table has data, give user option to select from existing values
         existing_values = tbl.unique(field.name)
         if len(existing_values) > 0:
-            info = {"existing_values": existing_values}
-            choices["Select value"] = (FIELD_EXISTING, info)
+            kwargs = {"values": existing_values}
+            choices["Reuse existing value"] = (FIELD_EXISTING, kwargs)
 
     if not field.required:
         choices["Skip"] = (FIELD_SKIP, {})
 
+    # form the question
+    name = table_name + ":" + field.name
+    message = header(table_name, field.name) + "Select field action"
     question = inquirer.List(
-        name=name, message=f"[{table_name}|{field.name}] Select field action", choices=list(choices.keys())
+        name=name, message=message, choices=list(choices.keys())
     )
 
+    # prompt user
     answers = inquirer.prompt([question])
 
     if answers is None:
@@ -88,9 +154,10 @@ def field_action(db, table_name, field):
     return choices[answers[name]]
 
 
-def prompt_existing_value(question_name, field, values):
-    name = question_name + ":value"
-    question = inquirer.List(name, message=field.description, choices=values)
+def prompt_existing_value(table_name, field, values):
+    name = table_name + ":" + field.name + ":value"
+    message = header(table_name, field.name) + "Select value"
+    question = inquirer.List(name, message=message, choices=values)
     answers = inquirer.prompt([question])
     if answers is None:
         raise KeyboardInterrupt
@@ -123,13 +190,14 @@ def prompt_path(question_name, field):
     return path
 
 
-def prompt_new_value(question_name, field):
+def prompt_new_value(table_name, field):
 
-    name = question_name + ":value"
+    name = table_name + ":" + field.name + ":value"
+    message = header(table_name, field.name) + "Enter value"
 
     kwargs = dict(
         name=name,
-        message=field.description,
+        message=message,
         default=field.default,
     )
 

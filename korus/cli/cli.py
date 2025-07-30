@@ -11,35 +11,46 @@ def main(db):
 
     while True:
         try:
-            tbl_name = prompt.select_table(db)
+            table_name = prompt.select_table(db)
 
         except KeyboardInterrupt:
             break
 
         while True:
             try:
-                tbl_action = prompt.table_action(tbl_name)
+                tbl_action = prompt.table_action(table_name)
             except KeyboardInterrupt:
                 break
 
             try:
                 if tbl_action == prompt.TABLE_ADD:
-                    add_row(db, tbl_name)
+                    add_row(db, table_name)
 
                 elif tbl_action == prompt.TABLE_INFO:
-                    tbl = getattr(db, tbl_name)
+                    tbl = getattr(db, table_name)
                     print(tbl)
 
                 elif tbl_action == prompt.TABLE_CONTENTS:
-                    tbl = getattr(db, tbl_name)
-                    viewer = TableViewer(tbl)
-                    for page in iter(viewer):
-                        print(page)
+                    view_contents(db, table_name)
 
             except KeyboardInterrupt:
                 continue
 
     db.backend.close()
+
+
+def view_contents(db, table_name):
+    tbl = getattr(db, table_name)
+    viewer = TableViewer(tbl)
+    counter = 0
+    for page in iter(viewer):
+        if counter >= 1:
+            proceed = inquirer.confirm("Continue?", default=True)
+            if not proceed:
+                break            
+
+        print(page)
+        counter += 1
 
 
 def add_row(db, table_name) -> int:
@@ -50,29 +61,23 @@ def add_row(db, table_name) -> int:
 
     for field in tbl.fields:
 
-        name = table_name + ":" + field.name
-
         while True:
-            action, info = prompt.field_action(db, table_name, field)
+            action, kwargs = prompt.field_action(db, table_name, field)
 
             try:
                 if action == prompt.FIELD_INFO:
                     print(field.info())
 
                 if action == prompt.FIELD_NEW:
-                    value = prompt.prompt_new_value(name, field)
+                    value = prompt.prompt_new_value(table_name, field, **kwargs)
                     break
 
                 elif action == prompt.FIELD_EXISTING:
-                    value = prompt.prompt_existing_value(name, field, info["existing_values"])
+                    value = prompt.prompt_existing_value(table_name, field, **kwargs)
                     break
 
-                elif action == prompt.FIELD_VIEW:
-                    ext_tbl = getattr(db, info["ext_name"])
-
-                    viewer = TableViewer(ext_tbl)
-                    for page in iter(viewer):
-                        print(page)
+                elif action == prompt.FIELD_EXTERNAL:
+                    view_contents(db, **kwargs)
 
                 elif action == prompt.FIELD_SKIP:
                     break
