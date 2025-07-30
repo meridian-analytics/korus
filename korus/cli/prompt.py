@@ -6,6 +6,7 @@ from datetime import datetime
 from korus.database.database import Database
 from korus.database.interface import FieldDefinition
 import korus.cli.parse as parse
+import korus.cli.text as txt
 
 
 # tab completion for directory/file paths
@@ -27,25 +28,9 @@ TABLE_CONTENTS = 1
 TABLE_ADD = 2
 
 
-def header(table_name: str = None, field_name: str = None):
-    h = ["main"]
-
-    if table_name is not None:
-        h.append(table_name)
-
-    if field_name is not None:
-        h.append(field_name)
-
-    h = "|".join(h)
-    if len(h) > 0:
-        h = "[" + h + "] "
-
-    return h
-
-
 def select_table(db: Database) -> str:
     """Prompt user to select a table
-    
+
     Args:
         db: korus.database.Database
             The database instance
@@ -57,8 +42,10 @@ def select_table(db: Database) -> str:
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
-    name="main"
-    question = inquirer.List(name, message="Select table", choices=list(db.tables.keys()))
+    name = "main"
+    question = inquirer.List(
+        name, message="Select table", choices=list(db.tables.keys())
+    )
     answers = inquirer.prompt([question])
     if answers is None:
         raise KeyboardInterrupt
@@ -68,7 +55,7 @@ def select_table(db: Database) -> str:
 
 def table_action(table_name: str) -> int:
     """Prompt user to select a table action.
-    
+
     Args:
         table_name: str
             Table name
@@ -85,8 +72,10 @@ def table_action(table_name: str) -> int:
     choices["View info"] = TABLE_INFO
     choices["View contents"] = TABLE_CONTENTS
     choices["Add row"] = TABLE_ADD
-    message = header(table_name) + "Select table action"
-    question = inquirer.List(name=table_name, message=message, choices=list(choices.keys()))
+    message = txt.header(table_name) + "Select table action"
+    question = inquirer.List(
+        name=table_name, message=message, choices=list(choices.keys())
+    )
     answers = inquirer.prompt([question])
     if answers is None:
         raise KeyboardInterrupt
@@ -96,7 +85,7 @@ def table_action(table_name: str) -> int:
 
 def field_action(db: Database, table_name: str, field: FieldDefinition):
     """Prompt user to select a field action.
-    
+
     Args:
         db: korus.database.Database
             The database instance
@@ -132,8 +121,10 @@ def field_action(db: Database, table_name: str, field: FieldDefinition):
                 id = int(current)
                 all_indices = ext_table.reset_filter().filter().indices
                 if id not in all_indices:
-                    raise inquirer.errors.ValidationError("", reason="Invalid index. Please enter a valid index.")
-                
+                    raise inquirer.errors.ValidationError(
+                        "", reason="Invalid index. Please enter a valid index."
+                    )
+
                 return True
 
             choices["Enter index"] = (FIELD_ENTER, {"validate": validate})
@@ -141,9 +132,9 @@ def field_action(db: Database, table_name: str, field: FieldDefinition):
         # if the external table is empty, instruct the user to add some data to it
         else:
             # TODO: make indentation marks red and text bold
-            print(f">> The {ext_name} table is empty. To add a row to the {table_name} table, you must first add a {ext_name}.\n")
+            msg = f"The {ext_name} table is empty. To add a row to the {table_name} table, you must first add a {ext_name}."
+            print(txt.error(msg))
             raise KeyboardInterrupt()
-
 
     else:
         choices["Enter value"] = (FIELD_ENTER, {})
@@ -159,10 +150,8 @@ def field_action(db: Database, table_name: str, field: FieldDefinition):
 
     # form the question
     name = table_name + ":" + field.name
-    message = header(table_name, field.name) + "Select field action"
-    question = inquirer.List(
-        name=name, message=message, choices=list(choices.keys())
-    )
+    message = txt.header(table_name, field.name) + "Select field action"
+    question = inquirer.List(name=name, message=message, choices=list(choices.keys()))
 
     # prompt user
     answers = inquirer.prompt([question])
@@ -174,8 +163,8 @@ def field_action(db: Database, table_name: str, field: FieldDefinition):
 
 
 def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
-    """ Prompt user to select a value from a list of options.
-    
+    """Prompt user to select a value from a list of options.
+
     Args:
         table_name: str
             Table name
@@ -189,10 +178,10 @@ def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
             The string representation of the selected value
 
     Raises:
-        KeyboardInterrupt: if the user hits Ctrl+C            
+        KeyboardInterrupt: if the user hits Ctrl+C
     """
     name = table_name + ":" + field.name + ":value"
-    message = header(table_name, field.name) + "Select value"
+    message = txt.header(table_name, field.name) + "Select value"
     question = inquirer.List(name, message=message, choices=values)
     answers = inquirer.prompt([question])
     if answers is None:
@@ -202,11 +191,11 @@ def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
 
 
 def enter_path(table_name, field):
-    """ Prompt user to enter a file or directory path.
+    """Prompt user to enter a file or directory path.
 
     Checks that the path is valid.
     Allows for tab auto completion.
-    
+
     Args:
         table_name: str
             Table name
@@ -218,7 +207,7 @@ def enter_path(table_name, field):
             The path
 
     Raises:
-        KeyboardInterrupt: if the user hits Ctrl+C            
+        KeyboardInterrupt: if the user hits Ctrl+C
     """
     # reset stdout to allow tab-completion
     # https://stackoverflow.com/a/53260487
@@ -227,8 +216,8 @@ def enter_path(table_name, field):
     while True:
         try:
             # TODO: make question mark yellow
-            message = header(table_name, field.name) + "Enter path"
-            path = input(f"[?] {message}: ") 
+            message = txt.header(table_name, field.name) + "Enter path"
+            path = input(f"[?] {message}: ")
 
         except KeyboardInterrupt:
             sys.stdout = original_stdout
@@ -239,15 +228,15 @@ def enter_path(table_name, field):
 
         else:
             # TODO: make indentation marks red and text bold
-            print(">> Invalid path, please try again.")  
+            print(txt.error("Invalid path, please try again."))
 
     sys.stdout = original_stdout
     return path
 
 
 def enter_value(table_name, field, validate=None):
-    """ Prompt user to enter a field value.
-    
+    """Prompt user to enter a field value.
+
     Args:
         table_name: str
             Table name
@@ -259,11 +248,11 @@ def enter_value(table_name, field, validate=None):
             The input value
 
     Raises:
-        KeyboardInterrupt: if the user hits Ctrl+C            
+        KeyboardInterrupt: if the user hits Ctrl+C
     """
 
     name = table_name + ":" + field.name + ":value"
-    message = header(table_name, field.name) + "Enter value"
+    message = txt.header(table_name, field.name) + "Enter value"
 
     kwargs = dict(
         name=name,
@@ -292,7 +281,7 @@ def enter_value(table_name, field, validate=None):
             if field.required
             else parse.validate_datetime
         )
-        
+
         validate = parse.validation_chain(validates)
         question = inquirer.Text(**kwargs, validate=validate)
 
@@ -305,9 +294,7 @@ def enter_value(table_name, field, validate=None):
 
     elif field.type == float:
         validates.append(
-            parse.validate_float_required
-            if field.required
-            else parse.validate_float
+            parse.validate_float_required if field.required else parse.validate_float
         )
         validate = parse.validation_chain(validates)
         question = inquirer.Text(**kwargs, validate=validate)

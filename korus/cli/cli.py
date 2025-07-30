@@ -3,6 +3,7 @@ from korus.database import SQLiteDatabase
 from korus.database.interface import TableViewer
 import korus.cli.prompt as prompt
 import korus.cli.parse as parse
+import korus.cli.text as txt
 
 # https://python-inquirer.readthedocs.io/en/latest/usage.html#question-types
 
@@ -26,6 +27,9 @@ def main(db):
                 if tbl_action == prompt.TABLE_ADD:
                     add_row(db, table_name)
 
+                    # TODO: make indentation marks green
+                    print(txt.info(f"Successfully added row to {table_name} table."))
+
                 elif tbl_action == prompt.TABLE_INFO:
                     tbl = getattr(db, table_name)
                     print(tbl)
@@ -47,7 +51,7 @@ def view_contents(db, table_name):
         if counter >= 1:
             proceed = inquirer.confirm("Continue?", default=True)
             if not proceed:
-                break            
+                break
 
         print(page)
         counter += 1

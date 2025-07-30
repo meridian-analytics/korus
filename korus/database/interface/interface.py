@@ -86,6 +86,7 @@ class FieldDefinition:
             ],
         )
 
+
 @dataclass
 class FieldAlias:
     """Definition of a field alias in a Korus table interface.
