@@ -5,18 +5,25 @@ import korus.cli.text as txt
 from .view import view_contents_condensed
 
 
-def add_file(db: Database):
+def add_file(db: Database) -> list[int]:
+    # TODO: implement this
     return add_row(db, "file")
+
+
+def add_annotation(db: Database) -> list[int]:
+    # TODO: implement this
+    return add_row(db, "annotation")
 
 
 def add_data(db: Database, table_name: str):
     if table_name == "file":
-        idx = add_file(db)
+        add_file(db)
+    
+    elif table_name == "annotation":
+        add_annotation(db)
     
     else:
-        idx = add_row(db, table_name)
-
-    print(txt.info(f"Successfully added new row with id={idx} to {table_name} table."))
+        add_row(db, table_name)
 
 
 def add_row(db: Database, table_name: str) -> int:
@@ -69,4 +76,8 @@ def add_row(db: Database, table_name: str) -> int:
         if value is not None:
             row[field.name] = parse.parse_value(field, value)
 
-    return tbl.add(row)
+    idx = tbl.add(row)
+
+    print(txt.info(f"Successfully added new row with id={idx} to {table_name} table."))
+
+    return idx
