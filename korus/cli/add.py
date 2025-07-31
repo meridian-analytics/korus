@@ -1,11 +1,26 @@
 from korus.database.database import Database
 import korus.cli.prompt as prompt
 import korus.cli.parse as parse
+import korus.cli.text as txt
 from .view import view_contents_condensed
 
 
+def add_file(db: Database):
+    return add_row(db, "file")
+
+
+def add_data(db: Database, table_name: str):
+    if table_name == "file":
+        idx = add_file(db)
+    
+    else:
+        idx = add_row(db, table_name)
+
+    print(txt.info(f"Successfully added new row with id={idx} to {table_name} table."))
+
+
 def add_row(db: Database, table_name: str) -> int:
-    """Add a row to the specified table.
+    """Add a single row to the specified table.
 
     Args:
         db: korus.database.Database

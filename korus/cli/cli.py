@@ -1,6 +1,5 @@
 from korus.database.database import Database
 import korus.cli.prompt as prompt
-import korus.cli.text as txt
 import korus.cli.view as vw
 import korus.cli.add as add
 
@@ -22,8 +21,7 @@ def main(db: Database):
 
             try:
                 if tbl_action == prompt.TABLE_ADD:
-                    add.add_row(db, table_name)
-                    print(txt.info(f"Successfully added row to {table_name} table."))
+                    add.add_data(db, table_name)
 
                 elif tbl_action == prompt.TABLE_INFO:
                     tbl = getattr(db, table_name)
