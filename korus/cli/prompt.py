@@ -192,7 +192,12 @@ def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
     return answers[name]
 
 
-def enter_path(table_name, field):
+def select_label(db, table_name, field_name):
+    #TODO: implement this function
+    pass
+
+
+def enter_path(table_name, field_name):
     """Prompt user to enter a file or directory path.
 
     Checks that the path is valid.
@@ -201,8 +206,8 @@ def enter_path(table_name, field):
     Args:
         table_name: str
             Table name
-        field: korus.database.interface.FieldDefinition
-            The field definition
+        field_name: str
+            The field name
 
     Returns:
         path: str
@@ -218,7 +223,7 @@ def enter_path(table_name, field):
     while True:
         try:
             # TODO: make question mark yellow
-            message = txt.header(table_name, field.name) + "Enter path"
+            message = txt.header(table_name, field_name) + "Enter path"
             path = input(txt.question(message))
 
         except KeyboardInterrupt:
@@ -268,7 +273,7 @@ def enter_value(table_name, field, validate=None):
     validates = [validate]
 
     if field.is_path:
-        return enter_path(table_name, field)
+        return enter_path(table_name, field.name)
 
     if field.options is not None:
         question = inquirer.List(**kwargs, choices=field.options)
