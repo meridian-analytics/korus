@@ -95,7 +95,7 @@ def add_row(db: Database, table_name: str) -> int:
                     break
 
                 elif action == prompt.FIELD_EXTERNAL:
-                    view_contents(db, **kwargs)
+                    view_contents_condensed(db, **kwargs)
 
                 elif action == prompt.FIELD_SKIP:
                     value = None
