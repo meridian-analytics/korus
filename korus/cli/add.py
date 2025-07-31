@@ -1,6 +1,4 @@
-import inquirer
 from korus.database.database import Database
-from korus.database.interface import TableViewer
 import korus.cli.prompt as prompt
 import korus.cli.parse as parse
 
