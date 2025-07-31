@@ -1,7 +1,8 @@
 from korus.database.database import Database
 import korus.cli.prompt as prompt
 import korus.cli.text as txt
-import korus.cli.action as act
+import korus.cli.view as vw
+import korus.cli.add as add
 
 
 def main(db: Database):
@@ -21,7 +22,7 @@ def main(db: Database):
 
             try:
                 if tbl_action == prompt.TABLE_ADD:
-                    act.add_row(db, table_name)
+                    add.add_row(db, table_name)
                     print(txt.info(f"Successfully added row to {table_name} table."))
 
                 elif tbl_action == prompt.TABLE_INFO:
@@ -29,10 +30,10 @@ def main(db: Database):
                     print(tbl)
 
                 elif tbl_action == prompt.TABLE_CONTENTS_CONDENSED:
-                    act.view_contents_condensed(db, table_name)
+                    vw.view_contents_condensed(db, table_name)
 
                 elif tbl_action == prompt.TABLE_CONTENTS_DETAILED:
-                    act.view_contents_detailed(db, table_name)
+                    vw.view_contents_detailed(db, table_name)
 
             except KeyboardInterrupt:
                 continue

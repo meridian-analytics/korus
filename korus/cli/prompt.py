@@ -44,8 +44,9 @@ def select_table(db: Database) -> str:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
     name = "main"
+    message = txt.header() + "Select table"
     question = inquirer.List(
-        name, message="Select table", choices=list(db.tables.keys())
+        name, message=message, choices=list(db.tables.keys())
     )
     answers = inquirer.prompt([question])
     if answers is None:
