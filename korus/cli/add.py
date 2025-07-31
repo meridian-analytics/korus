@@ -1,6 +1,7 @@
 from korus.database.database import Database
 import korus.cli.prompt as prompt
 import korus.cli.parse as parse
+from .view import view_contents_condensed
 
 
 def add_row(db: Database, table_name: str) -> int:
