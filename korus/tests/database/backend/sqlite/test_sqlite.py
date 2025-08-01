@@ -109,7 +109,7 @@ def test_table_backend(minimal_sqlite_backend):
     assert rows[2][0] == 1
 
     # we can update a single row
-    rows = backend.file.set(idx=2, row={"sample_rate": 8000})
+    rows = backend.file.update(idx=2, row={"sample_rate": 8000})
     rows = backend.file.get(indices=2, fields="sample_rate")
     assert rows[0][0] == 8000
 

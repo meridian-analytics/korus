@@ -79,7 +79,7 @@ class InMemoryTableBackend(TableBackend):
             for idx in indices:
                 del self.rows[idx]
 
-    def set(self, idx, row):
+    def update(self, idx, row):
         self.rows[idx] = row
 
     def filter(self, *conditions, indices=None, **_):

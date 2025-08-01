@@ -69,7 +69,7 @@ class TaxonomyInterface(TableInterface, AcousticTaxonomyManager):
         if len(self) == 0:
             self.add(row)
         else:
-            self.set(0, row)
+            self.update(0, row)
 
     def release(self, comment: str = None):
         """Release a new version of the taxonomy and save it to the database
