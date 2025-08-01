@@ -46,9 +46,7 @@ def select_table(db: Database) -> str:
     """
     name = "main"
     message = txt.header() + "Select table"
-    question = inquirer.List(
-        name, message=message, choices=list(db.tables.keys())
-    )
+    question = inquirer.List(name, message=message, choices=list(db.tables.keys()))
     answers = inquirer.prompt([question])
     if answers is None:
         raise KeyboardInterrupt
@@ -85,7 +83,6 @@ def table_action(table_name: str) -> int:
     question = inquirer.List(
         name=table_name, message=message, choices=list(choices.keys())
     )
-
 
     answers = inquirer.prompt([question])
     if answers is None:
@@ -201,7 +198,7 @@ def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
 
 
 def select_label(db, table_name, field_name):
-    #TODO: implement this function
+    # TODO: implement this function
     pass
 
 

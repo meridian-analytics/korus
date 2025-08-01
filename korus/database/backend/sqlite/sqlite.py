@@ -59,7 +59,7 @@ class SQLiteTableBackend(TableBackend):
         delete_row(self.conn, self.name, index_to_key(indices))
         self.conn.commit()
 
-    def set(self, idx: int, row: dict):
+    def update(self, idx: int, row: dict):
         update_row(
             self.conn, self.name, index_to_key(idx), self.codec.encode(row, self.name)
         )

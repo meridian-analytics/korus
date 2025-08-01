@@ -8,10 +8,10 @@ from .view import view_contents_condensed
 def add(db: Database, table_name: str):
     if table_name == "file":
         add_file(db)
-    
+
     elif table_name == "annotation":
         add_annotation(db)
-    
+
     else:
         add_row(db, table_name)
 

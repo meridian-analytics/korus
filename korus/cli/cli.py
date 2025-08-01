@@ -1,7 +1,8 @@
 from korus.database.database import Database
 import korus.cli.prompt as prompt
 import korus.cli.view as vw
-import korus.cli.add as add
+from .add import add
+from .update import update
 
 
 def main(db: Database):
@@ -21,7 +22,10 @@ def main(db: Database):
 
             try:
                 if tbl_action == prompt.TABLE_ADD:
-                    add.add(db, table_name)
+                    add(db, table_name)
+
+                elif tbl_action == prompt.TABLE_UPDATE:
+                    update(db, table_name)
 
                 elif tbl_action == prompt.TABLE_INFO:
                     vw.view_info(db, table_name)

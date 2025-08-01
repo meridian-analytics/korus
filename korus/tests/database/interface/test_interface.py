@@ -70,8 +70,8 @@ def test_add_get_set_data(in_memory_table_backend):
 
     # modify the data
     t1 = datetime(2025, 1, 24)
-    i.set(0, {"B": t1})
-    i.set(1, {"A": 3})
+    i.update(0, {"B": t1})
+    i.update(1, {"A": 3})
 
     # retrieve all data and check that values have been updated
     rows = i.get()

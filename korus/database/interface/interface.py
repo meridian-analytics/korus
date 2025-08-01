@@ -411,7 +411,7 @@ class TableInterface:
         """
         self.backend.remove(indices)
 
-    def set(self, idx: int, row: dict):
+    def update(self, idx: int, row: dict):
         """Modify an existing entry in the table
 
         Args:
@@ -426,7 +426,7 @@ class TableInterface:
         row = self._replace_missing_values(row, current_values)
         row = self._validate_data(row)
         try:
-            self.backend.set(idx, row)
+            self.backend.update(idx, row)
         except Exception as err:
             err_msg = f"Attempt to update row {idx} in the {self.name} table failed due to an error in the backend."
             err.args = (err_msg,) + err.args

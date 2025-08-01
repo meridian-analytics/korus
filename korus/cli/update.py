@@ -8,23 +8,18 @@ from .view import view_contents_condensed
 def update(db: Database, table_name: str):
     if table_name == "job":
         update_job(db)
-    
+
     else:
-        update(db, table_name)
+        update_row(db, table_name)
 
 
-def add_file(db: Database) -> list[int]:
+def update_job(db: Database):
     # TODO: implement this
-    return add_row(db, "file")
+    return update_row(db, "job")
 
 
-def add_annotation(db: Database) -> list[int]:
-    # TODO: implement this
-    return add_row(db, "annotation")
-
-
-def add_row(db: Database, table_name: str) -> int:
-    """Add a single row to the specified table.
+def update_row(db: Database, table_name: str):
+    """Update a single row in the specified table.
 
     Args:
         db: korus.database.Database

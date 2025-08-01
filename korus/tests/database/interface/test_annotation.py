@@ -59,7 +59,7 @@ id
     assert df.to_string() == expected
 
     # set the target for the job
-    job.set(0, {"target": [("KW", "TC")]})
+    job.update(0, {"target": [("KW", "TC")]})
 
     # re-generate negatives
     annot.generate_negatives(0)
