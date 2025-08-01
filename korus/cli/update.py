@@ -10,16 +10,16 @@ def update(db: Database, table_name: str):
         update_job(db)
 
     else:
-        update_row(db, table_name)
+        update_field(db, table_name)
 
 
 def update_job(db: Database):
-    # TODO: implement this
-    return update_row(db, "job")
+    # TODO: implement this; allow user to link files to job
+    return update_field(db, "job")
 
 
-def update_row(db: Database, table_name: str):
-    """Update a single row in the specified table.
+def update_field(db: Database, table_name: str):
+    """Update a field in the specified table.
 
     Args:
         db: korus.database.Database
@@ -27,49 +27,24 @@ def update_row(db: Database, table_name: str):
         table_name: str
             Table name
 
-    Returns:
-        : int
-            The index assigned to the added row
-
     Raises:
-        KeyboardInterrupt: if the user hits Ctrl+C
+        KeyboardInterrupt: if the user hits Ctrl+C or the attempt to update the row fails
     """
+    idx = prompt.enter_index(db, table_name)
+    field = prompt.select_field(db, table_name)
+    value = prompt.enter_value(table_name, field)
+    if value is None:
+        return
+
+    value = parse.parse_value(field, value)
+    row = {field.name: value}
     tbl = getattr(db, table_name)
 
-    row = {}
+    try:
+        tbl.update(idx, row)
+        print(txt.info(f"Successfully update row with id={idx} in {table_name} table."))
 
-    for field in tbl.fields:
-
-        while True:
-            action, kwargs = prompt.field_action(db, table_name, field)
-
-            try:
-                if action == prompt.FIELD_INFO:
-                    print(field.info())
-
-                if action == prompt.FIELD_ENTER:
-                    value = prompt.enter_value(table_name, field, **kwargs)
-                    break
-
-                elif action == prompt.FIELD_SELECT:
-                    value = prompt.select_value(table_name, field, **kwargs)
-                    break
-
-                elif action == prompt.FIELD_EXTERNAL:
-                    view_contents_condensed(db, **kwargs)
-
-                elif action == prompt.FIELD_SKIP:
-                    value = None
-                    break
-
-            except KeyboardInterrupt:
-                continue
-
-        if value is not None:
-            row[field.name] = parse.parse_value(field, value)
-
-    idx = tbl.add(row)
-
-    print(txt.info(f"Successfully added new row with id={idx} to {table_name} table."))
-
-    return idx
+    except Exception as err:
+        msg = f"Failed to update row in {table_name} table. " + str(err)
+        print(txt.error(msg))
+        raise KeyboardInterrupt
