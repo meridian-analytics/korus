@@ -27,6 +27,7 @@ TABLE_INFO = 0
 TABLE_CONTENTS_CONDENSED = 1
 TABLE_CONTENTS_DETAILED = 2
 TABLE_ADD = 3
+TABLE_UPDATE = 4
 
 
 def select_table(db: Database) -> str:
@@ -70,15 +71,22 @@ def table_action(table_name: str) -> int:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
     name = table_name
+
+    # create list with choices
     choices = {}
     choices["View info"] = TABLE_INFO
     choices["View contents (condensed)"] = TABLE_CONTENTS_CONDENSED
     choices["View contents (detailed)"] = TABLE_CONTENTS_DETAILED
-    choices["Add row"] = TABLE_ADD
+    choices["Add"] = TABLE_ADD
+    choices["Update"] = TABLE_UPDATE
+
+    # prompt user to select from choices
     message = txt.header(table_name) + "Select table action"
     question = inquirer.List(
         name=table_name, message=message, choices=list(choices.keys())
     )
+
+
     answers = inquirer.prompt([question])
     if answers is None:
         raise KeyboardInterrupt

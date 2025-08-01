@@ -5,15 +5,12 @@ import korus.cli.text as txt
 from .view import view_contents_condensed
 
 
-def add(db: Database, table_name: str):
-    if table_name == "file":
-        add_file(db)
-    
-    elif table_name == "annotation":
-        add_annotation(db)
+def update(db: Database, table_name: str):
+    if table_name == "job":
+        update_job(db)
     
     else:
-        add_row(db, table_name)
+        update(db, table_name)
 
 
 def add_file(db: Database) -> list[int]:

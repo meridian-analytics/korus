@@ -21,11 +21,10 @@ def main(db: Database):
 
             try:
                 if tbl_action == prompt.TABLE_ADD:
-                    add.add_data(db, table_name)
+                    add.add(db, table_name)
 
                 elif tbl_action == prompt.TABLE_INFO:
-                    tbl = getattr(db, table_name)
-                    print(tbl)
+                    vw.view_info(db, table_name)
 
                 elif tbl_action == prompt.TABLE_CONTENTS_CONDENSED:
                     vw.view_contents_condensed(db, table_name)

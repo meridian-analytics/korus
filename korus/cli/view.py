@@ -3,6 +3,19 @@ from korus.database.database import Database
 from korus.database.interface import TableViewer
 
 
+def view_info(db: Database, table_name: str):
+    """View table information
+
+    Args:
+        db: korus.database.Database
+            The database instance
+        table_name: str
+            Table name
+    """
+    tbl = getattr(db, table_name)
+    print(tbl)
+
+
 def view_contents_detailed(db: Database, table_name: str):
     """View table contents in detail
 
