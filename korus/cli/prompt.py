@@ -12,7 +12,7 @@ import korus.cli.text as txt
 # tab completion for directory/file paths
 # https://stackoverflow.com/a/56119373
 readline.parse_and_bind("tab: complete")
-readline.set_completer_delims("\t\n=")
+readline.set_completer_delims("\t\n=,;")
 
 
 # Field action ENUMs
@@ -201,8 +201,8 @@ def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
             The values to choose from
 
     Returns:
-        : str
-            The string representation of the selected value
+        : any
+            The selected and parsed value
 
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
@@ -214,7 +214,11 @@ def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
     if answers is None:
         raise KeyboardInterrupt
 
-    return answers[name]
+    value = answers[name]
+    if value is not None:      
+        value = parse.parse_value(field, value)
+
+    return value
 
 
 def select_label(db, table_name, field_name):
@@ -301,8 +305,8 @@ def enter_value(table_name, field, validate=None):
             The field definition
 
     Returns:
-        : str
-            The validated, but unparsed string input value
+        value: any
+            The validated and parsed value
 
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
@@ -355,4 +359,8 @@ def enter_value(table_name, field, validate=None):
     if answers is None:
         raise KeyboardInterrupt
 
-    return answers[name]
+    value = answers[name]
+    if value is not None:      
+        value = parse.parse_value(field, value)
+
+    return value

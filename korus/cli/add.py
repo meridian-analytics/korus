@@ -95,7 +95,7 @@ def add_row(db: Database, table_name: str) -> int:
                 continue
 
         if value is not None:
-            row[field.name] = parse.parse_value(field, value)
+            row[field.name] = value
 
     idx = tbl.add(row)
 
