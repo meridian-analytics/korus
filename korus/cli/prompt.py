@@ -2,6 +2,7 @@ import os
 import sys
 import inquirer
 import readline
+import numpy as np
 from datetime import datetime
 from korus.database.database import Database
 from korus.database.interface import FieldDefinition
@@ -215,7 +216,7 @@ def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
         raise KeyboardInterrupt
 
     value = answers[name]
-    if value is not None:      
+    if value is not None:
         value = parse.parse_value(field, value)
 
     return value
@@ -251,20 +252,25 @@ def enter_index(db: Database, table_name: str) -> int:
     return parse.parse_value(field, val_str)
 
 
-def enter_path(table_name, field_name):
+def enter_path(
+    table_name: str, field_name: str, always_list: bool = False
+) -> str | list[str]:
     """Prompt user to enter a file or directory path.
 
     Checks that the path is valid.
     Allows for tab auto completion.
+    Use comma as separator to enter multiple paths.
 
     Args:
         table_name: str
             Table name
         field_name: str
             The field name
+        always_list: bool
+            Always return as list, even when only a single path is specified.
 
     Returns:
-        path: str
+        paths: str | list[str]
             The path
 
     Raises:
@@ -272,27 +278,32 @@ def enter_path(table_name, field_name):
     """
     # reset stdout to allow tab-completion
     # https://stackoverflow.com/a/53260487
+    paths = []
     original_stdout = sys.stdout
     sys.stdout = sys.__stdout__
     while True:
         try:
             # TODO: make question mark yellow
             message = txt.header(table_name, field_name) + "Enter path"
-            path = input(txt.question(message))
+            paths = input(txt.question(message)).split(",")
 
         except KeyboardInterrupt:
             sys.stdout = original_stdout
             raise
 
-        if os.path.exists(path):
+        exists = [os.path.exists(path) for path in paths]
+        if np.all(exists):
             break
 
         else:
-            # TODO: make indentation marks red and text bold
             print(txt.error("Invalid path, please try again."))
 
     sys.stdout = original_stdout
-    return path
+
+    if len(paths) == 1 and not always_list:
+        paths = paths[0]
+
+    return paths
 
 
 def enter_value(table_name, field, validate=None):
@@ -360,7 +371,7 @@ def enter_value(table_name, field, validate=None):
         raise KeyboardInterrupt
 
     value = answers[name]
-    if value is not None:      
+    if value is not None:
         value = parse.parse_value(field, value)
 
     return value

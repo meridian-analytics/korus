@@ -19,25 +19,25 @@ def add(db: Database, table_name: str):
 def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     # TODO: implement this
 
-    '''
-    select between manual and automated (recommended) ingestion 
+    """
+    select between manual and automated (recommended) ingestion
     select deployment
     select storage location
         TODO: add `date_stamped` field to storage table to indicate if files are organized into date-stamped subfolders
     specify datetime format*
-    if filename is None, give user options to 
+    if filename is None, give user options to
      - inputing filename/file, or
      - specifying time range
      - search all files
     automatic search for files and parsing of timestamps
-    create Checkbox question with all files 
+    create Checkbox question with all files
      - check all found files
      - uncheck files that were not found
      - ask user to uncheck any files they dont want added
-    automatic extraction of metadata    
+    automatic extraction of metadata
 
     * store inputted datetime formats in .korus file?
-    '''
+    """
 
     return add_row(db, "file")
 
