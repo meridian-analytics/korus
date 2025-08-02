@@ -253,25 +253,26 @@ def enter_index(db: Database, table_name: str) -> int:
 
 
 def enter_path(
-    table_name: str, field_name: str, always_list: bool = False
+    table_name: str, field_name: str, multiple: bool = False
 ) -> str | list[str]:
     """Prompt user to enter a file or directory path.
 
     Checks that the path is valid.
     Allows for tab auto completion.
     Use comma as separator to enter multiple paths.
+    Returns str if multiple=False, and a list of strings otherwise.
 
     Args:
         table_name: str
             Table name
         field_name: str
             The field name
-        always_list: bool
-            Always return as list, even when only a single path is specified.
+        multiple: bool
+            Allow multiple comma-separated input values
 
     Returns:
         paths: str | list[str]
-            The path
+            The path(s).
 
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
@@ -291,6 +292,10 @@ def enter_path(
             sys.stdout = original_stdout
             raise
 
+        if not multiple and len(paths) > 1:
+            print(txt.error("Multiple values not allowed, please try again."))
+            continue
+
         exists = [os.path.exists(path) for path in paths]
         if np.all(exists):
             break
@@ -300,7 +305,7 @@ def enter_path(
 
     sys.stdout = original_stdout
 
-    if len(paths) == 1 and not always_list:
+    if len(paths) == 1 and not multiple:
         paths = paths[0]
 
     return paths
