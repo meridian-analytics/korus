@@ -37,6 +37,7 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     automatic extraction of metadata
 
     * store inputted datetime formats in .korus file?
+    * TODO: use https://labix.org/python-dateutil for parsing timestamps!
     """
 
     return add_row(db, "file")
