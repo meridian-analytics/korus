@@ -26,7 +26,7 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
         TODO: add `date_stamped` field to storage table to indicate if files are organized into date-stamped subfolders
     specify datetime format*
     if filename is None, give user options to
-     - inputing filename/file, or
+     - inputing filename/file**, or
      - specifying time range
      - search all files
     automatic search for files and parsing of timestamps
@@ -38,6 +38,10 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
 
     * store inputted datetime formats in .korus file?
     * TODO: use https://labix.org/python-dateutil for parsing timestamps!
+
+    ** allow for multiple formats, e.g.
+      - plain text file with paths/filenames in each line
+      - csv/tsv file with lowercase header filename/path/begin file/...
     """
 
     return add_row(db, "file")
