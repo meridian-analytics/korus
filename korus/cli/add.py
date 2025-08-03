@@ -1,6 +1,6 @@
+import inquirer
 from korus.database.database import Database
 import korus.cli.prompt as prompt
-import korus.cli.parse as parse
 import korus.cli.text as txt
 from .view import view_contents_condensed
 
@@ -17,6 +17,42 @@ def add(db: Database, table_name: str):
 
 
 def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
+    table_name = "file"
+    MANUAL = 0
+    AUTO = 1
+
+    msg = txt.header(table_name) + "Method"
+    choices = {
+        "Single file | Enter all metadata manually": MANUAL, 
+        "Batch | Automated metadata extraction (recommended)": AUTO
+    }
+    choice = inquirer.list_input(msg, choices=choices.keys())
+    method = choices[choice]
+
+    if method == MANUAL:
+        return add_row(db, table_name)
+    
+    # deployment
+    deployment_id = prompt.enter_index(db, "deployment")
+
+    # storage location
+    storage_id = prompt.enter_index(db, "storage")
+
+    # datetime format
+    ONC = 0
+    CUSTOM = 1
+    choices = {
+        "ONC: %Y%m ...": ONC,
+        "Custom": CUSTOM,
+    }
+    #questions = [
+    #    inquirer.List("format", message="Datetime format"), choices=choices.keys())
+        #inquirer.Text(
+        #    "Custom datetime format",
+        #    message="What's your surname, {name}?",
+        #    ignore=lambda x: x["name"].lower() == "anonymous"
+        #),
+
     # TODO: implement this
 
     """
@@ -30,7 +66,7 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
      - specifying time range
      - search all files
     automatic search for files and parsing of timestamps
-    create Checkbox question with all files
+    create Checkbox question with all files (and parsed timestamps)
      - check all found files
      - uncheck files that were not found
      - ask user to uncheck any files they dont want added
