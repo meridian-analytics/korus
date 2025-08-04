@@ -4,6 +4,8 @@ import inquirer
 import readline
 import numpy as np
 from datetime import datetime
+import dateutil.parser
+import datetime_glob
 from korus.database.database import Database
 from korus.database.interface import FieldDefinition
 import korus.cli.parse as parse
@@ -382,39 +384,73 @@ def enter_value(table_name, field, validate=None):
     return value
 
 
-def select_datetime_format():
-    """TODO: complete this function"""
+def select_timestamp_parser():
+    """Prompt user to specify timestamp parsing method.
 
-    ONC = 0
+    https://labix.org/python-dateutil
+    https://github.com/Parquery/datetime-glob
+
+    OBS: datetime_glob cannot parse milliseconds
+
+    Returns:
+        fcn: callable
+            Timestamp parser function with signature fcn(filename:str) -> datetime
+    """
+
+    AUTO = 0
     CUSTOM = 1
     NONE = 2
 
     choices = {
-        "ONC: %Y%m%dT%H%M%S.%fZ_": ONC,
+        "Automated": AUTO,
         "Custom": CUSTOM,
         "No timestamp": NONE,
     }
 
     questions = [
         inquirer.List(
-            "format", 
-            message="Select datetime format", 
-            choices=choices.keys()
+            "format",
+            message="Select method for parsing timestamp",
+            choices=choices.keys(),
         ),
         inquirer.Text(
             "custom format",
-            message="Enter custom datetime format",
-            ignore=lambda x: x["format"].lower() != "custom"
+            message="Enter custom timestamp format (glob pattern)",
+            ignore=lambda x: choices[x["format"]] != CUSTOM,
         ),
     ]
     answers = inquirer.prompt(questions)
 
     if answers is None:
         raise KeyboardInterrupt
-    
+
     if answers["custom format"] is None:
-        fmt = choices[answers["format"]]
+        if answers["format"] == None:
+
+            def fcn(filename: str) -> datetime:
+                try:
+                    return dateutil.parser.parse(
+                        filename, default=datetime(1970), fuzzy=True
+                    )
+
+                except:
+                    err_msg = f"Failed to parse timestamp from {filename}"
+                    raise ValueError(err_msg)
+
+        elif answers["format"] == AUTO:
+            fcn = None
+
     else:
         fmt = answers["custom format"]
+        matcher = datetime_glob.Matcher(pattern=fmt)
 
-    return fmt
+        def fcn(filename: str) -> datetime:
+            dt = matcher.match(filename)
+            if dt is None:
+                err_msg = f"Failed to parse timestamp from {filename}"
+                raise ValueError(err_msg)
+
+            else:
+                return dt
+
+    return fcn

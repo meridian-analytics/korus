@@ -20,6 +20,8 @@ setup(
         "tabulate",
         "pyyaml",
         "inquirer",
+        "python-dateutil",
+        "datetime_glob",
     ],
     entry_points={
         "console_scripts": [

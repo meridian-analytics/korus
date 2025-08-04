@@ -25,14 +25,14 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     msg = txt.header(table_name) + "Select method for adding audiofile metadata"
     choices = {
         "Automated, batch  (recommended)": AUTO,
-        "Manual, single file": MANUAL, 
+        "Manual, single file": MANUAL,
     }
     choice = inquirer.list_input(msg, choices=choices.keys())
     method = choices[choice]
 
     if method == MANUAL:
         return add_row(db, table_name)
-    
+
     # deployment
     deployment_id = prompt.enter_index(db, "deployment")
 
@@ -40,13 +40,12 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     storage_id = prompt.enter_index(db, "storage")
 
     # datetime format
-    dt_fmt = prompt.select_datetime_format()
-    print(dt_fmt)
+    timestamp_parser = prompt.select_timestamp_parser()
     raise KeyboardInterrupt
 
     # search for files and parse timestamps
     # first, only obtain the timestamps (fast)
-    '''
+    """
     df = collect_audiofile_metadata(
         path=audio_path,
         ext=audio_format,
@@ -62,7 +61,7 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
         f" ## Found {len(df)} {audio_format} files in the folder {audio_path} between {start_utc} and {end_utc}",
         "yellow",
     )
-    '''
+    """
 
     """
     [x] select between manual and automated (recommended) ingestion
