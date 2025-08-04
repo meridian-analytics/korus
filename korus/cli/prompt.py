@@ -409,40 +409,39 @@ def select_timestamp_parser():
 
     questions = [
         inquirer.List(
-            "format",
+            "method",
             message="Select method for parsing timestamp",
             choices=choices.keys(),
         ),
         inquirer.Text(
-            "custom format",
+            "format",
             message="Enter custom timestamp format (glob pattern)",
-            ignore=lambda x: choices[x["format"]] != CUSTOM,
+            ignore=lambda x: choices[x["method"]] != CUSTOM,
         ),
     ]
     answers = inquirer.prompt(questions)
 
     if answers is None:
         raise KeyboardInterrupt
+    
+    choice = choices[answers["method"]]
 
-    if answers["custom format"] is None:
-        if answers["format"] == None:
+    if choice is NONE:
+        fcn = None
 
-            def fcn(filename: str) -> datetime:
-                try:
-                    return dateutil.parser.parse(
-                        filename, default=datetime(1970), fuzzy=True
-                    )
+    elif choice is AUTO:
+        def fcn(filename: str) -> datetime:
+            try:
+                return dateutil.parser.parse(
+                    filename, default=datetime(1970), fuzzy=True
+                )
 
-                except:
-                    err_msg = f"Failed to parse timestamp from {filename}"
-                    raise ValueError(err_msg)
-
-        elif answers["format"] == AUTO:
-            fcn = None
+            except:
+                err_msg = f"Failed to parse timestamp from {filename}"
+                raise ValueError(err_msg)
 
     else:
-        fmt = answers["custom format"]
-        matcher = datetime_glob.Matcher(pattern=fmt)
+        matcher = datetime_glob.Matcher(pattern=answers["format"])
 
         def fcn(filename: str) -> datetime:
             dt = matcher.match(filename)
