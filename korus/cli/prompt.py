@@ -380,3 +380,41 @@ def enter_value(table_name, field, validate=None):
         value = parse.parse_value(field, value)
 
     return value
+
+
+def select_datetime_format():
+    """TODO: complete this function"""
+
+    ONC = 0
+    CUSTOM = 1
+    NONE = 2
+
+    choices = {
+        "ONC: %Y%m%dT%H%M%S.%fZ_": ONC,
+        "Custom": CUSTOM,
+        "No timestamp": NONE,
+    }
+
+    questions = [
+        inquirer.List(
+            "format", 
+            message="Select datetime format", 
+            choices=choices.keys()
+        ),
+        inquirer.Text(
+            "custom format",
+            message="Enter custom datetime format",
+            ignore=lambda x: x["format"].lower() != "custom"
+        ),
+    ]
+    answers = inquirer.prompt(questions)
+
+    if answers is None:
+        raise KeyboardInterrupt
+    
+    if answers["custom format"] is None:
+        fmt = choices[answers["format"]]
+    else:
+        fmt = answers["custom format"]
+
+    return fmt

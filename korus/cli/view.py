@@ -1,6 +1,7 @@
 import inquirer
 from korus.database.database import Database
 from korus.database.interface import TableViewer
+import korus.cli.text as txt
 
 
 def view_info(db: Database, table_name: str):
@@ -26,6 +27,11 @@ def view_contents_detailed(db: Database, table_name: str):
             Table name
     """
     tbl = getattr(db, table_name)
+
+    if len(tbl) == 0:
+        print(txt.info(f"The {table_name} table is empty"))
+        return
+
     viewer = TableViewer(tbl, nrows=1)
     counter = 0
     for page in iter(viewer):
@@ -50,6 +56,11 @@ def view_contents_condensed(db: Database, table_name: str, required: bool = True
             Only show required fields.
     """
     tbl = getattr(db, table_name)
+
+    if len(tbl) == 0:
+        print(txt.info(f"The {table_name} table is empty"))
+        return
+
     if required:
         field_names = [field.name for field in tbl.fields if field.required]
     else:

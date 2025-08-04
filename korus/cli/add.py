@@ -3,6 +3,7 @@ from korus.database.database import Database
 import korus.cli.prompt as prompt
 import korus.cli.text as txt
 from .view import view_contents_condensed
+from korus.audio import collect_audiofile_metadata
 
 
 def add(db: Database, table_name: str):
@@ -21,10 +22,10 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     MANUAL = 0
     AUTO = 1
 
-    msg = txt.header(table_name) + "Method"
+    msg = txt.header(table_name) + "Select method for adding audiofile metadata"
     choices = {
-        "Single file | Enter all metadata manually": MANUAL, 
-        "Batch | Automated metadata extraction (recommended)": AUTO
+        "Automated, batch  (recommended)": AUTO,
+        "Manual, single file": MANUAL, 
     }
     choice = inquirer.list_input(msg, choices=choices.keys())
     method = choices[choice]
@@ -39,26 +40,34 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     storage_id = prompt.enter_index(db, "storage")
 
     # datetime format
-    ONC = 0
-    CUSTOM = 1
-    choices = {
-        "ONC: %Y%m ...": ONC,
-        "Custom": CUSTOM,
-    }
-    #questions = [
-    #    inquirer.List("format", message="Datetime format"), choices=choices.keys())
-        #inquirer.Text(
-        #    "Custom datetime format",
-        #    message="What's your surname, {name}?",
-        #    ignore=lambda x: x["name"].lower() == "anonymous"
-        #),
+    dt_fmt = prompt.select_datetime_format()
+    print(dt_fmt)
+    raise KeyboardInterrupt
 
-    # TODO: implement this
+    # search for files and parse timestamps
+    # first, only obtain the timestamps (fast)
+    '''
+    df = collect_audiofile_metadata(
+        path=audio_path,
+        ext=audio_format,
+        timestamp_parser=timestamp_parser,
+        earliest_start_utc=start_utc,
+        latest_start_utc=end_utc,
+        progress_bar=True,
+        date_subfolder=date_subfolder,
+        inspect_files=False,
+    )
+
+    cprint(
+        f" ## Found {len(df)} {audio_format} files in the folder {audio_path} between {start_utc} and {end_utc}",
+        "yellow",
+    )
+    '''
 
     """
-    select between manual and automated (recommended) ingestion
-    select deployment
-    select storage location
+    [x] select between manual and automated (recommended) ingestion
+    [x] select deployment
+    [x] select storage location
         TODO: add `date_stamped` field to storage table to indicate if files are organized into date-stamped subfolders
     specify datetime format*
     if filename is None, give user options to
@@ -73,7 +82,8 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     automatic extraction of metadata
 
     * store inputted datetime formats in .korus file?
-    * TODO: use https://labix.org/python-dateutil for parsing timestamps!
+    * TODO: use https://labix.org/python-dateutil for parsing timestamps
+    * there is also: https://github.com/Parquery/datetime-glob does wildcards, but only microseconds
 
     ** allow for multiple formats, e.g.
       - plain text file with paths/filenames in each line
@@ -86,6 +96,11 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
 def add_annotation(db: Database) -> list[int]:
     # TODO: implement this
     return add_row(db, "annotation")
+
+
+def add_deployment(db: Database) -> int:
+    # TODO: allow user to select between fixed or mobile
+    pass
 
 
 def add_row(db: Database, table_name: str) -> int:
