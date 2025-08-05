@@ -3,16 +3,23 @@ import korus.cli.prompt as prompt
 import korus.cli.view as vw
 from .add import add
 from .update import update
-from .cursor import Cursor
+from .cursor import cursor
 from .node import create_nodes
 
 
 def main(db: Database):
-    nodes, nid = create_nodes(db)
+    nodes, id = create_nodes(db)
 
-    while nid is not None:
-        node = nodes[nid]
-        nid = node()
+    while id is not None:
+        node = nodes.get(id)
+        cursor.to(node)
+
+        id = node()
+
+        if id is None:
+            cursor.back()
+            id = cursor.id
+            cursor.back()
 
 
 def main2(db: Database):

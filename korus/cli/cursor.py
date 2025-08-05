@@ -6,18 +6,11 @@ class Cursor():
         self.history = []
 
     @property
-    def current(self):
+    def id(self):
         if len(self) == 0:
             return None
         
-        return self.history[-1]
-    
-    @property
-    def previous(self):
-        if len(self) <= 1:
-            return None
-
-        return self.history[-2]
+        return self.history[-1][0]
 
     def __len__(self):
         return len(self.history)
@@ -26,11 +19,11 @@ class Cursor():
         if len(self) == 0:
             return ""
 
-        h = copy.copy(self.history)
-        h[-1] = colored(h[-1], "white", attrs=["bold"])
-        h = "|".join(h)
-        h = "[" + h + "] "
-        return h
+        names = [h[1] for h in self.history]
+        names[-1] = colored(names[-1], "white", attrs=["bold"])
+        names = "|".join(names)
+        names = "[" + names + "] "
+        return names
 
     def back(self):
         if len(self.history) == 0:
@@ -39,8 +32,8 @@ class Cursor():
         del self.history[-1]
         return self
 
-    def forward(self, name):
-        self.history.append(name)
+    def to(self, node):
+        self.history.append((node.id, node.name))
         return self
 
 

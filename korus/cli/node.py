@@ -4,23 +4,17 @@ from .cursor import cursor
 
 
 class Node:
-    def __init__(self, name, id, fcn):
-        self.name = name
+    def __init__(self, id, name, fcn):
         self.id = id
+        self.name = name
         self.fcn = fcn
 
     def __call__(self):
-        cursor.forward(self.id)
         try:
             id = self.fcn()
 
         except KeyboardInterrupt:
             id = None
-
-        if id is None:
-            id = cursor.previous
-            if id is not None:
-                cursor.back().back()
 
         return id
     
@@ -36,8 +30,8 @@ def create_nodes(db: Database) -> dict[str, Node]:
 
     # main menu
     nodes[main_id] = Node(
-        name = "main", 
         id = main_id,
+        name = "main", 
         fcn = lambda: prompt.select_table(db)
     )
 
@@ -45,8 +39,8 @@ def create_nodes(db: Database) -> dict[str, Node]:
     for table_name in db.tables.keys():
         id = node_id(table_name)
         nodes[id] = Node(
-            name = table_name,
             id = id,
+            name = table_name,
             fcn = lambda: prompt.table_action(table_name)
         )
 
