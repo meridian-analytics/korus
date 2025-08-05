@@ -33,7 +33,7 @@ def main2(db: Database):
 
         while True:
             try:
-                tbl_action = prompt.table_action(table_name)
+                tbl_action = prompt.select_table_action(table_name)
             except KeyboardInterrupt:
                 break
 

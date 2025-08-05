@@ -11,6 +11,7 @@ from korus.database.interface import FieldDefinition
 import korus.cli.parse as parse
 import korus.cli.text as txt
 from .cursor import cursor
+from .node import node_id
 
 
 # tab completion for directory/file paths
@@ -56,7 +57,7 @@ def select_table(db: Database) -> str:
     return choice
 
 
-def table_action(table_name: str) -> int:
+def select_table_action(table_name: str) -> int:
     """Prompt user to select a table action.
 
     Args:
@@ -73,12 +74,13 @@ def table_action(table_name: str) -> int:
     message = str(cursor) + "Select table"
 
     # create list with choices
-    choices = {}
-    choices["View info"] = TABLE_INFO
-    choices["View contents (condensed)"] = TABLE_CONTENTS_CONDENSED
-    choices["View contents (detailed)"] = TABLE_CONTENTS_DETAILED
-    choices["Add"] = TABLE_ADD
-    choices["Update"] = TABLE_UPDATE
+    choices = {
+        "View info": "info",
+        "View contents (condensed)": "view_condensed", 
+        "View contents (detailed)": "view_detailed",
+        "Add": "add",
+        "Update": "update"
+    }
 
     # prompt user to select from choices
     message = str(cursor) + "Select table action"
@@ -86,7 +88,8 @@ def table_action(table_name: str) -> int:
     if choice is None:
         raise KeyboardInterrupt
 
-    return choices[choice]
+    action_name = choices[choice]
+    return node_id(table_name, action_name)
 
 
 def field_action(db: Database, table_name: str, field: FieldDefinition):
