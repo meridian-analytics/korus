@@ -10,6 +10,7 @@ from korus.database.database import Database
 from korus.database.interface import FieldDefinition
 import korus.cli.parse as parse
 import korus.cli.text as txt
+from .cursor import cursor
 
 
 # tab completion for directory/file paths
@@ -47,14 +48,12 @@ def select_table(db: Database) -> str:
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
-    name = "main"
-    message = txt.header() + "Select table"
-    question = inquirer.List(name, message=message, choices=list(db.tables.keys()))
-    answers = inquirer.prompt([question])
-    if answers is None:
+    message = str(cursor) + "Select table"
+    choice = inquirer.list_input(message, choices=list(db.tables.keys()))
+    if choice is None:
         raise KeyboardInterrupt
 
-    return answers[name]
+    return choice
 
 
 def table_action(table_name: str) -> int:
@@ -71,7 +70,7 @@ def table_action(table_name: str) -> int:
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
-    name = table_name
+    message = str(cursor) + "Select table"
 
     # create list with choices
     choices = {}
@@ -82,16 +81,12 @@ def table_action(table_name: str) -> int:
     choices["Update"] = TABLE_UPDATE
 
     # prompt user to select from choices
-    message = txt.header(table_name) + "Select table action"
-    question = inquirer.List(
-        name=table_name, message=message, choices=list(choices.keys())
-    )
-
-    answers = inquirer.prompt([question])
-    if answers is None:
+    message = str(cursor) + "Select table action"
+    choice = inquirer.list_input(message=message, choices=list(choices.keys()))
+    if choice is None:
         raise KeyboardInterrupt
 
-    return choices[answers[name]]
+    return choices[choice]
 
 
 def field_action(db: Database, table_name: str, field: FieldDefinition):
