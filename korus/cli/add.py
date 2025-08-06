@@ -125,7 +125,7 @@ def add_row(db: Database, table_name: str) -> int:
     for field in tbl.fields:
 
         while True:
-            action, kwargs = prompt.field_action(db, table_name, field)
+            action, kwargs = prompt.select_field_action(db, table_name, field)
 
             try:
                 if action == prompt.FIELD_INFO:

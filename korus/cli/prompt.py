@@ -65,8 +65,8 @@ def select_table_action(table_name: str) -> int:
             Table name
 
     Returns:
-        : int
-            The table action ENUM
+        : str
+            The node ID of the selected action
 
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
@@ -76,8 +76,8 @@ def select_table_action(table_name: str) -> int:
     # create list with choices
     choices = {
         "View info": "info",
-        "View contents (condensed)": "view_condensed", 
-        "View contents (detailed)": "view_detailed",
+        "View contents (condensed)": "contents-condensed", 
+        "View contents (detailed)": "contents-detailed",
         "Add": "add",
         "Update": "update"
     }
@@ -92,7 +92,7 @@ def select_table_action(table_name: str) -> int:
     return node_id(table_name, action_name)
 
 
-def field_action(db: Database, table_name: str, field: FieldDefinition):
+def select_field_action(db: Database, table_name: str, field: FieldDefinition):
     """Prompt user to select a field action.
 
     Args:
