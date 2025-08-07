@@ -33,8 +33,11 @@ class Cursor:
         del self.history[-1]
         return self
 
-    def to(self, node):
-        self.history.append((node.id, node.name))
+    def to(self, name, id=None):
+        if id is None:
+            id = self.id
+
+        self.history.append((id, name))
         return self
 
 

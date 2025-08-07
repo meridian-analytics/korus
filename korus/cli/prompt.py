@@ -71,8 +71,6 @@ def select_table_action(table_name: str) -> int:
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
-    message = str(cursor) + "Select table"
-
     # create list with choices
     choices = {
         "View info": "info",
@@ -148,17 +146,17 @@ def select_field_action(db: Database, table_name: str, field: FieldDefinition):
         choices["Skip"] = (FIELD_SKIP, {})
 
     # form the question
-    name = table_name + ":" + field.name
-    message = txt.header(table_name, field.name) + "Select field action"
-    question = inquirer.List(name=name, message=message, choices=list(choices.keys()))
+    #name = table_name + ":" + field.name
+    #message = txt.header(table_name, field.name) + "Select field action"
+    message = str(cursor) + "Select field action"
 
     # prompt user
-    answers = inquirer.prompt([question])
+    choice = inquirer.list_input(message=message, choices=list(choices.keys()))
 
-    if answers is None:
+    if choice is None:
         raise KeyboardInterrupt
 
-    return choices[answers[name]]
+    return choices[choice]
 
 
 def select_field(db: Database, table_name: str) -> FieldDefinition:

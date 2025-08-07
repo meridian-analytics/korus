@@ -12,7 +12,7 @@ def main(db: Database):
 
     while id is not None:
         node = nodes.get(id)
-        cursor.to(node)
+        cursor.to(node.name, id)
 
         id = node()
 

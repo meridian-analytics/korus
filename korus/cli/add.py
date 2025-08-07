@@ -3,6 +3,7 @@ from korus.database.database import Database
 import korus.cli.prompt as prompt
 import korus.cli.text as txt
 from .view import view_contents_condensed
+from .cursor import cursor
 from korus.audio import collect_audiofile_metadata
 
 
@@ -22,7 +23,7 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     MANUAL = 0
     AUTO = 1
 
-    msg = txt.header(table_name) + "Select method for adding audiofile metadata"
+    msg = str(cursor) + "Select method for adding audiofile metadata"
     choices = {
         "Automated, batch  (recommended)": AUTO,
         "Manual, single file": MANUAL,
@@ -124,6 +125,8 @@ def add_row(db: Database, table_name: str) -> int:
 
     for field in tbl.fields:
 
+        cursor.to(field.name)
+
         while True:
             action, kwargs = prompt.select_field_action(db, table_name, field)
 
@@ -151,6 +154,8 @@ def add_row(db: Database, table_name: str) -> int:
 
         if value is not None:
             row[field.name] = value
+
+        cursor.back()
 
     idx = tbl.add(row)
 
