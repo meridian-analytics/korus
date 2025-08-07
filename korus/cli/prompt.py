@@ -76,10 +76,10 @@ def select_table_action(table_name: str) -> int:
     # create list with choices
     choices = {
         "View info": "info",
-        "View contents (condensed)": "contents-condensed", 
+        "View contents (condensed)": "contents-condensed",
         "View contents (detailed)": "contents-detailed",
         "Add": "add",
-        "Update": "update"
+        "Update": "update",
     }
 
     # prompt user to select from choices
@@ -421,13 +421,14 @@ def select_timestamp_parser():
 
     if answers is None:
         raise KeyboardInterrupt
-    
+
     choice = choices[answers["method"]]
 
     if choice is NONE:
         fcn = None
 
     elif choice is AUTO:
+
         def fcn(filename: str) -> datetime:
             try:
                 return dateutil.parser.parse(

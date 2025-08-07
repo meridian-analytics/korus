@@ -1,7 +1,8 @@
 import copy
 from termcolor import colored
 
-class Cursor():
+
+class Cursor:
     def __init__(self):
         self.history = []
 
@@ -9,7 +10,7 @@ class Cursor():
     def id(self):
         if len(self) == 0:
             return None
-        
+
         return self.history[-1][0]
 
     def __len__(self):
@@ -27,8 +28,8 @@ class Cursor():
 
     def back(self):
         if len(self.history) == 0:
-            return 
-        
+            return
+
         del self.history[-1]
         return self
 
