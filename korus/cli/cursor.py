@@ -53,8 +53,10 @@ class Cursor:
         new_id = self.module()
         if new_id is None:
             self.go_back()
+            new_id = self.module.id
+            self.go_back()
 
-        return self.module.id
+        return new_id
         
 
 
