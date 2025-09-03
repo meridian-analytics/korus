@@ -12,11 +12,4 @@ def main(db: Database):
 
     while id is not None:
         node = nodes.get(id)
-        cursor.to(node.name, id)
-
-        id = node()
-
-        if id is None:
-            cursor.back()
-            id = cursor.id
-            cursor.back()
+        id = cursor.go_to(node)
