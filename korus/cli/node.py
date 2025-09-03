@@ -6,6 +6,9 @@ import korus.cli.view as vw
 
 
 class Node:
+
+    #TODO: rename to Module
+
     def __init__(self, id, name, fcn, args=None):
         self.id = id
         self.name = name

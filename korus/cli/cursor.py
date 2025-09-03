@@ -5,13 +5,23 @@ from termcolor import colored
 class Cursor:
     def __init__(self):
         self.history = []
+        self._item = None
+
+    @property
+    def item(self) -> str:
+        return self._item
+    
+    @item.setter
+    def item(self, i: str):
+        self._item = i
+
+    @property
+    def module(self):
+        return None if len(self) == 0 else self.history[-1]
 
     @property
     def id(self):
-        if len(self) == 0:
-            return None
-
-        return self.history[-1][0]
+        return None if self.module is None else self.module.id
 
     def __len__(self):
         return len(self.history)
@@ -20,25 +30,32 @@ class Cursor:
         if len(self) == 0:
             return ""
 
-        names = [h[1] for h in self.history]
+        names = [module.name for module in self.history]
+
+        if self.item is not None:
+            names.append(self.item)
+
         names[-1] = colored(names[-1], "white", attrs=["bold"])
         names = "|".join(names)
         names = "[" + names + "] "
         return names
 
-    def back(self):
-        if len(self.history) == 0:
-            return
+    def go_back(self):
+        self.item = None
+        if len(self.history) > 0:
+            del self.history[-1]
 
-        del self.history[-1]
-        return self
+    def go_to(self, module):
+        self.history.append(module)
+        self.item = None
 
-    def to(self, name, id=None):
-        if id is None:
-            id = self.id
+    def execute(self):
+        new_id = self.module()
+        if new_id is None:
+            self.go_back()
 
-        self.history.append((id, name))
-        return self
+        return self.module.id
+        
 
 
 cursor = Cursor()
