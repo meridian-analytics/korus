@@ -3,7 +3,7 @@ from korus.database.database import Database
 import korus.cli.prompt as prompt
 import korus.cli.text as txt
 from .view import view_contents_condensed
-from .cursor import cursor
+from korus.cli.cursor import cursor
 from korus.audio import collect_audiofile_metadata
 
 

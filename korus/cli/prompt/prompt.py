@@ -10,8 +10,7 @@ from korus.database.database import Database
 from korus.database.interface import FieldDefinition
 import korus.cli.parse as parse
 import korus.cli.text as txt
-from .cursor import cursor
-from .node import node_id
+from korus.cli.cursor import cursor
 
 
 # tab completion for directory/file paths

@@ -2,7 +2,6 @@ from korus.database.database import Database
 import korus.cli.prompt as prompt
 import korus.cli.parse as parse
 import korus.cli.text as txt
-from .view import view_contents_condensed
 
 
 def update(db: Database, table_name: str):
