@@ -657,6 +657,8 @@ class TableInterface:
             ],
         )
 
+        res += "\n"
+
         return res
 
     def __str__(self) -> str:
@@ -709,7 +711,7 @@ class TableViewer:
             header = f"Showing entries {self.counter - len(df) + 1}-{self.counter} of {len(self.table)} entries"
 
         contents = tabulate(df, headers="keys", tablefmt="psql")
-        return header + "\n" + contents
+        return header + "\n" + contents + "\n"
 
     def __iter__(self):
         self.table.backend.reset_cursor()
