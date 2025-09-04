@@ -8,4 +8,5 @@ def main(db: Database):
 
     while id is not None:
         m = modules.get(id)
-        id = cursor.go_to(m)
+        cursor.go_to(m)
+        id = cursor.execute()

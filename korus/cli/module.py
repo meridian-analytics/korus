@@ -17,12 +17,9 @@ class Module:
 
     def __call__(self):
         try:
-            id = self.fcn(*self.args, **self.kwargs)
-
+            return self.fcn(*self.args, **self.kwargs)
         except KeyboardInterrupt:
-            id = None
-
-        return id
+            return None
     
 class SelectTable(Module):
     def __init__(self, db):
@@ -51,9 +48,14 @@ class SelectTableAction(Module):
 
     def __call__(self):
         action_enum = super().__call__()
-        action_name = self.action_names[action_enum]
-        id = module_id(self.name, action_name)
-        return id
+
+        if action_enum is None:
+            return None
+
+        else:
+            action_name = self.action_names[action_enum]
+            id = module_id(self.name, action_name)
+            return id
 
 
 class ViewTableInfo(Module):
