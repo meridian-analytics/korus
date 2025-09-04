@@ -30,11 +30,8 @@ def update_field(db: Database, table_name: str):
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C or the attempt to update the row fails
     """
-    cursor.item = "id"
     idx = prompt.enter_index(db, table_name)
-    cursor.item = None
     field = prompt.select_field(db, table_name)
-    cursor.item = field.name
     value = prompt.enter_value(table_name, field)
     if value is None:
         return
