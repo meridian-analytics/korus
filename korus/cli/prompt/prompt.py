@@ -29,7 +29,7 @@ FIELD_SKIP = 4
 
 # Table action ENUMs
 TABLE_INFO = 0
-TABLE_CONTENTS_CONDENSED = 1
+TABLE_CONTENTS = 1
 TABLE_CONTENTS_DETAILED = 2
 TABLE_ADD = 3
 TABLE_UPDATE = 4
@@ -65,19 +65,19 @@ def select_table_action(table_name: str) -> int:
             Table name
 
     Returns:
-        : str
-            The node ID of the selected action
+        : int
+            Table action ENUM
 
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
     # create list with choices
     choices = {
-        "View info": "info",
-        "View contents (condensed)": "contents-condensed",
-        "View contents (detailed)": "contents-detailed",
-        "Add": "add",
-        "Update": "update",
+        "View info": TABLE_INFO,
+        "View contents": TABLE_CONTENTS,
+        "View contents (detailed)": TABLE_CONTENTS_DETAILED,
+        "Add": TABLE_ADD,
+        "Update": TABLE_UPDATE,
     }
 
     # prompt user to select from choices
@@ -86,8 +86,7 @@ def select_table_action(table_name: str) -> int:
     if choice is None:
         raise KeyboardInterrupt
 
-    action_name = choices[choice]
-    return node_id(table_name, action_name)
+    return choices[choice]
 
 
 def select_field_action(db: Database, table_name: str, field: FieldDefinition):
@@ -146,8 +145,6 @@ def select_field_action(db: Database, table_name: str, field: FieldDefinition):
         choices["Skip"] = (FIELD_SKIP, {})
 
     # form the question
-    #name = table_name + ":" + field.name
-    #message = txt.header(table_name, field.name) + "Select field action"
     message = str(cursor) + "Select field action"
 
     # prompt user

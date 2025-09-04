@@ -1,15 +1,11 @@
 from korus.database.database import Database
-import korus.cli.prompt as prompt
-import korus.cli.view as vw
-from .add import add
-from .update import update
+from .module import create_modules
 from .cursor import cursor
-from .node import create_nodes
 
 
 def main(db: Database):
-    nodes, id = create_nodes(db)
+    modules, id = create_modules(db)
 
     while id is not None:
-        node = nodes.get(id)
-        id = cursor.go_to(node)
+        m = modules.get(id)
+        id = cursor.go_to(m)
