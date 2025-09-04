@@ -1,7 +1,8 @@
 from korus.database.database import Database
-import korus.cli.prompt as prompt
+import korus.cli.prompt.prompt as prompt
 import korus.cli.parse as parse
 import korus.cli.text as txt
+from korus.cli.cursor import cursor
 
 
 def update(db: Database, table_name: str):
@@ -29,8 +30,11 @@ def update_field(db: Database, table_name: str):
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C or the attempt to update the row fails
     """
+    cursor.item = "id"
     idx = prompt.enter_index(db, table_name)
+    cursor.item = None
     field = prompt.select_field(db, table_name)
+    cursor.item = field.name
     value = prompt.enter_value(table_name, field)
     if value is None:
         return

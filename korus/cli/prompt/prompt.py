@@ -173,7 +173,7 @@ def select_field(db: Database, table_name: str) -> FieldDefinition:
     """
     tbl = getattr(db, table_name)
     name = table_name
-    message = txt.header(table_name) + "Select field"
+    message = str(cursor) + "Select field"
     question = inquirer.List(name, message=message, choices=tbl.field_names)
     answers = inquirer.prompt([question])
     if answers is None:
@@ -203,7 +203,7 @@ def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
     name = table_name + ":" + field.name + ":value"
-    message = txt.header(table_name, field.name) + "Select value"
+    message = str(cursor) + "Select value"
     question = inquirer.List(name, message=message, choices=values)
     answers = inquirer.prompt([question])
     if answers is None:
@@ -246,9 +246,7 @@ def enter_index(db: Database, table_name: str) -> int:
     return parse.parse_value(field, val_str)
 
 
-def enter_path(
-    table_name: str, field_name: str, multiple: bool = False
-) -> str | list[str]:
+def enter_path(multiple: bool = False) -> str | list[str]:
     """Prompt user to enter a file or directory path.
 
     Checks that the path is valid.
@@ -257,10 +255,6 @@ def enter_path(
     Returns str if multiple=False, and a list of strings otherwise.
 
     Args:
-        table_name: str
-            Table name
-        field_name: str
-            The field name
         multiple: bool
             Allow multiple comma-separated input values
 
@@ -278,8 +272,7 @@ def enter_path(
     sys.stdout = sys.__stdout__
     while True:
         try:
-            # TODO: make question mark yellow
-            message = txt.header(table_name, field_name) + "Enter path"
+            message = str(cursor) + "Enter path"
             paths = input(txt.question(message)).split(",")
 
         except KeyboardInterrupt:
@@ -323,7 +316,7 @@ def enter_value(table_name, field, validate=None):
     """
 
     name = table_name + ":" + field.name + ":value"
-    message = txt.header(table_name, field.name) + "Enter value"
+    message = str(cursor) + "Enter value"
 
     kwargs = dict(
         name=name,
@@ -337,7 +330,7 @@ def enter_value(table_name, field, validate=None):
     validates = [validate]
 
     if field.is_path:
-        return enter_path(table_name, field.name)
+        return enter_path()
 
     if field.options is not None:
         question = inquirer.List(**kwargs, choices=field.options)

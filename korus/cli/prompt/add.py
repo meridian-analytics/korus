@@ -1,8 +1,8 @@
 import inquirer
 from korus.database.database import Database
-import korus.cli.prompt as prompt
+import korus.cli.prompt.prompt as prompt
 import korus.cli.text as txt
-from .view import view_contents_condensed
+from korus.cli.prompt.view import view_contents_condensed
 from korus.cli.cursor import cursor
 from korus.audio import collect_audiofile_metadata
 
@@ -125,7 +125,7 @@ def add_row(db: Database, table_name: str) -> int:
 
     for field in tbl.fields:
 
-        cursor.to(field.name)
+        cursor.item = field.name
 
         while True:
             action, kwargs = prompt.select_field_action(db, table_name, field)
@@ -154,8 +154,6 @@ def add_row(db: Database, table_name: str) -> int:
 
         if value is not None:
             row[field.name] = value
-
-        cursor.back()
 
     idx = tbl.add(row)
 
