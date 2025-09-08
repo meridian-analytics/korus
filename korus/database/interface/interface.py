@@ -74,17 +74,20 @@ class FieldDefinition:
         )
 
     def info(self) -> str:
-        return tabulate(
-            [self.as_tuple_str()],
-            headers=[
-                "Name",
-                "Type",
-                "Description",
-                "Required",
-                "Default Value",
-                "Allowed Values",
-            ],
-        ) + "\n"
+        return (
+            tabulate(
+                [self.as_tuple_str()],
+                headers=[
+                    "Name",
+                    "Type",
+                    "Description",
+                    "Required",
+                    "Default Value",
+                    "Allowed Values",
+                ],
+            )
+            + "\n"
+        )
 
 
 @dataclass
@@ -260,14 +263,16 @@ class TableInterface:
             field: FieldDefinition
                 The created field
         """
-        field = FieldDefinition(name, type, description, required, default, options, is_path)
+        field = FieldDefinition(
+            name, type, description, required, default, options, is_path
+        )
         self._fields.append(field)
         return field
-    
+
     def _load_fields(self):
         """Helper function for loading custom fields from the database"""
-        for field_dict in self.backend.get_fields():
-            self._create_field(**field_dict)
+        for field_attrs in self.backend.get_fields():
+            self._create_field(**field_attrs)
 
     def add_field(
         self,
@@ -279,9 +284,9 @@ class TableInterface:
         options: list = None,
         is_path: bool = False,
     ):
-        """Add a custom field to the table interface. 
-        
-        The field is saved to the database. This allows it to be automatically re-created 
+        """Add a custom field to the table interface.
+
+        The field is saved to the database. This allows it to be automatically re-created
         at every subsequent connection to the database.
 
         Args:
@@ -300,7 +305,9 @@ class TableInterface:
             is_path: bool
                 Whether the field is an OS path.
         """
-        field = self._create_field(name, type, description, required, default, options, is_path)
+        field = self._create_field(
+            name, type, description, required, default, options, is_path
+        )
         self.backend._save_field(field)
 
     def create_alias(
@@ -331,7 +338,9 @@ class TableInterface:
                 Transform applied to every row of output data to convert the field value to its corresponding alias value.
                 Expects the field value as the first positional argument, and accepts other field/alias values as keyword arguments.
         """
-        alias = FieldAlias(field_name, name, type, description, transform, reverse_transform)
+        alias = FieldAlias(
+            field_name, name, type, description, transform, reverse_transform
+        )
         self._aliases.append(alias)
 
     def _validate_data(self, row: dict):

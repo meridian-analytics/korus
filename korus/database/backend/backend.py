@@ -43,34 +43,25 @@ class TableBackend:
 
     def save_field(self, field_attrs: dict):
         """Save custom field description to the database
-        
-        Args:
-            name: str
-                The name of the field
-            type: type
-                The field Python type.
-            description: str
-                Short, human-readable description of the data stored in this field
-            required: bool
-                True if the field is required to have a non-null value. False otherwise
-            default: same as type (optional)
-                The field default value
-            options: list (optional)
-                Allowed values
-            is_path: bool
-                Whether the field is an OS path.
-        """
-        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "save_field"))
 
-    def get_fields(self) -> dict:
-        """Get custom field descriptions saved to the database
-        
-        Returns:
+        Args:
             field_attrs: dict
                 The field attributes
         """
-        raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "get_fields"))
+        raise NotImplementedError(
+            not_impl_err_msg(self.__class__.__name__, "save_field")
+        )
 
+    def get_fields(self) -> list[dict]:
+        """Get custom field descriptions saved to the database
+
+        Returns:
+            field_attrs: list[dict]
+                The field attributes
+        """
+        raise NotImplementedError(
+            not_impl_err_msg(self.__class__.__name__, "get_fields")
+        )
 
 
 class JobBackend(TableBackend):

@@ -127,7 +127,7 @@ def encode_field(value: "typing.Any", fcn: callable = None):
 
     elif isinstance(value, datetime):
         return value.strftime(DATETIME_FORMAT)
-    
+
     elif isinstance(value, type):
         return str(type)
 

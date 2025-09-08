@@ -6,8 +6,8 @@ import korus.cli.prompt.view as vw
 
 
 class Module:
-    """
-    """
+    """ """
+
     def __init__(self, id, name, fcn, args=None, **kwargs):
         self.id = id
         self.name = name
@@ -20,23 +20,22 @@ class Module:
             return self.fcn(*self.args, **self.kwargs)
         except KeyboardInterrupt:
             return None
-    
+
+
 class SelectTable(Module):
     def __init__(self, db):
         super().__init__(
-            name = "main",
-            id = module_id("main"),
-            fcn = prompt.select_table,
-            args = (db,)
+            name="main", id=module_id("main"), fcn=prompt.select_table, args=(db,)
         )
+
 
 class SelectTableAction(Module):
     def __init__(self, table_name):
         super().__init__(
-            name = table_name,
-            id = module_id(table_name),
-            fcn = prompt.select_table_action,
-            args = (table_name,)
+            name=table_name,
+            id=module_id(table_name),
+            fcn=prompt.select_table_action,
+            args=(table_name,),
         )
         self.action_names = {
             prompt.TABLE_INFO: "info",
@@ -61,46 +60,50 @@ class SelectTableAction(Module):
 class ViewTableInfo(Module):
     def __init__(self, db, table_name):
         super().__init__(
-            name = "info",
-            id = module_id(table_name, "info"),
-            fcn = vw.view_info,
-            args = (db, table_name)
+            name="info",
+            id=module_id(table_name, "info"),
+            fcn=vw.view_info,
+            args=(db, table_name),
         )
+
 
 class ViewTableContents(Module):
     def __init__(self, db, table_name):
         super().__init__(
-            name = "contents",
-            id = module_id(table_name, "contents"),
-            fcn = vw.view_contents_condensed,
-            args = (db, table_name)
+            name="contents",
+            id=module_id(table_name, "contents"),
+            fcn=vw.view_contents_condensed,
+            args=(db, table_name),
         )
+
 
 class ViewTableContentsDetailed(Module):
     def __init__(self, db, table_name):
         super().__init__(
-            name = "contents-detailed",
-            id = module_id(table_name, "contents-detailed"),
-            fcn = vw.view_contents_detailed,
-            args = (db, table_name)
+            name="contents-detailed",
+            id=module_id(table_name, "contents-detailed"),
+            fcn=vw.view_contents_detailed,
+            args=(db, table_name),
         )
+
 
 class TableAdd(Module):
     def __init__(self, db, table_name):
         super().__init__(
-            name = "add",
-            id = module_id(table_name, "add"),
-            fcn = add.add,
-            args = (db, table_name)
+            name="add",
+            id=module_id(table_name, "add"),
+            fcn=add.add,
+            args=(db, table_name),
         )
+
 
 class TableUpdate(Module):
     def __init__(self, db, table_name):
         super().__init__(
-            name = "update",
-            id = module_id(table_name, "update"),
-            fcn = upd.update,
-            args = (db, table_name)
+            name="update",
+            id=module_id(table_name, "update"),
+            fcn=upd.update,
+            args=(db, table_name),
         )
 
 
