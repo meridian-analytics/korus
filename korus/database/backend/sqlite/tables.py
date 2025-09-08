@@ -125,13 +125,14 @@ def create_granularity_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    if table_exists(conn, "granularity"):
+    tbl_name = "granularity"
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
-    tbl_def = """
+    tbl_def = f"""
         CREATE TABLE
-            granularity(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 description TEXT,
@@ -165,6 +166,8 @@ def create_granularity_table(conn):
             [name, descr],
         )
 
+    create_field_table(tbl_name)
+
 
 def create_job_table(conn):
     """Create job table according to Korus schema.
@@ -173,14 +176,15 @@ def create_job_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    if table_exists(conn, "job"):
+    tbl_name = "job"
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
 
-    tbl_def = """
+    tbl_def = f"""
         CREATE TABLE
-            job(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 taxonomy_id INTEGER,
                 model_id INTEGER,
@@ -207,6 +211,8 @@ def create_job_table(conn):
             )
         """
     c.execute(tbl_def)
+
+    create_field_table(tbl_name)
 
 
 def create_deployment_table(conn):
