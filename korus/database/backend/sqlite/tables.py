@@ -66,14 +66,15 @@ def create_annotation_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    if table_exists(conn, "annotation"):
+    tbl_name = "annotation"
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
 
-    tbl_def = """
+    tbl_def = f"""
         CREATE TABLE
-            annotation(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 job_id INTEGER NOT NULL,
                 deployment_id INTEGER NOT NULL,
@@ -111,6 +112,8 @@ def create_annotation_table(conn):
             )
         """
     c.execute(tbl_def)
+
+    create_field_table(tbl_name)
 
 
 def create_granularity_table(conn):
