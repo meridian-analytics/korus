@@ -35,21 +35,21 @@ def create_field_table(conn, parent_table_name):
         parent_table_name: str
             Name of the `parent` table
     """
-    table_name = field_table_name(parent_table_name)
-    if table_exists(conn, table_name):
+    tbl_name = field_table_name(parent_table_name)
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
 
     tbl_def = f"""
         CREATE TABLE
-            {table_name}(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 type TEXT NOT NULL,
                 description TEXT NOT NULL,
                 required INTEGER DEFAULT 1,
-                default TEXT,
+                default_value TEXT,
                 options JSON,
                 is_path INTEGER DEFAULT 1,
                 PRIMARY KEY (id)
@@ -115,7 +115,7 @@ def create_annotation_table(conn):
         """
     c.execute(tbl_def)
 
-    create_field_table(tbl_name)
+    create_field_table(conn, tbl_name)
 
 
 def create_granularity_table(conn):
@@ -168,7 +168,7 @@ def create_granularity_table(conn):
             [name, descr],
         )
 
-    create_field_table(tbl_name)
+    create_field_table(conn, tbl_name)
 
 
 def create_job_table(conn):
@@ -214,7 +214,7 @@ def create_job_table(conn):
         """
     c.execute(tbl_def)
 
-    create_field_table(tbl_name)
+    create_field_table(conn, tbl_name)
 
 
 def create_deployment_table(conn):
@@ -268,7 +268,7 @@ def create_deployment_table(conn):
         """
     c.execute(tbl_def)
 
-    create_field_table(tbl_name)
+    create_field_table(conn, tbl_name)
 
 
 def create_file_table(conn):
@@ -328,7 +328,7 @@ def create_file_table(conn):
     """
     )
 
-    create_field_table(tbl_name)
+    create_field_table(conn, tbl_name)
 
 
 def create_file_job_relation_table(conn):
@@ -397,7 +397,7 @@ def create_model_table(conn):
         """
     c.execute(tbl_def)
 
-    create_field_table(tbl_name)
+    create_field_table(conn, tbl_name)
 
 
 def create_storage_table(conn):
@@ -428,7 +428,7 @@ def create_storage_table(conn):
         """
     c.execute(tbl_def)
 
-    create_field_table(tbl_name)
+    create_field_table(conn, tbl_name)
 
 
 def create_tag_table(conn):
@@ -440,7 +440,7 @@ def create_tag_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    tbl_name = "tab"
+    tbl_name = "tag"
     if table_exists(conn, tbl_name):
         return
 
@@ -457,7 +457,7 @@ def create_tag_table(conn):
         """
     c.execute(tbl_def)
 
-    create_field_table(tbl_name)
+    create_field_table(conn, tbl_name)
 
 
 def create_taxonomy_table(conn):
@@ -490,7 +490,7 @@ def create_taxonomy_table(conn):
         """
     c.execute(tbl_def)
 
-    create_field_table(tbl_name)
+    create_field_table(conn, tbl_name)
 
 
 def create_label_table(conn):
@@ -535,4 +535,4 @@ def create_label_table(conn):
     """
     )
 
-    create_field_table(tbl_name)
+    create_field_table(conn, tbl_name)

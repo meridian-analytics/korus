@@ -59,61 +59,65 @@ class AnnotationInterface(TableInterface):
         self._granularity = granularity
 
         # fields
-        self.add_field("deployment_id", int, "Deployment index")
-        self.add_field("job_id", int, "Job index")
-        self.add_field("file_id", int, "File index", required=False)
-        self.add_field(
+        self._create_field("deployment_id", int, "Deployment index")
+        self._create_field("job_id", int, "Job index")
+        self._create_field("file_id", int, "File index", required=False)
+        self._create_field(
             "label_id", int, "Label index for confident classification", required=False
         )
-        self.add_field(
+        self._create_field(
             "tentative_label_id",
             int,
             "Label index for tentative classification",
             required=False,
         )
-        self.add_field(
+        self._create_field(
             "ambiguous_label_id",
             list,
             "Label indices for ambiguous classification",
             required=False,
         )
-        self.add_field(
+        self._create_field(
             "excluded_label_id",
             list,
             "Label indices for excluded classes",
             required=False,
         )
-        self.add_field(
+        self._create_field(
             "multiple_label_id",
             list,
             "Label indices for multiple (batch) classification",
             required=False,
         )
-        self.add_field("tag_id", list, "Tag indices", required=False)
-        self.add_field("granularity_id", int, "Granularity index", default=1)
-        self.add_field(
+        self._create_field("tag_id", list, "Tag indices", required=False)
+        self._create_field("granularity_id", int, "Granularity index", default=1)
+        self._create_field(
             "negative", bool, "Automatically generated negative", default=False
         )
-        self.add_field("num_files", int, "Number of audio files", default=1)
-        self.add_field("file_id_list", list, "File indices", required=False)
-        self.add_field("start_utc", datetime, "UTC start time", required=False)
-        self.add_field("duration_ms", int, "Duration in milliseconds", required=False)
-        self.add_field(
+        self._create_field("num_files", int, "Number of audio files", default=1)
+        self._create_field("file_id_list", list, "File indices", required=False)
+        self._create_field("start_utc", datetime, "UTC start time", required=False)
+        self._create_field(
+            "duration_ms", int, "Duration in milliseconds", required=False
+        )
+        self._create_field(
             "start_ms",
             int,
             "Start time in milliseconds from the beginning of the file",
             required=False,
         )
-        self.add_field(
+        self._create_field(
             "freq_min_hz", int, "Lower frequency bound in Hz", required=False
         )
-        self.add_field(
+        self._create_field(
             "freq_max_hz", int, "Upper frequency bound in Hz", required=False
         )
-        self.add_field("channel", int, "Hydrophone channel", default=0)
-        self.add_field("machine_prediction", dict, "Machine prediction", required=False)
-        self.add_field("valid", bool, "Validation status", default=True)
-        self.add_field("comments", str, "Additional observations", required=False)
+        self._create_field("channel", int, "Hydrophone channel", default=0)
+        self._create_field(
+            "machine_prediction", dict, "Machine prediction", required=False
+        )
+        self._create_field("valid", bool, "Validation status", default=True)
+        self._create_field("comments", str, "Additional observations", required=False)
 
         # time aliases
         self.create_alias(

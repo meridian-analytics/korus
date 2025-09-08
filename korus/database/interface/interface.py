@@ -308,7 +308,7 @@ class TableInterface:
         field = self._create_field(
             name, type, description, required, default, options, is_path
         )
-        self.backend._save_field(field)
+        self.backend.save_field(field)
 
     def create_alias(
         self,

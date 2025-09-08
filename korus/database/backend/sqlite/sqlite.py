@@ -135,8 +135,9 @@ class SQLiteTableBackend(TableBackend):
         )
 
     def get_fields(self) -> list[dict]:
-        rows = fetch_row(self.conn, self.name, as_dict=True)
-        rows = [self.codec.decode(row, self.name) for row in rows]
+        tbl_name = field_table_name(self.name)
+        rows = fetch_row(self.conn, tbl_name, as_dict=True)
+        rows = [self.codec.decode(row, tbl_name) for row in rows]
         return rows
 
 
