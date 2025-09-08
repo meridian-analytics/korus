@@ -1,6 +1,8 @@
 import json
+from pydoc import locate
 from datetime import datetime, timezone
 import korus.database.backend.sqlite.query as qy
+from korus.database.backend.sqlite.tables import is_field_table
 
 
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
@@ -69,6 +71,14 @@ def decode_json(v: str) -> list | tuple | dict:
         return json.loads(v)
 
 
+def decode_type(v: str) -> type:
+    if v is None:
+        return None
+
+    else:
+        return locate(v)
+
+
 def decode_datetime(v: str) -> datetime:
     """Decoder for datetime values.
 
@@ -117,6 +127,9 @@ def encode_field(value: "typing.Any", fcn: callable = None):
 
     elif isinstance(value, datetime):
         return value.strftime(DATETIME_FORMAT)
+    
+    elif isinstance(value, type):
+        return str(type)
 
     else:
         return value
@@ -241,5 +254,11 @@ def create_codec(conn):
             key_name += "_id"
             codec.encoder.add_rule(table_name, key_name, encode_key)
             codec.decoder.add_rule(table_name, key_name, decode_key)
+
+    # decode types
+    table_names = qy.get_table_names(conn)
+    for table_name in table_names:
+        if is_field_table(table_name):
+            codec.decoder.add_rule(table_name, "type", decode_type)
 
     return codec

@@ -13,7 +13,7 @@ class FieldDefinition:
 
         bool,str,int,float,datetime
 
-    Table indices are stored in fields with type `str` and name ending in `_id`.
+    Table indices are stored in fields with type `int` and name ending in `_id`.
 
     Attrs:
         name: str
@@ -148,6 +148,7 @@ class TableInterface:
         self._index = -1
         self._count = 0
         self.indices = None
+        self._load_fields()
 
     @property
     def fields(self) -> list[FieldDefinition]:
@@ -227,6 +228,47 @@ class TableInterface:
 
         return {name: value for name, value in zip(fields, values)}
 
+    def _create_field(
+        self,
+        name: str,
+        type: "typing.Any",
+        description: str,
+        required: bool = True,
+        default: "typing.Any" = None,
+        options: list = None,
+        is_path: bool = False,
+    ):
+        """Helper function for creating fields.
+
+        Args:
+            name: str
+                The field's name
+            type: Any
+                The field's type
+            description: str
+                Short, human-readable description of the data stored in this field
+            required: bool
+                True if the field is required to have a non-null value. False otherwise
+            default: same as type (optional)
+                The field default value
+            options: list (optional)
+                Allowed values
+            is_path: bool
+                Whether the field is an OS path.
+
+        Returns:
+            field: FieldDefinition
+                The created field
+        """
+        field = FieldDefinition(name, type, description, required, default, options, is_path)
+        self._fields.append(field)
+        return field
+    
+    def _load_fields(self):
+        """Helper function for loading custom fields from the database"""
+        for field_dict in self.backend.get_fields():
+            self._create_field(**field_dict)
+
     def add_field(
         self,
         name: str,
@@ -237,7 +279,10 @@ class TableInterface:
         options: list = None,
         is_path: bool = False,
     ):
-        """Add a field to the table interface.
+        """Add a custom field to the table interface. 
+        
+        The field is saved to the database. This allows it to be automatically re-created 
+        at every subsequent connection to the database.
 
         Args:
             name: str
@@ -255,13 +300,10 @@ class TableInterface:
             is_path: bool
                 Whether the field is an OS path.
         """
-        self._fields.append(
-            FieldDefinition(
-                name, type, description, required, default, options, is_path
-            )
-        )
+        field = self._create_field(name, type, description, required, default, options, is_path)
+        self.backend._save_field(field)
 
-    def add_alias(
+    def create_alias(
         self,
         field_name: str,
         name: str,
@@ -270,7 +312,9 @@ class TableInterface:
         transform: callable = None,
         reverse_transform: callable = None,
     ):
-        """Add an alias to the table interface.
+        """Create a custom alias.
+
+        OBS: Note that the alias is *not* saved to the database, so the alias needs to be re-created every time the table interface is instantiated.
 
         Args:
             field_name: str
@@ -287,11 +331,8 @@ class TableInterface:
                 Transform applied to every row of output data to convert the field value to its corresponding alias value.
                 Expects the field value as the first positional argument, and accepts other field/alias values as keyword arguments.
         """
-        self._aliases.append(
-            FieldAlias(
-                field_name, name, type, description, transform, reverse_transform
-            )
-        )
+        alias = FieldAlias(field_name, name, type, description, transform, reverse_transform)
+        self._aliases.append(alias)
 
     def _validate_data(self, row: dict):
         """Helper function for validating input data.

@@ -116,7 +116,7 @@ class AnnotationInterface(TableInterface):
         self.add_field("comments", str, "Additional observations", required=False)
 
         # time aliases
-        self.add_alias(
+        self.create_alias(
             "start_ms",
             "start",
             float,
@@ -125,7 +125,7 @@ class AnnotationInterface(TableInterface):
             lambda x, **_: float(x) / 1e3,
         )
 
-        self.add_alias(
+        self.create_alias(
             "duration_ms",
             "duration",
             float,
@@ -135,7 +135,7 @@ class AnnotationInterface(TableInterface):
         )
 
         # tag and granularity aliases
-        self.add_alias(
+        self.create_alias(
             "tag_id",
             "tag",
             list,
@@ -144,7 +144,7 @@ class AnnotationInterface(TableInterface):
             self._get_tag,
         )
 
-        self.add_alias(
+        self.create_alias(
             "granularity_id",
             "granularity",
             str,
@@ -155,7 +155,7 @@ class AnnotationInterface(TableInterface):
 
         # label aliases
         alias_description = "Specify label tuples in place of label IDs"
-        self.add_alias(
+        self.create_alias(
             "label_id",
             "label",
             tuple,
@@ -163,7 +163,7 @@ class AnnotationInterface(TableInterface):
             self._get_label_id,
             self._get_label,
         )
-        self.add_alias(
+        self.create_alias(
             "tentative_label_id",
             "tentative_label",
             tuple,
@@ -171,7 +171,7 @@ class AnnotationInterface(TableInterface):
             self._get_label_id,
             self._get_label,
         )
-        self.add_alias(
+        self.create_alias(
             "ambiguous_label_id",
             "ambiguous_label",
             list,
@@ -179,7 +179,7 @@ class AnnotationInterface(TableInterface):
             self._get_label_id,
             self._get_label,
         )
-        self.add_alias(
+        self.create_alias(
             "excluded_label_id",
             "excluded_label",
             list,
@@ -187,7 +187,7 @@ class AnnotationInterface(TableInterface):
             self._get_label_id,
             self._get_label,
         )
-        self.add_alias(
+        self.create_alias(
             "multiple_label_id",
             "multiple_label",
             list,

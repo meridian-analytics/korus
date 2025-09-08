@@ -8,7 +8,7 @@ from .codec import (
     index_to_key,
     key_to_index,
 )
-from .tables import create_tables
+from .tables import create_tables, field_table_name
 from .codec import create_codec
 from .query import (
     get_row_count,
@@ -25,6 +25,8 @@ from .query import (
 
 class SQLiteTableBackend(TableBackend):
     """Generic SQLite table backend.
+
+    Note: The SQLite table and its associated _field table must be created before instantiating this class.
 
     Args:
         conn: sqlite3.Connection
@@ -117,6 +119,23 @@ class SQLiteTableBackend(TableBackend):
         )
 
         self.conn.commit()
+
+    def save_field(self, field_attrs: dict):
+        # add field metadata to the _field table
+        tbl_name = field_table_name(self.name)
+        insert_row(self.conn, tbl_name, self.codec.encode(field_attrs, tbl_name))
+        self.conn.commit()
+
+        # add column to primary table
+        self.add_field(
+            name = field_attrs["name"], 
+            type = field_attrs["type"], 
+            default = field_attrs.get("default", None), 
+            required = field_attrs.get("required", True),
+        )
+
+    def get_fields(self) -> dict:
+        pass
 
 
 class SQLiteJobBackend(SQLiteTableBackend):

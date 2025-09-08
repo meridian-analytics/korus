@@ -16,6 +16,46 @@ def create_tables(conn):
     create_file_job_relation_table(conn)
 
 
+def is_field_table(table_name):
+    return len(table_name) > 5 and table_name[0] == "_" and table_name[-6:] == "_field"
+
+def field_table_name(parent_table_name: str):
+    return "_" + parent_table_name + "_field"
+
+def create_field_table(conn, parent_table_name):
+    """Create table for storing custom fields.
+
+    The table is named `_{parent_table_name}_field`
+
+    Args:
+        conn: sqlite3.Connection
+            Database connection
+        parent_table_name: str
+            Name of the `parent` table
+    """
+    table_name = field_table_name(parent_table_name)
+    if table_exists(conn, table_name):
+        return
+
+    c = conn.cursor()
+
+    tbl_def = f"""
+        CREATE TABLE
+            {table_name}(
+                id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                type TEXT NOT NULL,
+                description TEXT NOT NULL,
+                required INTEGER DEFAULT 1,
+                default TEXT,
+                options JSON,
+                is_path INTEGER DEFAULT 1,
+                PRIMARY KEY (id)
+            )
+        """
+    c.execute(tbl_def)
+
+
 def create_annotation_table(conn):
     """Create annotation table according to Korus schema.
 

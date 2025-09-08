@@ -113,7 +113,7 @@ def test_use_alias(in_memory_table_backend):
 
     i.add_field("A", int, "a test field", default=None)
 
-    i.add_alias(
+    i.create_alias(
         "A",
         "AA",
         str,
