@@ -56,6 +56,10 @@ def encode_key(v: int | list[int]):
     return v
 
 
+def encode_type(v: type):
+    return v.__name__
+
+
 def decode_key(v: int | list[int]):
     if isinstance(v, str):
         v = json.loads(v)
@@ -255,10 +259,11 @@ def create_codec(conn):
             codec.encoder.add_rule(table_name, key_name, encode_key)
             codec.decoder.add_rule(table_name, key_name, decode_key)
 
-    # decode types
+    # encode & decode types
     table_names = qy.get_table_names(conn)
     for table_name in table_names:
         if is_field_table(table_name):
+            codec.encoder.add_rule(table_name, "type", encode_type)
             codec.decoder.add_rule(table_name, "type", decode_type)
 
     return codec

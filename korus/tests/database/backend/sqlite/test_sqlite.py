@@ -1,5 +1,7 @@
 import os
 from datetime import datetime, timezone
+from dataclasses import asdict
+from korus.database.interface import FieldDefinition
 
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
@@ -172,3 +174,33 @@ def test_table_backend(minimal_sqlite_backend):
     cond = {"excluded_label_id": 2}
     indices = backend.annotation.filter(cond)
     assert indices == [2]
+
+
+def test_table_backend_save_custom_field(minimal_sqlite_backend):
+    """Test saving and loading of custom fields with SQLiteTableBackend"""
+    backend = minimal_sqlite_backend
+
+    # create int field
+    field_attrs = {
+        "name": "an_int_field",
+        "type": int,
+        "description": "An integer field", 
+        "required": False, 
+        "default": 17,
+        "options": [1, 3, 17],
+        "is_path": False,
+    }
+    field = FieldDefinition(**field_attrs)
+
+    # save field
+    backend.annotation.save_field(asdict(field))
+
+    # re-load
+    fields_attrs = backend.annotation.get_fields()
+    assert len(fields_attrs) == 1
+    #assert asdict(field) == fields_attrs[0]    
+    print()
+    print(asdict(field))
+    print(fields_attrs[0])
+    retrieved_field = FieldDefinition(**fields_attrs[0])
+

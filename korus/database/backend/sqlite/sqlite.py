@@ -23,6 +23,12 @@ from .query import (
 )
 
 
+def rename_key(x, old_name, new_name):
+    """Helper function for renaming key in dict"""
+    x[new_name] = x.pop(old_name)
+    return x
+
+
 class SQLiteTableBackend(TableBackend):
     """Generic SQLite table backend.
 
@@ -121,23 +127,28 @@ class SQLiteTableBackend(TableBackend):
         self.conn.commit()
 
     def save_field(self, field_attrs: dict):
+        # rename: default -> default_value
+        row = field_attrs.copy()
+        row["default_value"] = row.pop("default", None)
+        
         # add field metadata to _field table
         tbl_name = field_table_name(self.name)
-        insert_row(self.conn, tbl_name, self.codec.encode(field_attrs, tbl_name))
+        insert_row(self.conn, tbl_name, self.codec.encode(row, tbl_name))
         self.conn.commit()
 
         # add column to primary table
         self.add_field(
-            name=field_attrs["name"],
-            type=field_attrs["type"],
-            default=field_attrs.get("default", None),
-            required=field_attrs.get("required", True),
+            name=row["name"],
+            type=row["type"],
+            default=row["default_value"],
+            required=row.get("required", True),
         )
 
     def get_fields(self) -> list[dict]:
         tbl_name = field_table_name(self.name)
         rows = fetch_row(self.conn, tbl_name, as_dict=True)
         rows = [self.codec.decode(row, tbl_name) for row in rows]
+        rows = [rename_key(row, "default_value", "default") for row in rows]
         return rows
 
 

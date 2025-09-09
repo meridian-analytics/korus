@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from tabulate import tabulate
 from korus.database.backend import TableBackend
 import numpy as np
@@ -308,7 +308,7 @@ class TableInterface:
         field = self._create_field(
             name, type, description, required, default, options, is_path
         )
-        self.backend.save_field(field)
+        self.backend.save_field(asdict(field))
 
     def create_alias(
         self,
