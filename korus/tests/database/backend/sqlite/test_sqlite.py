@@ -1,4 +1,5 @@
 import os
+import pytest
 from datetime import datetime, timezone
 from dataclasses import asdict
 from korus.database.interface import FieldDefinition
@@ -176,16 +177,16 @@ def test_table_backend(minimal_sqlite_backend):
     assert indices == [2]
 
 
-def test_table_backend_save_custom_field(minimal_sqlite_backend):
-    """Test saving and loading of custom fields with SQLiteTableBackend"""
+def test_table_backend_save_custom_int_field(minimal_sqlite_backend):
+    """Test saving and loading of custom int field with SQLiteTableBackend"""
     backend = minimal_sqlite_backend
 
     # create int field
     field_attrs = {
         "name": "an_int_field",
         "type": int,
-        "description": "An integer field", 
-        "required": False, 
+        "description": "An integer field",
+        "required": False,
         "default": 17,
         "options": [1, 3, 17],
         "is_path": False,
@@ -198,9 +199,44 @@ def test_table_backend_save_custom_field(minimal_sqlite_backend):
     # re-load
     fields_attrs = backend.annotation.get_fields()
     assert len(fields_attrs) == 1
-    #assert asdict(field) == fields_attrs[0]    
-    print()
-    print(asdict(field))
-    print(fields_attrs[0])
-    retrieved_field = FieldDefinition(**fields_attrs[0])
 
+    reconstructed_field = FieldDefinition(**fields_attrs[0])
+
+    assert field == reconstructed_field
+
+
+def test_table_backend_save_custom_datetime_field(minimal_sqlite_backend):
+    """Test saving and loading of custom datetime field with SQLiteTableBackend"""
+    backend = minimal_sqlite_backend
+
+    # create int field
+    field_attrs = {
+        "name": "a_datetime_field",
+        "type": datetime,
+        "description": "A datetime field",
+        "required": False,
+        "default": datetime(1991, 1, 1, tzinfo=timezone.utc),
+        "options": [
+            datetime(1991, 1, 1, tzinfo=timezone.utc),
+            datetime(1992, 1, 1, tzinfo=timezone.utc),
+        ],
+        "is_path": False,
+    }
+
+    # save field with restricted range of allowed values triggers an error
+    field = FieldDefinition(**field_attrs)
+    with pytest.raises(NotImplementedError):
+        backend.annotation.save_field(asdict(field))
+
+    # save field with options = None works!
+    field_attrs["options"] = None
+    field = FieldDefinition(**field_attrs)
+    backend.annotation.save_field(asdict(field))
+
+    # re-load
+    fields_attrs = backend.annotation.get_fields()
+    assert len(fields_attrs) == 1
+
+    reconstructed_field = FieldDefinition(**fields_attrs[0])
+
+    assert field == reconstructed_field

@@ -1,12 +1,14 @@
 import sqlite3
+from datetime import datetime
 from korus.database.backend import TableBackend, DatabaseBackend
 from .codec import (
     Codec,
-    encode_key,
     encode_condition,
     decode_key,
     index_to_key,
     key_to_index,
+    decode_row,
+    decode_str_by_type,
 )
 from .tables import create_tables, field_table_name
 from .codec import create_codec
@@ -130,7 +132,12 @@ class SQLiteTableBackend(TableBackend):
         # rename: default -> default_value
         row = field_attrs.copy()
         row["default_value"] = row.pop("default", None)
-        
+
+        # unsupported special case:
+        if row["type"] == datetime and row.get("options", None) is not None:
+            err_msg = f"Saving of custom `datetime` fields with restricted range of allowed values (`options`) is currently not supported"
+            raise NotImplementedError(err_msg)
+
         # add field metadata to _field table
         tbl_name = field_table_name(self.name)
         insert_row(self.conn, tbl_name, self.codec.encode(row, tbl_name))
@@ -145,10 +152,25 @@ class SQLiteTableBackend(TableBackend):
         )
 
     def get_fields(self) -> list[dict]:
+        # fetch data
         tbl_name = field_table_name(self.name)
         rows = fetch_row(self.conn, tbl_name, as_dict=True)
+
+        # apply decoding rules
         rows = [self.codec.decode(row, tbl_name) for row in rows]
+
+        # 'manually' decode default value
+        rows = [
+            decode_row(
+                row,
+                fcns={"default_value": lambda x: decode_str_by_type(x, row["type"])},
+            )
+            for row in rows
+        ]
+
+        # rename: default_value -> default
         rows = [rename_key(row, "default_value", "default") for row in rows]
+
         return rows
 
 

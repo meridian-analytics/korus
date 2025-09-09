@@ -80,7 +80,21 @@ def decode_type(v: str) -> type:
         return None
 
     else:
-        return locate(v)
+        if v == "datetime":
+            return datetime
+        else:
+            return locate(v)
+
+
+def decode_str_by_type(v: str, type: type) -> type:
+    if v is None:
+        return None
+
+    else:
+        if type == datetime:
+            return decode_datetime(v)
+        else:
+            return type(v)
 
 
 def decode_datetime(v: str) -> datetime:
