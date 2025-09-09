@@ -5,8 +5,8 @@ class GranularityInterface(TableInterface):
     def __init__(self, backend):
         super().__init__("granularity", backend)
 
-        self.add_field("name", str, "Granularity level name")
-        self.add_field("description", str, "Definition of the granularity level")
+        self._create_field("name", str, "Granularity level name")
+        self._create_field("description", str, "Definition of the granularity level")
 
         # add default granularity levels
         if len(self) == 0:

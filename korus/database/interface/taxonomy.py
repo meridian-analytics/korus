@@ -20,16 +20,18 @@ class TaxonomyInterface(TableInterface, AcousticTaxonomyManager):
 
         self.label_interface = label_interface
 
-        self.add_field("name", str, "Name")
-        self.add_field("version", int, "Version", required=False)
-        self.add_field("timestamp", datetime, "Time of release (UTC)")
-        self.add_field("changes", list, "Changes since previous version")
-        self.add_field("comment", str, "Any additional release notes", required=False)
-        self.add_field("tree", dict, "Taxonomy tree")
-        self.add_field(
+        self._create_field("name", str, "Name")
+        self._create_field("version", int, "Version", required=False)
+        self._create_field("timestamp", datetime, "Time of release (UTC)")
+        self._create_field("changes", list, "Changes since previous version")
+        self._create_field(
+            "comment", str, "Any additional release notes", required=False
+        )
+        self._create_field("tree", dict, "Taxonomy tree")
+        self._create_field(
             "created_nodes", dict, "Nodes created since the previous version"
         )
-        self.add_field(
+        self._create_field(
             "removed_nodes", dict, "Nodes removed since the previous version"
         )
 

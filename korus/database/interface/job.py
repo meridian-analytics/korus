@@ -13,57 +13,57 @@ class JobInterface(TableInterface):
         self._file = file
 
         # fields
-        self.add_field("taxonomy_id", int, "Taxonomy index", required=False)
-        self.add_field("model_id", int, "Model index", required=False)
-        self.add_field(
+        self._create_field("taxonomy_id", int, "Taxonomy index", required=False)
+        self._create_field("model_id", int, "Model index", required=False)
+        self._create_field(
             "annotator",
             str,
             "Name of person or model who annotated the data",
             required=False,
         )
-        self.add_field(
+        self._create_field(
             "target", list, "Systematically annotated sounds", required=False
         )
-        self.add_field(
+        self._create_field(
             "is_exhaustive",
             bool,
             "Whether all primary sounds were annotated",
             required=False,
         )
-        self.add_field(
+        self._create_field(
             "configuration",
             dict,
             "Model configuration or instructions given to the annotator",
             required=False,
         )
-        self.add_field(
+        self._create_field(
             "start_utc",
             datetime,
             "Start time of the annotation effort",
             required=False,
         )
-        self.add_field(
+        self._create_field(
             "end_utc",
             datetime,
             "End time of the annotation effort",
             required=False,
         )
-        self.add_field(
+        self._create_field(
             "by_human",
             bool,
             "True, if annotations were made/validated by a human",
             default=True,
         )
-        self.add_field(
+        self._create_field(
             "by_machine",
             bool,
             "True, if annotations were made by a machine",
             default=False,
         )
-        self.add_field(
+        self._create_field(
             "issues", list, "Issues or limitations with the annotations", required=False
         )
-        self.add_field("comments", str, "Additional observations", required=False)
+        self._create_field("comments", str, "Additional observations", required=False)
 
     def add_file(self, job_id: int, file_id: int, channel: int = 0):
         """Add an audio-file channel to an annotation job.

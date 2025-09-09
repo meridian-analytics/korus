@@ -10,7 +10,7 @@ class Cursor:
     @property
     def item(self) -> str:
         return self._item
-    
+
     @item.setter
     def item(self, i: str):
         self._item = i
@@ -57,7 +57,6 @@ class Cursor:
             self.go_back()
 
         return new_id
-        
 
 
 cursor = Cursor()

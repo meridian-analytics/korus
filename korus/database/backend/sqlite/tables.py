@@ -16,6 +16,48 @@ def create_tables(conn):
     create_file_job_relation_table(conn)
 
 
+def is_field_table(table_name):
+    return len(table_name) > 5 and table_name[0] == "_" and table_name[-6:] == "_field"
+
+
+def field_table_name(parent_table_name: str):
+    return "_" + parent_table_name + "_field"
+
+
+def create_field_table(conn, parent_table_name):
+    """Create table for storing custom fields.
+
+    The table is named `_{parent_table_name}_field`
+
+    Args:
+        conn: sqlite3.Connection
+            Database connection
+        parent_table_name: str
+            Name of the `parent` table
+    """
+    tbl_name = field_table_name(parent_table_name)
+    if table_exists(conn, tbl_name):
+        return
+
+    c = conn.cursor()
+
+    tbl_def = f"""
+        CREATE TABLE
+            {tbl_name}(
+                id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                type TEXT NOT NULL,
+                description TEXT NOT NULL,
+                required INTEGER DEFAULT 1,
+                default_value TEXT,
+                options JSON,
+                is_path INTEGER DEFAULT 1,
+                PRIMARY KEY (id)
+            )
+        """
+    c.execute(tbl_def)
+
+
 def create_annotation_table(conn):
     """Create annotation table according to Korus schema.
 
@@ -26,14 +68,15 @@ def create_annotation_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    if table_exists(conn, "annotation"):
+    tbl_name = "annotation"
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
 
-    tbl_def = """
+    tbl_def = f"""
         CREATE TABLE
-            annotation(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 job_id INTEGER NOT NULL,
                 deployment_id INTEGER NOT NULL,
@@ -72,6 +115,8 @@ def create_annotation_table(conn):
         """
     c.execute(tbl_def)
 
+    create_field_table(conn, tbl_name)
+
 
 def create_granularity_table(conn):
     """Create granularity table according to Korus schema.
@@ -82,13 +127,14 @@ def create_granularity_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    if table_exists(conn, "granularity"):
+    tbl_name = "granularity"
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
-    tbl_def = """
+    tbl_def = f"""
         CREATE TABLE
-            granularity(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 description TEXT,
@@ -122,6 +168,8 @@ def create_granularity_table(conn):
             [name, descr],
         )
 
+    create_field_table(conn, tbl_name)
+
 
 def create_job_table(conn):
     """Create job table according to Korus schema.
@@ -130,14 +178,15 @@ def create_job_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    if table_exists(conn, "job"):
+    tbl_name = "job"
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
 
-    tbl_def = """
+    tbl_def = f"""
         CREATE TABLE
-            job(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 taxonomy_id INTEGER,
                 model_id INTEGER,
@@ -165,6 +214,8 @@ def create_job_table(conn):
         """
     c.execute(tbl_def)
 
+    create_field_table(conn, tbl_name)
+
 
 def create_deployment_table(conn):
     """Create deployment table according to Korus schema.
@@ -173,14 +224,15 @@ def create_deployment_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    if table_exists(conn, "deployment"):
+    tbl_name = "deployment"
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
 
-    tbl_def = """
+    tbl_def = f"""
         CREATE TABLE
-            deployment(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 owner TEXT,
@@ -216,6 +268,8 @@ def create_deployment_table(conn):
         """
     c.execute(tbl_def)
 
+    create_field_table(conn, tbl_name)
+
 
 def create_file_table(conn):
     """Create file table according to Korus schema.
@@ -226,15 +280,16 @@ def create_file_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    if table_exists(conn, "file"):
+    tbl_name = "file"
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
 
     # create table
-    tbl_def = """
+    tbl_def = f"""
         CREATE TABLE
-            file(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 deployment_id INTEGER NOT NULL,
                 storage_id INTEGER NOT NULL,
@@ -272,6 +327,8 @@ def create_file_table(conn):
             file(deployment_id, start_utc)
     """
     )
+
+    create_field_table(conn, tbl_name)
 
 
 def create_file_job_relation_table(conn):
@@ -322,13 +379,14 @@ def create_model_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    if table_exists(conn, "model"):
+    tbl_name = "model"
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
-    tbl_def = """
+    tbl_def = f"""
         CREATE TABLE
-            model(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 version TEXT,
@@ -338,6 +396,8 @@ def create_model_table(conn):
             )
         """
     c.execute(tbl_def)
+
+    create_field_table(conn, tbl_name)
 
 
 def create_storage_table(conn):
@@ -349,13 +409,14 @@ def create_storage_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    if table_exists(conn, "storage"):
+    tbl_name = "storage"
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
-    tbl_def = """
+    tbl_def = f"""
         CREATE TABLE
-            storage(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 path TEXT NOT NULL DEFAULT '/',
@@ -367,6 +428,8 @@ def create_storage_table(conn):
         """
     c.execute(tbl_def)
 
+    create_field_table(conn, tbl_name)
+
 
 def create_tag_table(conn):
     """Create tag table according to Korus schema.
@@ -377,13 +440,14 @@ def create_tag_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    if table_exists(conn, "tag"):
+    tbl_name = "tag"
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
-    tbl_def = """
+    tbl_def = f"""
         CREATE TABLE
-            tag(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 description TEXT,
@@ -393,6 +457,8 @@ def create_tag_table(conn):
         """
     c.execute(tbl_def)
 
+    create_field_table(conn, tbl_name)
+
 
 def create_taxonomy_table(conn):
     """Create taxonomy table according to Korus schema.
@@ -401,13 +467,14 @@ def create_taxonomy_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    if table_exists(conn, "taxonomy"):
+    tbl_name = "taxonomy"
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
-    tbl_def = """
+    tbl_def = f"""
         CREATE TABLE
-            taxonomy(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 version INTEGER,
@@ -423,6 +490,8 @@ def create_taxonomy_table(conn):
         """
     c.execute(tbl_def)
 
+    create_field_table(conn, tbl_name)
+
 
 def create_label_table(conn):
     """Create label table according to Korus schema.
@@ -433,15 +502,16 @@ def create_label_table(conn):
         conn: sqlite3.Connection
             Database connection
     """
-    if table_exists(conn, "label"):
+    tbl_name = "label"
+    if table_exists(conn, tbl_name):
         return
 
     c = conn.cursor()
 
     # create table
-    tbl_def = """
+    tbl_def = f"""
         CREATE TABLE
-            label(
+            {tbl_name}(
                 id INTEGER NOT NULL,
                 taxonomy_id INTEGER NOT NULL,
                 sound_source_tag TEXT,
@@ -464,3 +534,5 @@ def create_label_table(conn):
             label(taxonomy_id, sound_source_tag, sound_type_tag)
     """
     )
+
+    create_field_table(conn, tbl_name)
