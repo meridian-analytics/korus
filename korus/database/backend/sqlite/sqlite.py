@@ -10,7 +10,7 @@ from .codec import (
     decode_row,
     decode_str_by_type,
 )
-from .tables import create_tables, field_table_name
+from .tables import create_tables, field_table_name, table_exists, create_field_table
 from .codec import create_codec
 from .query import (
     get_row_count,
@@ -129,6 +129,12 @@ class SQLiteTableBackend(TableBackend):
         self.conn.commit()
 
     def save_field(self, field_attrs: dict):
+        tbl_name = field_table_name(self.name)
+
+        # if _field table does not exist yet, create it
+        if not table_exists(self.conn, tbl_name):
+            create_field_table(self.conn, self.name)
+
         # rename: default -> default_value
         row = field_attrs.copy()
         row["default_value"] = row.pop("default", None)
@@ -139,7 +145,6 @@ class SQLiteTableBackend(TableBackend):
             raise NotImplementedError(err_msg)
 
         # add field metadata to _field table
-        tbl_name = field_table_name(self.name)
         insert_row(self.conn, tbl_name, self.codec.encode(row, tbl_name))
         self.conn.commit()
 
@@ -152,8 +157,13 @@ class SQLiteTableBackend(TableBackend):
         )
 
     def get_fields(self) -> list[dict]:
-        # fetch data
         tbl_name = field_table_name(self.name)
+
+        # if _field table does not exist, return an empty list
+        if not table_exists(self.conn, tbl_name):
+            return []
+
+        # fetch data
         rows = fetch_row(self.conn, tbl_name, as_dict=True)
 
         # apply decoding rules
