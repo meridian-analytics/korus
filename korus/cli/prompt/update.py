@@ -32,8 +32,13 @@ def update_field(db: Database, table_name: str):
     """
     msg = "Enter the index of the row you wish to update"
     idx = prompt.enter_index(db, table_name, msg)
-    field = prompt.select_field(db, table_name)
-    value = prompt.enter_value(table_name, field)
+
+    msg = "Select the field you wish to update"
+    field = prompt.select_field(db, table_name, msg)
+
+    msg = f"Enter the new value for {field.name}"
+    value = prompt.enter_value(table_name, field, msg=msg)
+
     if value is None:
         return
 

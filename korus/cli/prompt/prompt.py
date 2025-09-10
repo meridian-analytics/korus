@@ -155,7 +155,9 @@ def select_field_action(db: Database, table_name: str, field: FieldDefinition):
     return choices[choice]
 
 
-def select_field(db: Database, table_name: str) -> FieldDefinition:
+def select_field(
+    db: Database, table_name: str, msg: str = "Select field"
+) -> FieldDefinition:
     """Prompt user to select a field from the table.
 
     Args:
@@ -163,6 +165,8 @@ def select_field(db: Database, table_name: str) -> FieldDefinition:
             The database instance
         table_name: str
             Table name
+        msg: str
+            Prompt message
 
     Returns:
         field: korus.database.interface.FieldDefinition
@@ -173,8 +177,8 @@ def select_field(db: Database, table_name: str) -> FieldDefinition:
     """
     tbl = getattr(db, table_name)
     name = table_name
-    message = str(cursor) + "Select field"
-    question = inquirer.List(name, message=message, choices=tbl.field_names)
+    msg = str(cursor) + msg
+    question = inquirer.List(name, message=msg, choices=tbl.field_names)
     answers = inquirer.prompt([question])
     if answers is None:
         raise KeyboardInterrupt
@@ -221,7 +225,7 @@ def select_label(db, table_name, field_name):
     pass
 
 
-def enter_index(db: Database, table_name: str, msg: str = None) -> int:
+def enter_index(db: Database, table_name: str, msg: str = "Enter index") -> int:
     """Prompt user to enter a row index for the table.
 
     Args:
@@ -230,7 +234,7 @@ def enter_index(db: Database, table_name: str, msg: str = None) -> int:
         table_name: str
             Table name
         msg: str
-            Custom prompt message. If specified, replaces the default message. 
+            Prompt message
 
     Returns:
         : int
@@ -248,7 +252,7 @@ def enter_index(db: Database, table_name: str, msg: str = None) -> int:
     return parse.parse_value(field, val_str)
 
 
-def enter_path(multiple: bool = False) -> str | list[str]:
+def enter_path(multiple: bool = False, msg: str = "Enter path") -> str | list[str]:
     """Prompt user to enter a file or directory path.
 
     Checks that the path is valid.
@@ -259,6 +263,8 @@ def enter_path(multiple: bool = False) -> str | list[str]:
     Args:
         multiple: bool
             Allow multiple comma-separated input values
+        msg: str
+            Prompt message
 
     Returns:
         paths: str | list[str]
@@ -274,8 +280,8 @@ def enter_path(multiple: bool = False) -> str | list[str]:
     sys.stdout = sys.__stdout__
     while True:
         try:
-            message = str(cursor) + "Enter path"
-            paths = input(txt.question(message)).split(",")
+            msg = str(cursor) + msg
+            paths = input(txt.question(msg)).split(",")
 
         except KeyboardInterrupt:
             sys.stdout = original_stdout
@@ -300,7 +306,9 @@ def enter_path(multiple: bool = False) -> str | list[str]:
     return paths
 
 
-def enter_value(table_name: str, field: FieldDefinition, validate: callable = None, msg: str = "Enter value"):
+def enter_value(
+    table_name: str, field: FieldDefinition, validate: callable = None, msg: str = None
+):
     """Prompt user to enter a field value.
 
     Args:
@@ -311,7 +319,7 @@ def enter_value(table_name: str, field: FieldDefinition, validate: callable = No
         validate: callable
             Validation function with signature fcn(answers, current) -> bool
         msg: str
-            Custom prompt message. If specified, replaces the default message. 
+            Prompt message
 
     Returns:
         value: any
@@ -320,13 +328,16 @@ def enter_value(table_name: str, field: FieldDefinition, validate: callable = No
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
+    if msg is None:
+        msg = f"Enter {field.name}"
+
     name = table_name + ":" + field.name + ":value"
-    message = str(cursor) + msg
+    msg = str(cursor) + msg
 
     # collect keyword args for inquirer methods
     kwargs = dict(
         name=name,
-        message=message,
+        message=msg,
         default=field.default,
     )
 
