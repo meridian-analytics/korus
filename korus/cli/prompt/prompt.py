@@ -221,7 +221,7 @@ def select_label(db, table_name, field_name):
     pass
 
 
-def enter_index(db: Database, table_name: str) -> int:
+def enter_index(db: Database, table_name: str, msg: str = None) -> int:
     """Prompt user to enter a row index for the table.
 
     Args:
@@ -229,6 +229,8 @@ def enter_index(db: Database, table_name: str) -> int:
             The database instance
         table_name: str
             Table name
+        msg: str
+            Custom prompt message. If specified, replaces the default message. 
 
     Returns:
         : int
@@ -242,7 +244,7 @@ def enter_index(db: Database, table_name: str) -> int:
         name="id", description="Table index", type=int, required=True
     )
     validate = parse.create_validate_index(tbl)
-    val_str = enter_value(table_name, field, validate=validate)
+    val_str = enter_value(table_name, field, validate=validate, msg=msg)
     return parse.parse_value(field, val_str)
 
 
@@ -298,7 +300,7 @@ def enter_path(multiple: bool = False) -> str | list[str]:
     return paths
 
 
-def enter_value(table_name, field, validate=None):
+def enter_value(table_name: str, field: FieldDefinition, validate: callable = None, msg: str = None):
     """Prompt user to enter a field value.
 
     Args:
@@ -306,6 +308,10 @@ def enter_value(table_name, field, validate=None):
             Table name
         field: korus.database.interface.FieldDefinition
             The field definition
+        validate: callable
+            Validation function with signature fcn(answers, current) -> bool
+        msg: str
+            Custom prompt message. If specified, replaces the default message. 
 
     Returns:
         value: any
