@@ -300,7 +300,7 @@ def enter_path(multiple: bool = False) -> str | list[str]:
     return paths
 
 
-def enter_value(table_name: str, field: FieldDefinition, validate: callable = None, msg: str = None):
+def enter_value(table_name: str, field: FieldDefinition, validate: callable = None, msg: str = "Enter value"):
     """Prompt user to enter a field value.
 
     Args:
@@ -320,10 +320,10 @@ def enter_value(table_name: str, field: FieldDefinition, validate: callable = No
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
-
     name = table_name + ":" + field.name + ":value"
-    message = str(cursor) + "Enter value"
+    message = str(cursor) + msg
 
+    # collect keyword args for inquirer methods
     kwargs = dict(
         name=name,
         message=message,
