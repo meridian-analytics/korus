@@ -32,7 +32,7 @@ def collect_audiofile_metadata(
     Args:
         path: str
             Path to the directory or tar archive where the audio files are stored.
-        ext: str
+        ext: str | list[str]
             Audio file extension. Default is WAV.
         timestamp_parser: callable
             Function that takes a string as input and returns a datetime.datetime object.
@@ -69,6 +69,9 @@ def collect_audiofile_metadata(
     """
     is_tar = os.path.isfile(path) and tarfile.is_tarfile(path)
 
+    if isinstance(ext, str):
+        ext = [ext]
+
     rel_path = subset
 
     if rel_path is None:
@@ -90,9 +93,11 @@ def collect_audiofile_metadata(
             else:
                 kwargs = {"path": os.path.join(path, sub_folder)}
 
+            substr = [x.lower() for x in ext] + [x.upper() for x in ext]
+
             file_paths = find_files(
                 **kwargs,
-                substr=[ext.lower(), ext.upper()],
+                substr=substr,
                 subdirs=True,
                 progress_bar=progress_bar,
             )
@@ -105,7 +110,15 @@ def collect_audiofile_metadata(
 
     df = pd.DataFrame({"rel_path": rel_path})
 
-    df["format"] = ext.upper()
+    def get_ext(x):
+        """Helper function for parsing the file extension"""
+        p = x.rfind(".")
+        if p == -1:
+            return ""
+        else:
+            return x[p + 1 :].upper()
+
+    df["format"] = df["rel_path"].apply(lambda x: get_ext(x))
 
     logging.debug(f"Found {len(df)} {ext} files in {path}")
 

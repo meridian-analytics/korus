@@ -4,7 +4,6 @@ import korus.cli.prompt.prompt as prompt
 import korus.cli.text as txt
 from korus.cli.prompt.view import view_contents_condensed
 from korus.cli.cursor import cursor
-from korus.audio import collect_audiofile_metadata
 
 
 def add(db: Database, table_name: str):
@@ -46,7 +45,7 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     timestamp_parser = prompt.select_timestamp_parser()
 
     # storage attrs
-    (path, by_date) = db.storage.get(storage_id, fields=["path","by_date"])[0]
+    (dir_path, by_date) = db.storage.get(storage_id, fields=["path", "by_date"])[0]
 
     if filename is None:
 
@@ -68,7 +67,6 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
         }
         choice = inquirer.list_input(msg, choices=choices.keys())
         method = choices[choice]
-        
 
     raise KeyboardInterrupt
 

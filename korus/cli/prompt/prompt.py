@@ -310,7 +310,10 @@ def enter_path(multiple: bool = False, msg: str = "Enter path") -> str | list[st
 
 
 def enter_value(
-    table_name: str, field: FieldDefinition, validate: callable = None, msg: str = "Enter value"
+    table_name: str,
+    field: FieldDefinition,
+    validate: callable = None,
+    msg: str = "Enter value",
 ):
     """Prompt user to enter a field value.
 
