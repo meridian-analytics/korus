@@ -189,7 +189,7 @@ def select_field(
 
 
 def select_value(
-    table_name: str, field: FieldDefinition, values: list, msg: str = None
+    table_name: str, field: FieldDefinition, values: list, msg: str = "Select value"
 ) -> str:
     """Prompt user to select a value from a list of options.
 
@@ -210,9 +210,6 @@ def select_value(
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
-    if msg is None:
-        msg = str(cursor) + "Select value for " + txt.bold(field.name)
-
     name = table_name + ":" + field.name + ":value"
     question = inquirer.List(name, message=msg, choices=values)
     answers = inquirer.prompt([question])
@@ -313,7 +310,7 @@ def enter_path(multiple: bool = False, msg: str = "Enter path") -> str | list[st
 
 
 def enter_value(
-    table_name: str, field: FieldDefinition, validate: callable = None, msg: str = None
+    table_name: str, field: FieldDefinition, validate: callable = None, msg: str = "Enter value"
 ):
     """Prompt user to enter a field value.
 
@@ -334,9 +331,6 @@ def enter_value(
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
-    if msg is None:
-        msg = f"Enter " + txt.bold(field.name)
-
     name = table_name + ":" + field.name + ":value"
     msg = str(cursor) + msg
 
