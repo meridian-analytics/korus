@@ -11,3 +11,4 @@ class StorageInterface(TableInterface):
             "address", str, "URL address or physical location", required=False
         )
         self._create_field("description", str, "Brief description", required=False)
+        self._create_field("by_date", bool, "Whether audiofiles are organized into date-stamped subfolders", default=False)

@@ -44,6 +44,10 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
 
     # datetime format
     timestamp_parser = prompt.select_timestamp_parser()
+
+    # whether audiofiles are organized by date
+    by_date = db.storage.get(storage_id, fields="by_date", always_tuple=False)[0]
+
     raise KeyboardInterrupt
 
     # search for files and parse timestamps

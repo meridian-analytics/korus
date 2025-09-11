@@ -422,6 +422,7 @@ def create_storage_table(conn):
                 path TEXT NOT NULL DEFAULT '/',
                 address TEXT,
                 description TEXT,
+                by_date INTEGER DEFAULT 0,
                 PRIMARY KEY (id),
                 UNIQUE (name, path, address)
             )
