@@ -1,8 +1,8 @@
 from termcolor import colored
 
 
-def bold_white(x: str) -> str:
-    return colored(x, "white", attrs=["bold"])
+def bold(x: str, color: str = "white") -> str:
+    return colored(x, color, attrs=["bold"])
 
 
 def question(msg: str) -> str:

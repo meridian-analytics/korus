@@ -29,13 +29,13 @@ def update_field(db: Database, table_name: str):
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C or the attempt to update the row fails
     """
-    msg = "Enter the " + txt.bold_white("id") + " of the row you wish to update"
+    msg = "Enter the " + txt.bold("id") + " of the row you wish to update"
     idx = prompt.enter_index(db, table_name, msg)
 
     msg = "Select the field you wish to update"
     field = prompt.select_field(db, table_name, msg)
 
-    msg = f"Enter a new value for " + txt.bold_white(field.name)
+    msg = f"Enter a new value for " + txt.bold(field.name)
     value = prompt.enter_value(table_name, field, msg=msg)
 
     if value is None:

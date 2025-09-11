@@ -211,7 +211,7 @@ def select_value(
         KeyboardInterrupt: if the user hits Ctrl+C
     """
     if msg is None:
-        msg = str(cursor) + "Select value for " + txt.bold_white(field.name)
+        msg = str(cursor) + "Select value for " + txt.bold(field.name)
 
     name = table_name + ":" + field.name + ":value"
     question = inquirer.List(name, message=msg, choices=values)
@@ -335,7 +335,7 @@ def enter_value(
         KeyboardInterrupt: if the user hits Ctrl+C
     """
     if msg is None:
-        msg = f"Enter " + txt.bold_white(field.name)
+        msg = f"Enter " + txt.bold(field.name)
 
     name = table_name + ":" + field.name + ":value"
     msg = str(cursor) + msg

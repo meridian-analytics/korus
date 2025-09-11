@@ -1,19 +1,10 @@
-import copy
-from termcolor import colored
+import korus.cli.text as txt
 
 
 class Cursor:
     def __init__(self):
         self.history = []
-        self._item = None
-
-    @property
-    def item(self) -> str:
-        return self._item
-
-    @item.setter
-    def item(self, i: str):
-        self._item = i
+        self.item = None
 
     @property
     def module(self):
@@ -35,7 +26,7 @@ class Cursor:
         if self.item is not None:
             names.append(self.item)
 
-        names[-1] = colored(names[-1], "white", attrs=["bold"])
+        names[-1] = txt.bold(names[-1])
         names = "|".join(names)
         names = "[" + names + "] "
         return names

@@ -157,6 +157,8 @@ def add_row(db: Database, table_name: str) -> int:
 
     idx = tbl.add(row)
 
-    print(txt.info(f"\nSuccessfully added new row with id={idx} to {table_name} table."))
+    print(
+        txt.info(f"\nSuccessfully added new row with id={idx} to {table_name} table.")
+    )
 
     return idx
