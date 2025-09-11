@@ -35,10 +35,12 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
         return add_row(db, table_name)
 
     # deployment
-    deployment_id = prompt.enter_index(db, "deployment")
+    msg = "Enter the deployment " + txt.bold("id")
+    deployment_id = prompt.enter_index(db, "deployment", msg)
 
     # storage location
-    storage_id = prompt.enter_index(db, "storage")
+    msg = "Enter the " + txt.bold("id") + " of the file storage location"
+    storage_id = prompt.enter_index(db, "storage", msg)
 
     # datetime format
     timestamp_parser = prompt.select_timestamp_parser()
