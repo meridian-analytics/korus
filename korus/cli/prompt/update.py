@@ -2,7 +2,6 @@ from korus.database.database import Database
 import korus.cli.prompt.prompt as prompt
 import korus.cli.parse as parse
 import korus.cli.text as txt
-from termcolor import colored
 
 
 def update(db: Database, table_name: str):
@@ -30,13 +29,13 @@ def update_field(db: Database, table_name: str):
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C or the attempt to update the row fails
     """
-    msg = "Enter the " + colored("id", "white", attrs=["bold"]) + " of the row you wish to update"
+    msg = "Enter the " + txt.bold_white("id") + " of the row you wish to update"
     idx = prompt.enter_index(db, table_name, msg)
 
     msg = "Select the field you wish to update"
     field = prompt.select_field(db, table_name, msg)
 
-    msg = f"Enter a new value for " + colored(field.name, "white", attrs=["bold"])
+    msg = f"Enter a new value for " + txt.bold_white(field.name)
     value = prompt.enter_value(table_name, field, msg=msg)
 
     if value is None:
@@ -48,7 +47,9 @@ def update_field(db: Database, table_name: str):
 
     try:
         tbl.update(idx, row)
-        print(txt.info(f"\nSuccessfully update row with id={idx} in {table_name} table."))
+        print(
+            txt.info(f"\nSuccessfully update row with id={idx} in {table_name} table.")
+        )
 
     except Exception as err:
         msg = f"\nFailed to update row in {table_name} table. " + str(err)

@@ -1,6 +1,10 @@
 from termcolor import colored
 
 
+def bold_white(x: str) -> str:
+    return colored(x, "white", attrs=["bold"])
+
+
 def question(msg: str) -> str:
     """Format string as a PROMPT message"""
     return "[" + colored("?", "yellow") + "]" + msg + ": "

@@ -188,7 +188,9 @@ def select_field(
     return field
 
 
-def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
+def select_value(
+    table_name: str, field: FieldDefinition, values: list, msg: str = None
+) -> str:
     """Prompt user to select a value from a list of options.
 
     Args:
@@ -198,6 +200,8 @@ def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
             The field definition
         values: list
             The values to choose from
+        msg: str
+            Prompt message
 
     Returns:
         : any
@@ -206,9 +210,11 @@ def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
+    if msg is None:
+        msg = str(cursor) + "Select value for " + txt.bold_white(field.name)
+
     name = table_name + ":" + field.name + ":value"
-    message = str(cursor) + "Select value"
-    question = inquirer.List(name, message=message, choices=values)
+    question = inquirer.List(name, message=msg, choices=values)
     answers = inquirer.prompt([question])
     if answers is None:
         raise KeyboardInterrupt
@@ -225,7 +231,7 @@ def select_label(db, table_name, field_name):
     pass
 
 
-def enter_index(db: Database, table_name: str, msg: str = "Enter index") -> int:
+def enter_index(db: Database, table_name: str, msg: str = None) -> int:
     """Prompt user to enter a row index for the table.
 
     Args:
@@ -329,7 +335,7 @@ def enter_value(
         KeyboardInterrupt: if the user hits Ctrl+C
     """
     if msg is None:
-        msg = f"Enter {field.name}"
+        msg = f"Enter " + txt.bold_white(field.name)
 
     name = table_name + ":" + field.name + ":value"
     msg = str(cursor) + msg
