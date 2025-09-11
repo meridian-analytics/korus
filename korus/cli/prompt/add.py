@@ -45,8 +45,30 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     # datetime format
     timestamp_parser = prompt.select_timestamp_parser()
 
-    # whether audiofiles are organized by date
-    by_date = db.storage.get(storage_id, fields="by_date", always_tuple=False)[0]
+    # storage attrs
+    (path, by_date) = db.storage.get(storage_id, fields=["path","by_date"])[0]
+
+    if filename is None:
+
+        FILE_TXT = 0
+        FILE_CSV = 1
+        FILE_RAVEN = 2
+        FILE_CONSOLE = 3
+        FILE_TIME = 4
+        FILE_ALL = 5
+
+        msg = str(cursor) + "Select method for finding audio files"
+        choices = {
+            "Extract filenames from a text file": FILE_TXT,
+            "Extract filenames from a CSV file": FILE_CSV,
+            "Extract filenames from a RavenPro selection table": FILE_RAVEN,
+            "Specify filename(s) in the console": FILE_CONSOLE,
+            "Constrain the time range": FILE_TIME,
+            "Find all files from deployment": FILE_ALL,
+        }
+        choice = inquirer.list_input(msg, choices=choices.keys())
+        method = choices[choice]
+        
 
     raise KeyboardInterrupt
 
@@ -74,8 +96,8 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     [x] select between manual and automated (recommended) ingestion
     [x] select deployment
     [x] select storage location
-        TODO: add `date_stamped` field to storage table to indicate if files are organized into date-stamped subfolders
-    specify datetime format*
+        [x] add `date_stamped` field to storage table to indicate if files are organized into date-stamped subfolders
+    [x] specify datetime format*
     if filename is None, give user options to
      - inputing filename/file**, or
      - specifying time range
