@@ -4,6 +4,7 @@ import korus.cli.prompt.prompt as prompt
 import korus.cli.text as txt
 from korus.cli.prompt.view import view_contents_condensed
 from korus.cli.cursor import cursor
+import korus.cli.prompt.file as fil
 
 
 def add(db: Database, table_name: str):
@@ -19,19 +20,21 @@ def add(db: Database, table_name: str):
 
 def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     table_name = "file"
-    MANUAL = 0
-    AUTO = 1
 
-    msg = str(cursor) + "Select method for adding audiofile metadata"
-    choices = {
-        "Automated, batch  (recommended)": AUTO,
-        "Manual, single file": MANUAL,
-    }
-    choice = inquirer.list_input(msg, choices=choices.keys())
-    method = choices[choice]
+    if filename is None:
+        MANUAL = 0
+        AUTO = 1
 
-    if method == MANUAL:
-        return add_row(db, table_name)
+        msg = str(cursor) + "Select method for adding audiofile metadata"
+        choices = {
+            "Automated, batch  (recommended)": AUTO,
+            "Manual, single file": MANUAL,
+        }
+        choice = inquirer.list_input(msg, choices=choices.keys())
+        method = choices[choice]
+
+        if method == MANUAL:
+            return add_row(db, table_name)
 
     # deployment
     msg = "Enter the deployment " + txt.bold("id")
@@ -67,6 +70,24 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
         }
         choice = inquirer.list_input(msg, choices=choices.keys())
         method = choices[choice]
+
+        if method == FILE_TXT:
+            df = fil.from_txt(dir_path, timestamp_parser)
+        elif method == FILE_CSV:
+            df = fil.from_csv(dir_path, timestamp_parser)
+        elif method == FILE_RAVEN:
+            df = fil.from_raven(dir_path, timestamp_parser)
+        elif method == FILE_CONSOLE:
+            df = fil.from_console(dir_path, timestamp_parser)
+        elif method == FILE_TIME:
+            df = fil.from_time_range(dir_path, timestamp_parser, by_date)
+        elif method == FILE_ALL:
+            df = fil.from_filename(dir_path, timestamp_parser)
+
+    else:
+        df = fil.from_filename(dir_path, timestamp_parser, filename)
+
+
 
     raise KeyboardInterrupt
 

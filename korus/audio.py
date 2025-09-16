@@ -29,6 +29,8 @@ def collect_audiofile_metadata(
     the relative path to the audio file as input (as a string) and return the
     UTC start time of the file (as a datetime.datetime object).
 
+    TODO: allow user to specify just filenames instead of full relative path in `subset` arg
+
     Args:
         path: str
             Path to the directory or tar archive where the audio files are stored.
@@ -41,8 +43,8 @@ def collect_audiofile_metadata(
         latest_start_utc: datetime.datetime
             Only consider files starting at or before this UTC time.
         subset: str, list(str)
-            File paths relative to the top directory given by the @path argument. Use
-            this argument to restrict attention to a subset of the files.
+            Filenames, or paths relative to the top directory given by the `path` argument. Use
+            this argument to restrict attention to a subset of the files. 
         tar_path: str
             Path within tar archive. Only relavant if @path points to a tar archive.
         progress_bar: bool
