@@ -68,8 +68,6 @@ def from_filename(
     # missing files, if any
     not_found = [fname for fname in filename if fname not in df.filename.values]
 
-    print(df)
-
     msg = f"Found {len(df)} of {len(filename)} files"
     msg = (
         txt.info(msg, newline=False)
@@ -90,9 +88,11 @@ def from_filename(
     choices = dict()
     default = list()
     for idx, row in df.iterrows():
-        choice_str = f"{row.filename}"
-        if row.start_utc is not None:
-            choice_str += f" | {row.start_utc}"
+        choice_str = f"{row.filename} | "
+        if row.start_utc == "":
+            choice_str += "timestamp missing or could not be parsed"
+        else:
+            choice_str += f"{row.start_utc}"
             default.append(choice_str)
 
         choices[choice_str] = idx

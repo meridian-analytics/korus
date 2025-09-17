@@ -438,9 +438,7 @@ def select_timestamp_parser():
 
         def fcn(filename: str) -> datetime:
             try:
-                return dateutil.parser.parse(
-                    filename, default=datetime(1970), fuzzy=True
-                )
+                return dateutil.parser.parse(filename, fuzzy=True)
 
             except:
                 err_msg = f"Failed to parse timestamp from {filename}"
