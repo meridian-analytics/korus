@@ -5,22 +5,23 @@ import soundfile as sf
 import pandas as pd
 import numpy as np
 import tarfile
-from datetime import timedelta
+from datetime import datetime, timedelta
 from tqdm import tqdm
 
 
 def collect_audiofile_metadata(
-    path,
-    ext="WAV",
-    timestamp_parser=None,
-    earliest_start_utc=None,
-    latest_start_utc=None,
-    subset=None,
-    tar_path="",
-    progress_bar=False,
-    date_subfolder=False,
-    inspect_files=True,
-    tmp_path="./korus-tmp",
+    path: str,
+    ext: str | list[str] = "WAV",
+    timestamp_parser: callable = None,
+    earliest_start_utc: datetime = None,
+    latest_start_utc: datetime = None,
+    subset: str | list[str] = None,
+    subset_filename: str | list[str] = None,
+    tar_path: str = "",
+    progress_bar: bool = False,
+    date_subfolder: bool = False,
+    inspect_files: bool = True,
+    tmp_path: str = "./korus-tmp",
 ):
     """Collect metadata records for all audio files in a specified directory.
 
@@ -35,16 +36,18 @@ def collect_audiofile_metadata(
         path: str
             Path to the directory or tar archive where the audio files are stored.
         ext: str | list[str]
-            Audio file extension. Default is WAV.
+            Audio file extension(s). Default is WAV.
         timestamp_parser: callable
             Function that takes a string as input and returns a datetime.datetime object.
         earliest_start_utc: datetime.datetime
             Only consider files starting at or after this UTC time.
         latest_start_utc: datetime.datetime
             Only consider files starting at or before this UTC time.
-        subset: str, list(str)
-            Filenames, or paths relative to the top directory given by the `path` argument. Use
+        subset: str | list(str)
+            Paths relative to the top directory given by the `path` argument. Use
             this argument to restrict attention to a subset of the files. 
+        subset_filename: str | list(str)
+            Same as `subset` except only requires the filename(s) to be specified.
         tar_path: str
             Path within tar archive. Only relavant if @path points to a tar archive.
         progress_bar: bool
@@ -69,15 +72,33 @@ def collect_audiofile_metadata(
 
     Examples:
     """
+    # time range
+    if earliest_start_utc is None and latest_start_utc is None:
+        dt_range = None
+    else:
+        dt_range[0] = datetime.min if earliest_start_utc is None else earliest_start_utc
+        dt_range[1] = datetime.max
+
+    # search for files based on filename
+    if subset_filename:
+        subset = find_files(
+            path,
+            substr=subset_filename,
+            subdirs=True,
+            progress_bar=progress_bar,
+        )
+
+    # whether base path points to a tar archive instead of a directory
     is_tar = os.path.isfile(path) and tarfile.is_tarfile(path)
 
     if isinstance(ext, str):
         ext = [ext]
 
+    # rename
     rel_path = subset
 
     if rel_path is None:
-        if date_subfolder and earliest_start_utc and latest_start_utc:
+        if date_subfolder and earliest_start_utc is not None and latest_start_utc is not None:
             sub_folders = []
             date = earliest_start_utc.date()
             while date <= latest_start_utc.date():
@@ -234,12 +255,12 @@ def find_files(path, substr=None, subdirs=False, tar_path="", progress_bar=False
     Args:
         path: str
             Path to directory or tar archive file
-        substr: str or list(str)
+        substr: str | list(str)
             Search for files that have this string/these strings in their path.
         subdirs: bool
             If True, also search all subdirectories.
         tar_path: str
-            Path within tar archive. Only relavant if @path points to a tar archive.
+            Path within tar archive. Only relavant if `path` points to a tar archive.
         progress_bar: bool
             Display progress bar. Default is False.
 
