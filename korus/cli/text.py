@@ -10,14 +10,31 @@ def question(msg: str) -> str:
     return "[" + colored("?", "yellow") + "]" + msg + ": "
 
 
-def info(msg: str) -> str:
+def info(msg: str, newline: bool = True) -> str:
     """Format string as an INFO message"""
-    return colored(">> ", "green") + colored(msg, "white", attrs=["bold"]) + "\n"
+    s = colored(">> ", "green") + colored(msg, "white", attrs=["bold"])
+    if newline:
+        s += "\n"
+
+    return s
 
 
-def error(msg: str) -> str:
+def warn(msg: str, newline: bool = True) -> str:
+    """Format string as a WARNING message"""
+    s = colored(">> ", "yellow") + colored(msg, "white", attrs=["bold"]) + "\n"
+    if newline:
+        s += "\n"
+
+    return s
+
+
+def error(msg: str, newline: bool = True) -> str:
     """Format string as an ERROR message"""
-    return colored(">> ", "red") + colored(msg, "white", attrs=["bold"]) + "\n"
+    s = colored(">> ", "red") + colored(msg, "white", attrs=["bold"]) + "\n"
+    if newline:
+        s += "\n"
+
+    return s
 
 
 def header(table_name: str = None, field_name: str = None) -> str:

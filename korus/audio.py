@@ -236,36 +236,12 @@ def collect_audiofile_metadata(
 
     # inspect files to obtain no. samples and sampling rate
     if inspect_files:
-        if progress_bar:
-            print("Determining sampling rates and file sizes ...")
-
-        # open tar archive, and create temporary folder for extracting audio files
-        if is_tar:
-            tar = tarfile.open(path)
-            shutil.rmtree(tmp_path, ignore_errors=True)
-            os.makedirs(tmp_path)
-
-        # loop over files and get no. samples and sampling rate for each one
-        num_samples, sample_rate = [], []
-        for _, row in tqdm(df.iterrows(), total=df.shape[0], disable=not progress_bar):
-            if is_tar:
-                member = tar.getmember(row.rel_path)
-                tar.extract(member, path=tmp_path)
-                full_path = os.path.join(tmp_path, row.rel_path)
-
-            else:
-                full_path = os.path.join(path, row.rel_path)
-
-            n, sr = get_num_samples_and_rate(full_path)
-            num_samples.append(n)
-            sample_rate.append(sr)
-
-            if is_tar:
-                os.remove(full_path)
-
-        if is_tar:
-            tar.close()
-            shutil.rmtree(tmp_path, ignore_errors=True)
+        num_samples, sample_rate = extract_num_samples_and_samplerate(
+            path=df.rel_path,
+            base_path=path,
+            tmp_path=tmp_path,
+            progress_bar=progress_bar,
+        )
 
         df["num_samples"] = num_samples
         df["sample_rate"] = sample_rate
@@ -295,7 +271,76 @@ def collect_audiofile_metadata(
     return df
 
 
-def get_num_samples_and_rate(path):
+def extract_num_samples_and_samplerate(
+    path: str | list[str],
+    base_path: str = "",
+    tmp_path: str = "./korus-tmp",
+    progress_bar: bool = False,
+):
+    """Obtain duration and samplerate of a set of audio files
+
+    TODO: implement error handling; return args should include which
+        files were succesfully read and which could not be read
+
+    Args:
+        path: str | list[str]
+            Relative paths including filename to the audio files
+        base_path: str
+            Top directory
+        tmp_path: str
+            If the audio files are stored in tar archive, and @inspect_files is True, audio files
+            will be extracted to this folder temporarily to allow the file size and sampling rate
+            to be determined.
+        progress_bar: bool
+            Display progress bar. Default is False.
+
+    Returns:
+        num_samples: list
+            Number of samples per file
+        sample_rate: list
+            Samplerate in samples/s.
+    """
+    if progress_bar:
+        print("Determining sampling rates and file sizes ...")
+
+    # whether base path points to a tar archive instead of a directory
+    is_tar = os.path.isfile(base_path) and tarfile.is_tarfile(base_path)
+
+    if isinstance(path, str):
+        path = [path]
+
+    # open tar archive, and create temporary folder for extracting audio files
+    if is_tar:
+        tar = tarfile.open(base_path)
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        os.makedirs(tmp_path)
+
+    # loop over files and get no. samples and sampling rate for each one
+    num_samples, sample_rate = [], []
+    for x in tqdm(path, disable=not progress_bar):
+        if is_tar:
+            member = tar.getmember(x)
+            tar.extract(member, path=tmp_path)
+            full_path = os.path.join(tmp_path, x)
+
+        else:
+            full_path = os.path.join(base_path, x)
+
+        n, sr = read_num_samples_and_samplerate(full_path)
+        num_samples.append(n)
+        sample_rate.append(sr)
+
+        if is_tar:
+            os.remove(full_path)
+
+    if is_tar:
+        tar.close()
+        shutil.rmtree(tmp_path, ignore_errors=True)
+
+    return num_samples, sample_rate
+
+
+def read_num_samples_and_samplerate(path):
     """Determine the number of samples and sampling rate of a given audio file.
 
     Args:

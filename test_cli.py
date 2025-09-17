@@ -10,7 +10,7 @@ if os.path.exists(path):
     if y == "y":
         os.remove(path)
 
-db = SQLiteDatabase("test.sqlite")
+db = SQLiteDatabase(path)
 
 
 cli.main(db)

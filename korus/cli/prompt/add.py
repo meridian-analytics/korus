@@ -87,6 +87,12 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     else:
         df = fil.from_filename(dir_path, timestamp_parser, filename)
 
+    if df is not None:
+        print()
+        print(df.to_string())
+    else:
+        print("\n No files found!")
+
     raise KeyboardInterrupt
 
     # search for files and parse timestamps
