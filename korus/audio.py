@@ -5,7 +5,7 @@ import soundfile as sf
 import pandas as pd
 import numpy as np
 import tarfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from tqdm import tqdm
 
 
@@ -13,8 +13,8 @@ def collect_audiofile_metadata(
     path: str,
     ext: str | list[str] = "WAV",
     timestamp_parser: callable = None,
-    earliest_start_utc: datetime = None,
-    latest_start_utc: datetime = None,
+    earliest_start_utc: datetime | date = None,
+    latest_start_utc: datetime | date = None,
     subset: str | list[str] = None,
     subset_filename: str | list[str] = None,
     tar_path: str = "",
@@ -75,6 +75,7 @@ def collect_audiofile_metadata(
     # search for files based on filename
     if subset_filename:
         if date_subfolder and timestamp_parser:
+            #TODO: this!
             pass
 
         else:
@@ -87,6 +88,10 @@ def collect_audiofile_metadata(
 
     # both start and end time must be specified to allow date-restricted search
     search_by_date = date_subfolder and earliest_start_utc is not None and latest_start_utc is not None
+    if search_by_date:
+        earliest_date = earliest_start_utc.date() if isinstance(earliest_start_utc, datetime) else earliest_start_utc
+        latest_date = latest_start_utc.date() if isinstance(latest_start_utc, datetime) else latest_start_utc
+
 
     # whether base path points to a tar archive instead of a directory
     is_tar = os.path.isfile(path) and tarfile.is_tarfile(path)
@@ -100,8 +105,8 @@ def collect_audiofile_metadata(
     if rel_path is None:
         if search_by_date:
             sub_folders = []
-            date = earliest_start_utc.date()
-            while date <= latest_start_utc.date():
+            date = earliest_date
+            while date <= latest_date:
                 date_str = date.strftime("%Y%m%d")
                 sub_folders.append(date_str)
                 date += timedelta(days=1)
