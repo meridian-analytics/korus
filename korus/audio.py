@@ -39,9 +39,9 @@ def collect_audiofile_metadata(
             Audio file extension(s). Default is WAV.
         timestamp_parser: callable
             Function that takes a string as input and returns a datetime.datetime object.
-        earliest_start_utc: datetime.datetime
+        earliest_start_utc: datetime.datetime | datetime.date
             Only consider files starting at or after this UTC time.
-        latest_start_utc: datetime.datetime
+        latest_start_utc: datetime.datetime | datetime.date
             Only consider files starting at or before this UTC time.
         subset: str | list(str)
             Paths relative to the top directory given by the `path` argument. Use
@@ -72,21 +72,21 @@ def collect_audiofile_metadata(
 
     Examples:
     """
-    # time range
-    if earliest_start_utc is None and latest_start_utc is None:
-        dt_range = None
-    else:
-        dt_range[0] = datetime.min if earliest_start_utc is None else earliest_start_utc
-        dt_range[1] = datetime.max
-
     # search for files based on filename
     if subset_filename:
-        subset = find_files(
-            path,
-            substr=subset_filename,
-            subdirs=True,
-            progress_bar=progress_bar,
-        )
+        if date_subfolder and timestamp_parser:
+            pass
+
+        else:
+            subset = find_files(
+                path,
+                substr=subset_filename,
+                subdirs=True,
+                progress_bar=progress_bar,
+            )
+
+    # both start and end time must be specified to allow date-restricted search
+    search_by_date = date_subfolder and earliest_start_utc is not None and latest_start_utc is not None
 
     # whether base path points to a tar archive instead of a directory
     is_tar = os.path.isfile(path) and tarfile.is_tarfile(path)
@@ -98,7 +98,7 @@ def collect_audiofile_metadata(
     rel_path = subset
 
     if rel_path is None:
-        if date_subfolder and earliest_start_utc is not None and latest_start_utc is not None:
+        if search_by_date:
             sub_folders = []
             date = earliest_start_utc.date()
             while date <= latest_start_utc.date():
