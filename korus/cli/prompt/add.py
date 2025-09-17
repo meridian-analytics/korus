@@ -87,8 +87,6 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     else:
         df = fil.from_filename(dir_path, timestamp_parser, filename)
 
-
-
     raise KeyboardInterrupt
 
     # search for files and parse timestamps
@@ -101,7 +99,7 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
         earliest_start_utc=start_utc,
         latest_start_utc=end_utc,
         progress_bar=True,
-        date_subfolder=date_subfolder,
+        by_date=by_date,
         inspect_files=False,
     )
 

@@ -495,8 +495,8 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
     # timestamp parser
     timestamp_parser = create_timestamp_parser("audio", logger)
 
-    date_subfolder = ui.UserInputYesNo(
-        "date_subfolder",
+    by_date = ui.UserInputYesNo(
+        "by_date",
         "Are audio files organized in date-stamped subfolders named `yyymmdd`? [y/N]",
     ).request(logger)
 
@@ -514,7 +514,7 @@ def add_files(conn, deployment_id, start_utc, end_utc, logger):
         earliest_start_utc=start_utc,
         latest_start_utc=end_utc,
         progress_bar=True,
-        date_subfolder=date_subfolder,
+        by_date=by_date,
         inspect_files=False,
     )
 

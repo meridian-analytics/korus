@@ -3,10 +3,41 @@ import shutil
 import logging
 import soundfile as sf
 import pandas as pd
-import numpy as np
 import tarfile
 from datetime import datetime, timedelta, date
 from tqdm import tqdm
+
+
+def group_by_date(filenames: list[str], timestamp_parser: callable):
+    """Helper function for grouping audiofiles by their start date.
+
+    Args:
+        filenames: list[str]
+            Filenames or paths
+        timestamp_parser: callable
+            Function that takes a string as input and returns a datetime.datetime object.
+
+    Returns:
+        grouped: dict[datetime.date, list[str]]
+            Dictionary mapping of dates in the form %Y%m%d to filenames.
+            OBS: If timestamp parsing fails for ANY of the files, ALL files are grouped together with null key.
+    """
+    # attempt to parse timestamps
+    indices, timestamps = parse_timestamp(
+        filenames, timestamp_parser, progress_bar=False
+    )
+
+    if len(indices) < len(filenames):
+        return {None: filenames}
+
+    # group according to date
+    grouped = {}
+    for i, t in zip(indices, timestamps):
+        date_key = t.date()
+        fname = filenames[i]
+        grouped[date_key] = grouped.get(date_key, []) + [fname]
+
+    return grouped
 
 
 def collect_audiofile_metadata(
@@ -19,7 +50,7 @@ def collect_audiofile_metadata(
     subset_filename: str | list[str] = None,
     tar_path: str = "",
     progress_bar: bool = False,
-    date_subfolder: bool = False,
+    by_date: bool = False,
     inspect_files: bool = True,
     tmp_path: str = "./korus-tmp",
 ):
@@ -29,8 +60,6 @@ def collect_audiofile_metadata(
     parser function using the @timestamp_parser argument. This function must take
     the relative path to the audio file as input (as a string) and return the
     UTC start time of the file (as a datetime.datetime object).
-
-    TODO: allow user to specify just filenames instead of full relative path in `subset` arg
 
     Args:
         path: str
@@ -45,14 +74,14 @@ def collect_audiofile_metadata(
             Only consider files starting at or before this UTC time.
         subset: str | list(str)
             Paths relative to the top directory given by the `path` argument. Use
-            this argument to restrict attention to a subset of the files. 
+            this argument to restrict attention to a subset of the files.
         subset_filename: str | list(str)
             Same as `subset` except only requires the filename(s) to be specified.
         tar_path: str
             Path within tar archive. Only relavant if @path points to a tar archive.
         progress_bar: bool
             Display progress bar. Default is False.
-        date_subfolder: bool
+        by_date: bool
             If audio files are organized in date-stamped subfolders with format yyyymmdd,
             and both the earliest and latest start time have been specified, this argument
             can be used to restrict the search space to only the relevant subfolders.
@@ -72,13 +101,49 @@ def collect_audiofile_metadata(
 
     Examples:
     """
-    # search for files based on filename
-    if subset_filename:
-        if date_subfolder and timestamp_parser:
-            #TODO: this!
-            pass
+    if isinstance(subset_filename, str):
+        subset_filename = [subset_filename]
+
+    if isinstance(ext, str):
+        ext = [ext]
+
+    if isinstance(earliest_start_utc, date):
+        earliest_start_utc = datetime.combine(earliest_start_utc, datetime.min.time())
+
+    if isinstance(latest_start_utc, date):
+        latest_start_utc = datetime.combine(latest_start_utc, datetime.max.time())
+
+    # user has specified a list of filenames:
+    if subset_filename is not None:
+        if by_date and timestamp_parser:
+            # group filenames by date
+            grouped = group_by_date(subset_filename, timestamp_parser)
+
+            # recursive call to collect audiofile metadata, one date-stamped subfolder at the time
+            df = [
+                collect_audiofile_metadata(
+                    path=path,
+                    ext=ext,
+                    timestamp_parser=timestamp_parser,
+                    earliest_start_utc=_date,
+                    latest_start_utc=_date,
+                    tar_path=tar_path,
+                    progress_bar=progress_bar,
+                    by_date=True,
+                    inspect_files=inspect_files,
+                )
+                for _date, filenames in grouped.items()
+                if len(filenames) > 0
+            ]
+            df = pd.concat(df, ignore_index=True)
+
+            # only keep files with matching filenames
+            df = df[df.filename.isin(subset_filename)]
+
+            return df
 
         else:
+            # search for files based on filename
             subset = find_files(
                 path,
                 substr=subset_filename,
@@ -87,17 +152,15 @@ def collect_audiofile_metadata(
             )
 
     # both start and end time must be specified to allow date-restricted search
-    search_by_date = date_subfolder and earliest_start_utc is not None and latest_start_utc is not None
+    search_by_date = (
+        by_date and earliest_start_utc is not None and latest_start_utc is not None
+    )
     if search_by_date:
-        earliest_date = earliest_start_utc.date() if isinstance(earliest_start_utc, datetime) else earliest_start_utc
-        latest_date = latest_start_utc.date() if isinstance(latest_start_utc, datetime) else latest_start_utc
-
+        earliest_date = earliest_start_utc.date()
+        latest_date = latest_start_utc.date()
 
     # whether base path points to a tar archive instead of a directory
     is_tar = os.path.isfile(path) and tarfile.is_tarfile(path)
-
-    if isinstance(ext, str):
-        ext = [ext]
 
     # rename
     rel_path = subset
@@ -105,11 +168,11 @@ def collect_audiofile_metadata(
     if rel_path is None:
         if search_by_date:
             sub_folders = []
-            date = earliest_date
-            while date <= latest_date:
-                date_str = date.strftime("%Y%m%d")
+            _date = earliest_date
+            while _date <= latest_date:
+                date_str = _date.strftime("%Y%m%d")
                 sub_folders.append(date_str)
-                date += timedelta(days=1)
+                _date += timedelta(days=1)
         else:
             sub_folders = [""]
 

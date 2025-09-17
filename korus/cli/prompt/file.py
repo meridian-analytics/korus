@@ -33,14 +33,15 @@ def from_time_range(dir_path, timestamp_parser, by_date):
         timestamp_parser=timestamp_parser,
         progress_bar=True,
         inspect_files=False,
-        date_subfolder=by_date,
+        by_date=by_date,
         earliest_start_utc=start,
         latest_start_utc=end,
     )
 
+
 def from_filename(
-    dir_path, 
-    timestamp_parser, 
+    dir_path,
+    timestamp_parser,
     filename: str | list[str] = None,
 ):
     return collect_audiofile_metadata(
