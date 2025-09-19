@@ -1,4 +1,5 @@
 import inquirer
+from tqdm import tqdm
 from korus.database.database import Database
 import korus.cli.prompt.prompt as prompt
 import korus.cli.text as txt
@@ -36,15 +37,15 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
         if method == MANUAL:
             return add_row(db, table_name)
 
-    # deployment
-    msg = "Enter the deployment " + txt.bold("id")
-    deployment_id = prompt.enter_index(db, "deployment", msg)
-
-    # storage location
-    msg = "Enter the " + txt.bold("id") + " of the file storage location"
+    # prompt user to select storage location
+    msg = (
+        "Enter the "
+        + txt.bold("id")
+        + " of the location where the audiofiles are stored"
+    )
     storage_id = prompt.enter_index(db, "storage", msg)
 
-    # datetime format
+    # prompt user to select timestamp parser
     timestamp_parser = prompt.select_timestamp_parser()
 
     # storage attrs
@@ -59,14 +60,17 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
         FILE_TIME = 4
         FILE_ALL = 5
 
-        msg = str(cursor) + "Select method for finding audio files"
+        msg = (
+            str(cursor)
+            + "Select method for filtering audio files at the given storage location"
+        )
         choices = {
             "Extract filenames from a text file": FILE_TXT,
             "Extract filenames from a CSV file": FILE_CSV,
             "Extract filenames from a RavenPro selection table": FILE_RAVEN,
             "Specify filename(s) in the console": FILE_CONSOLE,
             "Constrain the time range": FILE_TIME,
-            "Find all files from deployment": FILE_ALL,
+            "Find all files": FILE_ALL,
         }
         choice = inquirer.list_input(msg, choices=choices.keys())
         method = choices[choice]
@@ -87,61 +91,24 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     else:
         df = fil.from_filename(dir_path, timestamp_parser, filename)
 
-    if df is not None:
-        print()
-        print(df.to_string())
-    else:
-        print("\n No files found!")
+    # prompt user for deployment ID
+    msg = (
+        "Enter "
+        + txt.bold("id")
+        + " of the hydrophone deployment that the audiofiles belong to"
+    )
+    deployment_id = prompt.enter_index(db, "deployment", msg)
+
+    # add files, one at the time
+    print(txt.info(f"Adding {len(df)} files to database ..."))
+    tbl = getattr(db, table_name)
+
+    print()
+    print(df.to_string())
 
     raise KeyboardInterrupt
-
-    # search for files and parse timestamps
-    # first, only obtain the timestamps (fast)
-    """
-    df = collect_audiofile_metadata(
-        path=audio_path,
-        ext=audio_format,
-        timestamp_parser=timestamp_parser,
-        earliest_start_utc=start_utc,
-        latest_start_utc=end_utc,
-        progress_bar=True,
-        by_date=by_date,
-        inspect_files=False,
-    )
-
-    cprint(
-        f" ## Found {len(df)} {audio_format} files in the folder {audio_path} between {start_utc} and {end_utc}",
-        "yellow",
-    )
-    """
-
-    """
-    [x] select between manual and automated (recommended) ingestion
-    [x] select deployment
-    [x] select storage location
-        [x] add `date_stamped` field to storage table to indicate if files are organized into date-stamped subfolders
-    [x] specify datetime format*
-    if filename is None, give user options to
-     - inputing filename/file**, or
-     - specifying time range
-     - search all files
-    automatic search for files and parsing of timestamps
-    create Checkbox question with all files (and parsed timestamps)
-     - check all found files
-     - uncheck files that were not found
-     - ask user to uncheck any files they dont want added
-    automatic extraction of metadata
-
-    * store inputted datetime formats in .korus file?
-    * TODO: use https://labix.org/python-dateutil for parsing timestamps
-    * there is also: https://github.com/Parquery/datetime-glob does wildcards, but only microseconds
-
-    ** allow for multiple formats, e.g.
-      - plain text file with paths/filenames in each line
-      - csv/tsv file with lowercase header filename/path/begin file/...
-    """
-
-    return add_row(db, "file")
+    # for _,row in tqdm(df.iterrows(), total=len(df)):
+    #    tbl.add(row)
 
 
 def add_annotation(db: Database) -> list[int]:

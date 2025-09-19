@@ -14,7 +14,7 @@ def test_create_database():
     if os.path.exists(path):
         os.remove(path)
 
-    db = SQLiteDatabase(path)
+    db = SQLiteDatabase(path, new=True)
 
     row = dict(
         deployment_id=1,
@@ -34,7 +34,7 @@ def test_save_custom_field():
         os.remove(path)
 
     # create new database, add a custom field, then close the database
-    db = SQLiteDatabase(path)
+    db = SQLiteDatabase(path, new=True)
     assert "custom_field" not in db.storage.field_names
     db.storage.add_field("custom_field", int, "A custom int field", default=13)
     db.backend.close()

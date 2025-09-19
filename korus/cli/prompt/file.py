@@ -1,16 +1,20 @@
 import os
 import inquirer
+import pandas as pd
 from datetime import timedelta
 from korus.audio import collect_audiofile_metadata, extract_num_samples_and_samplerate
 import korus.cli.prompt.prompt as prompt
 import korus.cli.text as txt
+from korus.cli.cursor import cursor
 
 
 AUDIO_FORMATS = ["wav", "flac", "ogg", "mp3"]
 
 
 def from_txt(dir_path, timestamp_parser):
-    txt_path = prompt.enter_path(msg="Enter path")
+    txt_path = prompt.enter_path(
+        msg="Enter path to a plain text file with one filename per line"
+    )
     with open(txt_path, "r") as f:
         filenames = [line.rstrip() for line in f]
 
@@ -18,7 +22,15 @@ def from_txt(dir_path, timestamp_parser):
 
 
 def from_csv(dir_path, timestamp_parser):
-    pass
+    csv_path = prompt.enter_path(msg="Enter path to CSV file with filenames")
+
+    df = pd.read_csv(csv_path)
+
+    msg = str(cursor) + "Select column"
+    col_name = inquirer.list_input(msg, choices=df.columns.values.tolist())
+
+    filenames = df[col_name].values.tolist()
+    return from_filename(dir_path, timestamp_parser, filenames)
 
 
 def from_raven(dir_path, timestamp_parser):
@@ -65,26 +77,32 @@ def from_filename(
         inspect_files=False,
     )
 
-    # missing files, if any
-    not_found = [fname for fname in filename if fname not in df.filename.values]
+    # inform user how many files were found
+    if filename is None:
+        msg = txt.info(f"Found {len(df)} files", newline=False)
+        not_found = []
 
-    msg = f"Found {len(df)} of {len(filename)} files"
-    msg = (
-        txt.info(msg, newline=False)
-        if len(not_found) == 0
-        else txt.warn(msg, newline=False)
-    )
+    else:
+        # missing files, if any
+        not_found = [fname for fname in filename if fname not in df.filename.values]
+
+        msg = f"Found {len(df)} of {len(filename)} files"
+        fmt = txt.info if len(not_found) == 0 else txt.warn
+        msg = fmt(msg, newline=False)
+
     print(msg)
 
+    # print files that were *not* found
     if len(not_found) > 0:
         print(txt.warn("The following files were not found:"))
         for fname in not_found:
-            print(fname)
+            print(f" - {fname}")
 
     if len(df) == 0:
         return
 
-    # choices: message -> index
+    # prompt user to specify which files should be added to the database
+    # as default, pre-select all files with valid timestamps
     choices = dict()
     default = list()
     for idx, row in df.iterrows():
@@ -119,7 +137,7 @@ def from_filename(
     df["num_samples"] = num_samples
     df["sample_rate"] = sample_rate
 
-    # end_utc
+    # add end_utc column
     if "start_utc" in df.columns:
         df["t_end"] = df.apply(
             lambda r: r.t + timedelta(seconds=float(r.num_samples) / r.sample_rate),
