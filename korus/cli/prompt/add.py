@@ -108,6 +108,7 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
 
     raise KeyboardInterrupt
     # for _,row in tqdm(df.iterrows(), total=len(df)):
+    #    row.update({"deployment_id": deployment_id})
     #    tbl.add(row)
 
 
