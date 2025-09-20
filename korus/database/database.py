@@ -1,4 +1,3 @@
-import os
 from .interface import (
     DeploymentInterface,
     AnnotationInterface,
@@ -55,8 +54,4 @@ class Database:
 class SQLiteDatabase(Database):
 
     def __init__(self, path: str, new: bool = False):
-        if not new and not os.path.exists(path):
-            err_msg = f"Database file {path} does not exist. To create a new database, you must set `new=True`."
-            raise OSError(err_msg)
-
-        super().__init__(SQLiteBackend(path))
+        super().__init__(SQLiteBackend(path, new))

@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from datetime import datetime
 from korus.database.backend import TableBackend, DatabaseBackend
@@ -219,10 +220,14 @@ class SQLiteJobBackend(SQLiteTableBackend):
 
 
 class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, path: str, new: bool = False, **kwargs):
+
+        if not new and not os.path.exists(path):
+            err_msg = f"SQLite database {path} does not exist. To create a new database set new=True."
+            raise OSError(err_msg)
 
         # initialize parent class
-        super().__init__(*args, **kwargs)
+        super().__init__(path, **kwargs)
 
         # enable foreign keys
         self.execute("PRAGMA foreign_keys = on")

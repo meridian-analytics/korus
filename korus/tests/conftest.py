@@ -142,7 +142,7 @@ def minimal_sqlite_backend():
     if os.path.exists(path):
         os.remove(path)
 
-    backend = SQLiteBackend(path)
+    backend = SQLiteBackend(path, new=True)
 
     backend.deployment.add({"name": "MyDeployment"})
     backend.storage.add({"name": "MyFileStorage"})
