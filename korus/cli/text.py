@@ -21,7 +21,7 @@ def info(msg: str, newline: bool = True) -> str:
 
 def warn(msg: str, newline: bool = True) -> str:
     """Format string as a WARNING message"""
-    s = colored(">> ", "yellow") + colored(msg, "white", attrs=["bold"]) + "\n"
+    s = colored(">> ", "yellow") + colored(msg, "white", attrs=["bold"]) 
     if newline:
         s += "\n"
 
@@ -30,7 +30,7 @@ def warn(msg: str, newline: bool = True) -> str:
 
 def error(msg: str, newline: bool = True) -> str:
     """Format string as an ERROR message"""
-    s = colored(">> ", "red") + colored(msg, "white", attrs=["bold"]) + "\n"
+    s = colored(">> ", "red") + colored(msg, "white", attrs=["bold"]) 
     if newline:
         s += "\n"
 
