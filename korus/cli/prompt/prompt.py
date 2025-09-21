@@ -176,14 +176,8 @@ def select_field(
         KeyboardInterrupt: if the user hits Ctrl+C
     """
     tbl = getattr(db, table_name)
-    name = table_name
     msg = str(cursor) + msg
-    question = inquirer.List(name, message=msg, choices=tbl.field_names)
-    answers = inquirer.prompt([question])
-    if answers is None:
-        raise KeyboardInterrupt
-
-    field_name = answers[name]
+    field_name = inquirer.list_input(message=msg, choices=tbl.field_names)
     field = tbl.fields_asdict[field_name]
     return field
 
@@ -211,9 +205,6 @@ def select_value(
         KeyboardInterrupt: if the user hits Ctrl+C
     """
     value = inquirer.list_input(message=msg, choices=values)
-    if value is None:
-        raise KeyboardInterrupt
-
     return parse.parse_value(field, value)
 
 
