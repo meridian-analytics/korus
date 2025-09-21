@@ -210,17 +210,11 @@ def select_value(
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
-    name = table_name + ":" + field.name + ":value"
-    question = inquirer.List(name, message=msg, choices=values)
-    answers = inquirer.prompt([question])
-    if answers is None:
+    value = inquirer.list_input(message=msg, choices=values)
+    if value is None:
         raise KeyboardInterrupt
 
-    value = answers[name]
-    if value is not None:
-        value = parse.parse_value(field, value)
-
-    return value
+    return parse.parse_value(field, value)
 
 
 def select_label(db, table_name, field_name):
