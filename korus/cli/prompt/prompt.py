@@ -204,7 +204,7 @@ def select_value(field: FieldDefinition, values: list, msg: str = "Select value"
     """
     msg = str(cursor) + msg
     value = inquirer.list_input(message=msg, choices=values)
-    return parse.parse_value(field, value)
+    return parse.parse_value(value, field.type, field.required)
 
 
 def select_label(db, table_name, field_name):
@@ -236,7 +236,7 @@ def enter_index(db: Database, table_name: str, msg: str = None) -> int:
     )
     validate = parse.create_validate_index(tbl)
     val_str = enter_value(field, validate=validate, msg=msg)
-    return parse.parse_value(field, val_str)
+    return parse.parse_value(val_str, field.type, field.required)
 
 
 def enter_path(multiple: bool = False, msg: str = "Enter path") -> str | list[str]:
@@ -357,7 +357,7 @@ def enter_value(
         value = inquirer.text(**kwargs)
 
     if value is not None:
-        value = parse.parse_value(field, value)
+        value = parse.parse_value(value, field.type, field.required)
 
     return value
 

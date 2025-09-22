@@ -64,18 +64,18 @@ def _parse_any(fcn, answers, current, required=False, return_bool=False):
         )
 
 
-def parse_value(field, value):
-    if field.type == datetime:
-        return parse_datetime(None, current=value, required=field.required)
+def parse_value(value, field_type, required):
+    if field_type == datetime:
+        return parse_datetime(None, current=value, required=required)
 
-    elif field.type == int:
-        return parse_int(None, current=value, required=field.required)
+    elif field_type == int:
+        return parse_int(None, current=value, required=required)
 
-    elif field.type == float:
-        return parse_float(None, current=value, required=field.required)
+    elif field_type == float:
+        return parse_float(None, current=value, required=required)
 
-    elif field.type == bool:
-        return parse_bool(None, current=value, required=field.required)
+    elif field_type == bool:
+        return parse_bool(None, current=value, required=required)
 
     else:
         return value

@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import timedelta
 from korus.audio import collect_audiofile_metadata, extract_num_samples_and_samplerate
 import korus.cli.prompt.prompt as prompt
+import korus.cli.parse as parse
 import korus.cli.text as txt
 from korus.cli.cursor import cursor
 
@@ -34,18 +35,30 @@ def from_csv(dir_path, timestamp_parser):
 
 
 def from_raven(dir_path, timestamp_parser):
-    pass
+    csv_path = prompt.enter_path(msg="Enter path to RavenPro selection table")
+    df = pd.read_csv(csv_path, sep="\t")
+    filenames = df["Begin File"].values.tolist()
+    return from_filename(dir_path, timestamp_parser, filenames)
 
 
 def from_console(dir_path, timestamp_parser):
-    pass
+    msg = "Enter the path to the audiofile you wish to add to the database (use comma as separator in case of multiple files)"
+    path = prompt.enter_path(multiple=True, msg=msg)
+    return from_filename(dir_path, timestamp_parser, path=path)
 
 
 def from_time_range(dir_path, timestamp_parser, by_date):
+    validate = parse.create_validate_datetime(required=True)
 
-    # TODO: prompt user for start & end times
-    start = None
-    end = None
+    msg = "Enter earliest start date and time"
+    msg = str(cursor) + msg
+    start_str = inquirer.text(message=msg, validate=validate)
+    start = parse.parse_value(start_str)
+
+    msg = "Enter latest start date and time"
+    msg = str(cursor) + msg
+    end_str = inquirer.text(message=msg, validate=validate)
+    end = parse.parse_value(end_str)
 
     return collect_audiofile_metadata(
         path=dir_path,
@@ -63,15 +76,20 @@ def from_filename(
     dir_path,
     timestamp_parser,
     filename: str | list[str] = None,
+    path: str | list[str] = None,
 ):
     if isinstance(filename, str):
         filename = [filename]
+
+    if isinstance(path, str):
+        path = [path]
 
     # search for files and parse timestamps
     df = collect_audiofile_metadata(
         path=dir_path,
         ext=AUDIO_FORMATS,
         timestamp_parser=timestamp_parser,
+        subset=path,
         subset_filename=filename,
         progress_bar=True,
         inspect_files=False,

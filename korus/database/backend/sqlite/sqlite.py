@@ -138,6 +138,14 @@ class SQLiteTableBackend(TableBackend):
         self.conn.commit()
 
     def add_codec(self, field_name: str, field_type: "typing.Any"):
+        """Add default encoding and decoding rules the specified field.
+        
+        Args:
+            field_name: str
+                The field's name
+            field_type: 
+                The field's type
+        """
         if field_type in [tuple, list, dict]:
             self.codec.decoder.add_rule(self.name, field_name, decode_json)
         elif field_type == bool:
