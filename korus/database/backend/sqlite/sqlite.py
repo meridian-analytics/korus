@@ -118,6 +118,7 @@ class SQLiteTableBackend(TableBackend):
         sqlite_type = get_sqlite_type(type)
         sqlite_default = self.codec.encode(default, self.name, name)
 
+        # add column to SQLite table
         add_column(
             self.conn,
             self.name,
@@ -126,6 +127,10 @@ class SQLiteTableBackend(TableBackend):
             required,
             sqlite_default,
         )
+
+        # add encoding/decoding rules
+        # TODO: implement this, also for reloading...
+        self._add_field_codec(name, type)
 
         self.conn.commit()
 

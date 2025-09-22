@@ -68,11 +68,11 @@ def decode_key(v: int | list[int]):
 
 
 def decode_json(v: str) -> list | tuple | dict:
-    if v is None:
-        return None
+    return None if v is None else json.loads(v)
 
-    else:
-        return json.loads(v)
+
+def decode_bool(v: str) -> bool:
+    return None if v is None else bool(v)
 
 
 def decode_type(v: str) -> type:
@@ -124,6 +124,7 @@ def encode_field(value: "typing.Any", fcn: callable = None):
 
         * tuples, lists, and dicts are encoded using `json.dumps`
         * datetime objects are encoded as strings using the format `%Y-%m-%d %H:%M:%S.%f`
+        * type objects are encoded as strings using their class name
         * all other input types are returned unchanged
 
     Args:
@@ -247,6 +248,9 @@ def create_codec(conn):
     codec.decoder.add_rule("file", "start_utc", decode_datetime)
     codec.decoder.add_rule("file", "end_utc", decode_datetime)
     codec.decoder.add_rule("taxonomy", "timestamp", decode_datetime)
+    
+    # decode boolean fields
+    codec.decoder.add_rule("storage", "by_date", decode_bool)
 
     # encode & decode file_id_list field in annotation table
     codec.encoder.add_rule("annotation", "file_id_list", encode_key)
