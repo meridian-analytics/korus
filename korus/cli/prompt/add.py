@@ -1,6 +1,6 @@
 import inquirer
-from tqdm import tqdm
 from korus.database.database import Database
+from korus.database.interface import FieldDefinition
 import korus.cli.prompt.prompt as prompt
 import korus.cli.text as txt
 from korus.cli.prompt.view import view_contents_condensed
@@ -21,6 +21,7 @@ def add(db: Database, table_name: str):
 
 def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     table_name = "file"
+    tbl = getattr(db, table_name)
 
     if filename is None:
         MANUAL = 0
@@ -43,7 +44,8 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
         + txt.bold("id")
         + " of the location where the audiofiles are stored"
     )
-    storage_id = prompt.enter_index(db, "storage", msg)
+    field = tbl.fields_asdict["storage_id"]
+    storage_id = get_field_value(db, table_name, field)
 
     # prompt user to select timestamp parser
     timestamp_parser = prompt.select_timestamp_parser()
@@ -122,6 +124,51 @@ def add_deployment(db: Database) -> int:
     pass
 
 
+def get_field_value(db: Database, table_name: str, field: FieldDefinition):
+    """Get a value for a given field by prompting the user.
+
+    Args:
+        db: korus.database.Database
+            The database instance
+        table_name: str
+            Table name
+        field: FieldDefinition
+            The field
+
+    Returns:
+        value: 
+            The inputted value
+    """
+    cursor.item = field.name
+
+    while True:
+        action, kwargs = prompt.select_field_action(db, table_name, field)
+
+        try:
+            if action == prompt.FIELD_INFO:
+                print(field.info())
+
+            if action == prompt.FIELD_ENTER:
+                value = prompt.enter_value(field, **kwargs)
+                break
+
+            elif action == prompt.FIELD_SELECT:
+                value = prompt.select_value(field, **kwargs)
+                break
+
+            elif action == prompt.FIELD_EXTERNAL:
+                view_contents_condensed(db, **kwargs)
+
+            elif action == prompt.FIELD_SKIP:
+                value = None
+                break
+
+        except KeyboardInterrupt:
+            continue
+
+    return value
+
+
 def add_row(db: Database, table_name: str) -> int:
     """Add a single row to the specified table.
 
@@ -141,36 +188,8 @@ def add_row(db: Database, table_name: str) -> int:
     tbl = getattr(db, table_name)
 
     row = {}
-
     for field in tbl.fields:
-
-        cursor.item = field.name
-
-        while True:
-            action, kwargs = prompt.select_field_action(db, table_name, field)
-
-            try:
-                if action == prompt.FIELD_INFO:
-                    print(field.info())
-
-                if action == prompt.FIELD_ENTER:
-                    value = prompt.enter_value(field, **kwargs)
-                    break
-
-                elif action == prompt.FIELD_SELECT:
-                    value = prompt.select_value(field, **kwargs)
-                    break
-
-                elif action == prompt.FIELD_EXTERNAL:
-                    view_contents_condensed(db, **kwargs)
-
-                elif action == prompt.FIELD_SKIP:
-                    value = None
-                    break
-
-            except KeyboardInterrupt:
-                continue
-
+        value = get_field_value(db, table_name, field)
         if value is not None:
             row[field.name] = value
 

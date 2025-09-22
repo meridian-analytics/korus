@@ -110,7 +110,6 @@ def select_field_action(db: Database, table_name: str, field: FieldDefinition):
 
     # choices
     choices = {}
-    choices["View info"] = (FIELD_INFO, {})
 
     if field.is_index:
 
@@ -132,6 +131,7 @@ def select_field_action(db: Database, table_name: str, field: FieldDefinition):
             raise KeyboardInterrupt()
 
     else:
+        choices["View info"] = (FIELD_INFO, {})
         choices["Enter value"] = (FIELD_ENTER, {})
 
         # if table has data, give user option to select from existing values
