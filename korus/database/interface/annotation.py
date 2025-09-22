@@ -237,7 +237,7 @@ class AnnotationInterface(TableInterface):
         values = self._granularity.get(granularity_id, "name", always_tuple=False)
         return values if isinstance(granularity_id, list) else values[0]
 
-    def add(self, row: dict):
+    def add(self, row: dict) -> int:
         """Add a single annotation to the table.
 
         If the deployment ID is not specified, it will be inferred from file ID.
@@ -260,7 +260,7 @@ class AnnotationInterface(TableInterface):
         row = validate_annotation(row, self._file)
         return super().add(row)
 
-    def add_batch(self, df: pd.DataFrame, progress_bar: bool = False):
+    def add_batch(self, df: pd.DataFrame, progress_bar: bool = False) -> list[int]:
         """Add a batch of annotations to the table
 
         Args:
@@ -268,9 +268,17 @@ class AnnotationInterface(TableInterface):
                 Annotations to be added to the table.
             progress_bar: bool
                 Whether to display a progress bar.
+            
+        Returns:
+            indices: list[int]
+                Row indices of the added entries
         """
+        indices = []
         for _, row in tqdm(df.iterrows(), total=df.shape[0], disable=not progress_bar):
-            self.add(row.to_dict())
+            idx = self.add(row.to_dict())
+            indices.append(idx)
+
+        return indices
 
     def generate_negatives(self, job_id: int):
         """Generate negative annotations.

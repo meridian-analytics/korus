@@ -1,5 +1,6 @@
 import inquirer
 from tqdm import tqdm
+import pandas as pd
 from korus.database.database import Database
 from korus.database.interface import FieldDefinition
 import korus.cli.prompt.prompt as prompt
@@ -110,14 +111,18 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
     # add files, one at the time
     print(txt.info(f"Adding {len(df)} files to database ..."))
     tbl = getattr(db, table_name)
+    indices = []
     for _, row in tqdm(df.iterrows(), total=len(df)):
         row_dict = row.to_dict()
         row_dict.update({"storage_id": storage_id, "deployment_id": deployment_id})
-        tbl.add(row_dict)
+        idx = tbl.add(row_dict)
+        indices.append(idx)
 
     # let user know everything went well
-    msg = txt.info(f"\nSuccessfully added {len(df)} files to the database.")
+    msg = txt.info(f"\nSuccessfully added {len(indices)} files to the database.")
     print(msg)
+
+    return indices
 
 
 def add_job(db: Database) -> int:
@@ -127,7 +132,56 @@ def add_job(db: Database) -> int:
 
 def add_annotation(db: Database) -> list[int]:
     # TODO: implement this
-    return add_row(db, "annotation")
+    # return add_row(db, "annotation")
+
+    table_name = "annotation"
+    tbl = getattr(db, table_name)
+
+    # prompt user to specify path to RavenPro selection table(s)
+    msg = "Enter the path to the RavenPro selection table you wish to add to the database (use comma as separator in case of multiple tables)"
+    paths = prompt.enter_path(multiple=True, msg=msg)
+
+    # prompt user to specify job_id
+    field = tbl.fields_asdict["job_id"]
+    msg = "Specify which annotation job generated the annotations"
+    job_id = get_field_value(db, table_name, field, msg)
+
+    # prompt user to specify granularity_id
+    field = tbl.fields_asdict["granularity_id"]
+    msg = "Specify the granularity level of the annotations *not* marked as `Batch`"
+    granularity_id = get_field_value(db, table_name, field, msg)
+
+    # taxonomy version
+    (tax_id,) = db.job.get(job_id, fields="taxonomy_id")[0]
+
+    # granularity level
+    (granularity,) = db.granularity.get(granularity_id, fields="name")[0]
+
+    # load all tables
+    dfs = []
+    for path in paths:
+        df, df_raven = tbl.load_raven(
+            path = path,
+            granularity = granularity,
+            taxonomy_version = tax_id,
+            progress_bar = True
+        )
+
+        # TODO: check `Valid` and `Errors` columsn of df_raven
+
+        dfs.append(df)
+
+    df = pd.concat(dfs, ignore_index=True)
+
+    # add annotations
+    print(txt.info(f"Adding {len(df)} annotations to database ..."))
+    indices = tbl.add_batch(df)
+
+    # let user know everything went well
+    msg = txt.info(f"\nSuccessfully added {len(indices)} annotations to the database.")
+    print(msg)
+
+    return indices
 
 
 def add_deployment(db: Database) -> int:
