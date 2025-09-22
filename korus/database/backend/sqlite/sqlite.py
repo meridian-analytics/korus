@@ -12,7 +12,7 @@ from .codec import (
     decode_str_by_type,
 )
 from .tables import create_tables, field_table_name, table_exists, create_field_table
-from .codec import create_codec
+from .codec import create_codec, decode_bool, decode_datetime, decode_json
 from .query import (
     get_row_count,
     insert_row,
@@ -51,6 +51,10 @@ class SQLiteTableBackend(TableBackend):
         self.conn = conn
         self.codec = codec
         self.reset_cursor()
+
+        # add codecs for saved fields
+        for field in self.get_fields():
+            self.add_codec(field["name"], field["type"])
 
     def __len__(self):
         return get_row_count(self.conn, self.name)
@@ -129,10 +133,17 @@ class SQLiteTableBackend(TableBackend):
         )
 
         # add encoding/decoding rules
-        # TODO: implement this, also for reloading...
-        self._add_field_codec(name, type)
+        self.add_codec(name, type)
 
         self.conn.commit()
+
+    def add_codec(self, field_name: str, field_type: "typing.Any"):
+        if field_type in [tuple, list, dict]:
+            self.codec.decoder.add_rule(self.name, field_name, decode_json)
+        elif field_type == bool:
+            self.codec.decoder.add_rule(self.name, field_name, decode_bool)
+        elif field_type == datetime:
+            self.codec.decoder.add_rule(self.name, field_name, decode_datetime)
 
     def save_field(self, field_attrs: dict):
         tbl_name = field_table_name(self.name)

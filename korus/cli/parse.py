@@ -82,15 +82,15 @@ def parse_value(field, value):
 
 
 def parse_bool(answers, current, required=False, return_bool=False):
-    return _parse_any(lambda x: bool(x), answers, current, required, return_bool)
+    return _parse_any(bool, answers, current, required, return_bool)
 
 
 def parse_float(answers, current, required=False, return_bool=False):
-    return _parse_any(lambda x: float(x), answers, current, required, return_bool)
+    return _parse_any(float, answers, current, required, return_bool)
 
 
 def parse_int(answers, current, required=False, return_bool=False):
-    return _parse_any(lambda x: int(x), answers, current, required, return_bool)
+    return _parse_any(int, answers, current, required, return_bool)
 
 
 DATETIME_FORMAT = "YYYY-MM-DD HH:MM:SS.SSS"
