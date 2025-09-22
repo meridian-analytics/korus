@@ -39,13 +39,9 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
             return add_row(db, table_name)
 
     # prompt user to select storage location
-    msg = (
-        "Enter the "
-        + txt.bold("id")
-        + " of the location where the audiofiles are stored"
-    )
     field = tbl.fields_asdict["storage_id"]
-    storage_id = get_field_value(db, table_name, field)
+    msg = "Specify where the audiofiles are stored"
+    storage_id = get_field_value(db, table_name, field, msg)
 
     # prompt user to select timestamp parser
     timestamp_parser = prompt.select_timestamp_parser()

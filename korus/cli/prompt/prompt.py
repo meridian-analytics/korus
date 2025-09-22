@@ -88,7 +88,7 @@ def select_table_action(table_name: str) -> int:
     return choices[choice]
 
 
-def select_field_action(db: Database, table_name: str, field: FieldDefinition):
+def select_field_action(db: Database, table_name: str, field: FieldDefinition, msg: str = "Select field"):
     """Prompt user to select a field action.
 
     Args:
@@ -98,6 +98,8 @@ def select_field_action(db: Database, table_name: str, field: FieldDefinition):
             Table name
         field: korus.database.interface.FieldDefinition
             The field definition
+        msg: str
+            Prompt message
 
     Returns:
         : tuple(int, dict)
@@ -144,10 +146,10 @@ def select_field_action(db: Database, table_name: str, field: FieldDefinition):
         choices["Skip"] = (FIELD_SKIP, {})
 
     # form the question
-    message = str(cursor) + "Select field action"
+    msg = str(cursor) + msg
 
     # prompt user
-    choice = inquirer.list_input(message=message, choices=list(choices.keys()))
+    choice = inquirer.list_input(message=msg, choices=list(choices.keys()))
 
     if choice is None:
         raise KeyboardInterrupt
