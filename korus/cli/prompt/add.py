@@ -1,4 +1,5 @@
 import inquirer
+from tqdm import tqdm
 from korus.database.database import Database
 from korus.database.interface import FieldDefinition
 import korus.cli.prompt.prompt as prompt
@@ -11,6 +12,12 @@ import korus.cli.prompt.file as fil
 def add(db: Database, table_name: str):
     if table_name == "file":
         add_file(db)
+
+    elif table_name == "job":
+        add_job(db)
+
+    elif table_name == "deployment":
+        add_deployment(db)
 
     elif table_name == "annotation":
         add_annotation(db)
@@ -95,19 +102,27 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
         + txt.bold("id")
         + " of the hydrophone deployment that the audiofiles belong to"
     )
-    deployment_id = prompt.enter_index(db, "deployment", msg)
+
+    field = tbl.fields_asdict["deployment_id"]
+    msg = "Specify which hydrophone deployment the audiofiles are from"
+    deployment_id = get_field_value(db, "deployment", field, msg)
 
     # add files, one at the time
     print(txt.info(f"Adding {len(df)} files to database ..."))
     tbl = getattr(db, table_name)
+    for _, row in tqdm(df.iterrows(), total=len(df)):
+        row_dict = row.to_dict()
+        row_dict.update({"storage_id": storage_id, "deployment_id": deployment_id})
+        tbl.add(row_dict)
 
-    print()
-    print(df.to_string())
+    # let user know everything went well
+    msg = txt.info(f"\nSuccessfully added {len(df)} files to the database.")
+    print(msg)
 
-    raise KeyboardInterrupt
-    # for _,row in tqdm(df.iterrows(), total=len(df)):
-    #    row.update({"deployment_id": deployment_id})
-    #    tbl.add(row)
+
+def add_job(db: Database) -> int:
+    # TODO: implement this
+    return add_row(db, "job")
 
 
 def add_annotation(db: Database) -> list[int]:
@@ -117,10 +132,16 @@ def add_annotation(db: Database) -> list[int]:
 
 def add_deployment(db: Database) -> int:
     # TODO: allow user to select between fixed or mobile
-    pass
+    # TODO: implement this
+    return add_row(db, "deployment")
 
 
-def get_field_value(db: Database, table_name: str, field: FieldDefinition, msg: str = "Select field action"):
+def get_field_value(
+    db: Database,
+    table_name: str,
+    field: FieldDefinition,
+    msg: str = "Select field action",
+):
     """Get a value for a given field by prompting the user.
 
     Args:
@@ -134,7 +155,7 @@ def get_field_value(db: Database, table_name: str, field: FieldDefinition, msg: 
             Prompt message
 
     Returns:
-        value: 
+        value:
             The inputted value
     """
     cursor.item = field.name

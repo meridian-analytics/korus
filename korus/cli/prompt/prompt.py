@@ -88,7 +88,12 @@ def select_table_action(table_name: str) -> int:
     return choices[choice]
 
 
-def select_field_action(db: Database, table_name: str, field: FieldDefinition, msg: str = "Select field action"):
+def select_field_action(
+    db: Database,
+    table_name: str,
+    field: FieldDefinition,
+    msg: str = "Select field action",
+):
     """Prompt user to select a field action.
 
     Args:
@@ -184,7 +189,9 @@ def select_field(
     return field
 
 
-def select_value(field: FieldDefinition, values: list, msg: str = "Select value") -> str:
+def select_value(
+    field: FieldDefinition, values: list, msg: str = "Select value"
+) -> str:
     """Prompt user to select a value from a list of options.
 
     Args:

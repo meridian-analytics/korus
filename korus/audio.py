@@ -217,22 +217,17 @@ def collect_audiofile_metadata(
     if timestamp_parser is not None:
         indices, timestamps = parse_timestamp(rel_path, timestamp_parser, progress_bar)
 
-        df["t"] = None
-        df.t = pd.to_datetime(df.t)
-        df.loc[indices, "t"] = timestamps
-
-        df["start_utc"] = ""
-        df.loc[indices, "start_utc"] = df.t.loc[indices].dt.strftime(
-            "%Y-%m-%d %H:%M:%S.%f"
-        )
+        df["start_utc"] = None
+        df.start_utc = pd.to_datetime(df.start_utc)
+        df.loc[indices, "start_utc"] = timestamps
 
         logging.debug(f"Successfully parsed {len(indices)} of {len(df)} timestamps")
 
         # optionally, apply time cuts
         if earliest_start_utc is not None:
-            df = df[df.t >= earliest_start_utc]
+            df = df[df.start_utc >= earliest_start_utc]
         if latest_start_utc is not None:
-            df = df[df.t <= latest_start_utc]
+            df = df[df.start_utc <= latest_start_utc]
 
     # inspect files to obtain no. samples and sampling rate
     if inspect_files:
@@ -248,24 +243,18 @@ def collect_audiofile_metadata(
 
         # end_utc
         if "start_utc" in df.columns:
-            df["t_end"] = df.apply(
-                lambda r: r.t + timedelta(seconds=float(r.num_samples) / r.sample_rate),
+            df["end_utc"] = df.apply(
+                lambda r: r.start_utc
+                + timedelta(seconds=float(r.num_samples) / r.sample_rate),
                 axis=1,
             )
-            df["end_utc"] = df.t_end.dt.strftime("%Y-%m-%d %H:%M:%S.%f")
 
     # rel_path -> filename, relative_path
     df["filename"] = df["rel_path"].apply(lambda x: os.path.basename(x))
     df["relative_path"] = df["rel_path"].apply(lambda x: os.path.dirname(x))
 
     # drop unneccesary columns
-    drop_cols = ["rel_path"]
-    if "t" in df.columns:
-        drop_cols += ["t"]
-    if "t_end" in df.columns:
-        drop_cols += ["t_end"]
-
-    df.drop(columns=drop_cols, inplace=True)
+    df.drop(columns=["rel_path"], inplace=True)
 
     df.reset_index(drop=True, inplace=True)
     return df

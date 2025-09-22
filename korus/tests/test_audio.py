@@ -89,6 +89,8 @@ def test_collect_audiofile_metadata(rel_path):
     # compare to expected result
     answ_path = os.path.join(path_to_assets, "timestamped-audiofiles/df-timestamps.csv")
     answ = pd.read_csv(answ_path).astype({"relative_path": "str"})
+    answ.start_utc = pd.to_datetime(answ.start_utc, format="ISO8601")
+    answ.end_utc = pd.to_datetime(answ.end_utc, format="ISO8601")
     pd.testing.assert_frame_equal(df, answ)
 
     # search with time constraints and by_date=True
@@ -101,7 +103,7 @@ def test_collect_audiofile_metadata(rel_path):
         by_date=True,
     )
     # compare to expected result
-    answ_2024 = answ[answ.start_utc.apply(lambda x: "2024" in x)].reset_index(drop=True)
+    answ_2024 = answ[answ.start_utc >= earliest_start_utc].reset_index(drop=True)
     pd.testing.assert_frame_equal(df, answ_2024)
 
     # search on subset of files using filenames
