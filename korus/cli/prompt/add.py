@@ -154,11 +154,11 @@ def add_row(db: Database, table_name: str) -> int:
                     print(field.info())
 
                 if action == prompt.FIELD_ENTER:
-                    value = prompt.enter_value(table_name, field, **kwargs)
+                    value = prompt.enter_value(field, **kwargs)
                     break
 
                 elif action == prompt.FIELD_SELECT:
-                    value = prompt.select_value(table_name, field, **kwargs)
+                    value = prompt.select_value(field, **kwargs)
                     break
 
                 elif action == prompt.FIELD_EXTERNAL:

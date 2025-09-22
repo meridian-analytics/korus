@@ -138,7 +138,7 @@ def select_field_action(db: Database, table_name: str, field: FieldDefinition):
         existing_values = tbl.unique(field.name)
         if len(existing_values) > 0:
             kwargs = {"values": existing_values}
-            choices["Reuse existing value"] = (FIELD_SELECT, kwargs)
+            choices["Select previously entered value"] = (FIELD_SELECT, kwargs)
 
     if not field.required:
         choices["Skip"] = (FIELD_SKIP, {})
@@ -182,14 +182,10 @@ def select_field(
     return field
 
 
-def select_value(
-    table_name: str, field: FieldDefinition, values: list, msg: str = "Select value"
-) -> str:
+def select_value(field: FieldDefinition, values: list, msg: str = "Select value") -> str:
     """Prompt user to select a value from a list of options.
 
     Args:
-        table_name: str
-            Table name
         field: korus.database.interface.FieldDefinition
             The field definition
         values: list
@@ -204,6 +200,7 @@ def select_value(
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
+    msg = str(cursor) + msg
     value = inquirer.list_input(message=msg, choices=values)
     return parse.parse_value(field, value)
 
@@ -236,7 +233,7 @@ def enter_index(db: Database, table_name: str, msg: str = None) -> int:
         name="id", description="Table index", type=int, required=True
     )
     validate = parse.create_validate_index(tbl)
-    val_str = enter_value(table_name, field, validate=validate, msg=msg)
+    val_str = enter_value(field, validate=validate, msg=msg)
     return parse.parse_value(field, val_str)
 
 
@@ -295,7 +292,6 @@ def enter_path(multiple: bool = False, msg: str = "Enter path") -> str | list[st
 
 
 def enter_value(
-    table_name: str,
     field: FieldDefinition,
     validate: callable = None,
     msg: str = "Enter value",
@@ -303,8 +299,6 @@ def enter_value(
     """Prompt user to enter a field value.
 
     Args:
-        table_name: str
-            Table name
         field: korus.database.interface.FieldDefinition
             The field definition
         validate: callable
@@ -319,12 +313,10 @@ def enter_value(
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
-    name = table_name + ":" + field.name + ":value"
     msg = str(cursor) + msg
 
     # collect keyword args for inquirer methods
     kwargs = dict(
-        name=name,
         message=msg,
         default=field.default,
     )
@@ -338,36 +330,30 @@ def enter_value(
         return enter_path()
 
     if field.options is not None:
-        question = inquirer.List(**kwargs, choices=field.options)
+        value = inquirer.list_input(**kwargs, choices=field.options)
 
     elif field.type == bool:
-        question = inquirer.Confirm(**kwargs)
+        value = inquirer.confirm(**kwargs)
 
     elif field.type == datetime:
         kwargs["message"] += f" ({parse.DATETIME_FORMAT})"
         validates.insert(0, parse.create_validate_datetime(field.required))
         validate = parse.join(validates)
-        question = inquirer.Text(**kwargs, validate=validate)
+        value = inquirer.text(**kwargs, validate=validate)
 
     elif field.type == int:
         validates.insert(0, parse.create_validate_int(field.required))
         validate = parse.join(validates)
-        question = inquirer.Text(**kwargs, validate=validate)
+        value = inquirer.text(**kwargs, validate=validate)
 
     elif field.type == float:
         validates.insert(0, parse.create_validate_float(field.required))
         validate = parse.join(validates)
-        question = inquirer.Text(**kwargs, validate=validate)
+        value = inquirer.text(**kwargs, validate=validate)
 
     else:
-        question = inquirer.Text(**kwargs)
+        value = inquirer.text(**kwargs)
 
-    answers = inquirer.prompt([question])
-
-    if answers is None:
-        raise KeyboardInterrupt
-
-    value = answers[name]
     if value is not None:
         value = parse.parse_value(field, value)
 
