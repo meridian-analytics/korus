@@ -131,8 +131,7 @@ def add_job(db: Database) -> int:
 
 
 def add_annotation(db: Database) -> list[int]:
-    # TODO: implement this
-    # return add_row(db, "annotation")
+    # TODO: finish implementing this function
 
     table_name = "annotation"
     tbl = getattr(db, table_name)
@@ -161,10 +160,10 @@ def add_annotation(db: Database) -> list[int]:
     dfs = []
     for path in paths:
         df, df_raven = tbl.load_raven(
-            path = path,
-            granularity = granularity,
-            taxonomy_version = tax_id,
-            progress_bar = True
+            path=path,
+            granularity=granularity,
+            taxonomy_version=tax_id,
+            progress_bar=True,
         )
 
         # TODO: check `Valid` and `Errors` columsn of df_raven

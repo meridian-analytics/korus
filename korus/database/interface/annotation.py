@@ -268,7 +268,7 @@ class AnnotationInterface(TableInterface):
                 Annotations to be added to the table.
             progress_bar: bool
                 Whether to display a progress bar.
-            
+
         Returns:
             indices: list[int]
                 Row indices of the added entries
