@@ -120,7 +120,7 @@ def add_deployment(db: Database) -> int:
     pass
 
 
-def get_field_value(db: Database, table_name: str, field: FieldDefinition):
+def get_field_value(db: Database, table_name: str, field: FieldDefinition, msg: str = "Select field action"):
     """Get a value for a given field by prompting the user.
 
     Args:
@@ -130,6 +130,8 @@ def get_field_value(db: Database, table_name: str, field: FieldDefinition):
             Table name
         field: FieldDefinition
             The field
+        msg: str
+            Prompt message
 
     Returns:
         value: 
@@ -138,7 +140,7 @@ def get_field_value(db: Database, table_name: str, field: FieldDefinition):
     cursor.item = field.name
 
     while True:
-        action, kwargs = prompt.select_field_action(db, table_name, field)
+        action, kwargs = prompt.select_field_action(db, table_name, field, msg)
 
         try:
             if action == prompt.FIELD_INFO:
