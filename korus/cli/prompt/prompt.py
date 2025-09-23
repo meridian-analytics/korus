@@ -240,7 +240,7 @@ def enter_label(db: Database, taxonomy_id: int = None) -> list[tuple]:
 
         elif choice == ENTER_LABEL:
             msg = "Enter sound-source label"
-            # TODO: validation
+
             sound_source = inquirer.text(msg)
 
         # sound types

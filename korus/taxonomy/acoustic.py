@@ -279,7 +279,7 @@ class AcousticTaxonomy(Taxonomy):
         except:
             return None
 
-    def label_exists(self, source_tag, type_tag):
+    def label_exists(self, source_tag: str, type_tag: str = None) -> bool:
         """Check if certain (source,type) label exists in the taxonomy.
 
         Args:
@@ -294,12 +294,13 @@ class AcousticTaxonomy(Taxonomy):
         """
         types = self.sound_types(source_tag)
         if types is None:
-            exists = False
+            return False
+
+        elif type_tag is None:
+            return True
 
         else:
-            exists = types.get_node(type_tag) is not None
-
-        return exists
+            return types.get_node(type_tag) is not None
 
     @property
     def changes(self):
