@@ -126,8 +126,31 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
 
 
 def add_job(db: Database) -> int:
-    # TODO: implement this
-    return add_row(db, "job")
+    # TODO: finish implementing this function
+    table_name = "job"
+    tbl = getattr(db, table_name)
+
+    row = {}
+    for field in tbl.fields:
+        if field.name == "target":
+            continue
+
+        value = get_field_value(db, table_name, field)
+        if value is not None:
+            row[field.name] = value
+
+        # if job is 'exhaustive' prompt user to specify target/scope
+        if "target" not in row and row["is_exhaustive"] and "taxonomy_id" in row:
+            tax_id = row["taxonomy_id"]
+            label = prompt.enter_label(db, tax_id)
+
+    idx = tbl.add(row)
+
+    print(
+        txt.info(f"\nSuccessfully added new row with id={idx} to {table_name} table.")
+    )
+
+    return idx
 
 
 def add_annotation(db: Database) -> list[int]:

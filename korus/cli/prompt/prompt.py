@@ -214,7 +214,7 @@ def select_value(
     return parse.parse_value(value, field.type, field.required)
 
 
-def select_label(db, table_name, field_name):
+def enter_label(db: Database, taxonomy_id: int = None) -> list[tuple]:
     # TODO: implement this function
     pass
 

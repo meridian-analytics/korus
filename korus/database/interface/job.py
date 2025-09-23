@@ -22,13 +22,13 @@ class JobInterface(TableInterface):
             required=False,
         )
         self._create_field(
-            "target", list, "Systematically annotated sounds", required=False
-        )
-        self._create_field(
             "is_exhaustive",
             bool,
             "Whether all primary sounds were annotated",
             required=False,
+        )
+        self._create_field(
+            "target", list, "Systematically annotated sounds", required=False
         )
         self._create_field(
             "configuration",
