@@ -220,22 +220,66 @@ def enter_label(db: Database, taxonomy_id: int = None) -> list[tuple]:
 
     VIEW_TAXONOMY = 0
     ENTER_LABEL = 1
+    SELECT_ALL = 2
 
     labels = []
     while True:
         # sound sources
         choices = {
-            "View the taxonomy tree": VIEW_TAXONOMY,
-            "Enter the label": ENTER_LABEL,
+            "View taxonomy tree": VIEW_TAXONOMY,
+            "Specify sound source": ENTER_LABEL,
         }
-        msg = str(cursor) + "Specify which sounds ... Which sound source was systematically targeted in this job?"
+        msg = str(cursor) + "Specify which sounds were subject to exhaustive annotation"
 
+        answer = inquirer.list_input(msg, choices=list(choices.keys()))
+        choice = choices[answer]
 
-        msg = str(cursor) + "Add another label?"
+        if choice == VIEW_TAXONOMY:
+            tax.show()
+            continue
+
+        elif choice == ENTER_LABEL:
+            msg = "Enter sound-source label"
+            # TODO: validation
+            sound_source = inquirer.text(msg)
+
+        # sound types
+        while True:
+            choices = {
+                "View sound types": VIEW_TAXONOMY,
+                "Specify sound type": ENTER_LABEL,
+                "Select all sound types": SELECT_ALL,
+            }
+            msg = (
+                str(cursor)
+                + f"For the selected sound source ({sound_source}), specify which sound types were subject to exhaustive annotation"
+            )
+
+            answer = inquirer.list_input(msg, choices=list(choices.keys()))
+            choice = choices[answer]
+
+            if choice == VIEW_TAXONOMY:
+                tax.sound_types(sound_source).show()
+                continue
+
+            elif choice == ENTER_LABEL:
+                msg = str(cursor) + "Enter sound-type label"
+                # TODO: validation
+                sound_type = inquirer.text(msg)
+
+            elif choice == SELECT_ALL:
+                sound_type = "*"
+
+            break
+
+        labels.append((sound_source, sound_type))
+
+        # ask user if they want to add another sound
+        msg = str(cursor) + "Add another sound?"
         if not inquirer.confirm(msg):
             break
 
-    pass
+    return labels
 
 
 def enter_index(db: Database, table_name: str, msg: str = None) -> int:

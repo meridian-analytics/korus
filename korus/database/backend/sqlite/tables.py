@@ -10,7 +10,6 @@ def create_tables(conn):
     create_storage_table(conn)
     create_taxonomy_table(conn)
     create_label_table(conn)
-    create_model_table(conn)
     create_tag_table(conn)
     create_granularity_table(conn)
     create_file_job_relation_table(conn)
@@ -370,34 +369,6 @@ def create_file_job_relation_table(conn):
             file_job_relation(job_id)
     """
     )
-
-
-def create_model_table(conn):
-    """Create model table according to Korus schema.
-
-    Args:
-        conn: sqlite3.Connection
-            Database connection
-    """
-    tbl_name = "model"
-    if table_exists(conn, tbl_name):
-        return
-
-    c = conn.cursor()
-    tbl_def = f"""
-        CREATE TABLE
-            {tbl_name}(
-                id INTEGER NOT NULL,
-                name TEXT NOT NULL,
-                version TEXT,
-                data JSON NOT NULL,
-                PRIMARY KEY (id),
-                UNIQUE (name, version)
-            )
-        """
-    c.execute(tbl_def)
-
-    create_field_table(conn, tbl_name)
 
 
 def create_storage_table(conn):

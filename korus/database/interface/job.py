@@ -14,7 +14,6 @@ class JobInterface(TableInterface):
 
         # fields
         self._create_field("taxonomy_id", int, "Taxonomy index", required=False)
-        self._create_field("model_id", int, "Model index", required=False)
         self._create_field(
             "annotator",
             str,

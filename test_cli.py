@@ -14,15 +14,3 @@ db = SQLiteDatabase(path)
 
 
 cli.main(db)
-
-#cli.cli_fcn(db)
-
-#idx = cli.add_row(db, "storage")
-
-#idx = cli.add_row(db, "job")
-
-#print(idx)
-
-#db.backend.close()
-
-#cli.add_row(db, "deployment")

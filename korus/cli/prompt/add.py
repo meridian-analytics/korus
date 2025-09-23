@@ -143,13 +143,19 @@ def add_job(db: Database) -> int:
             row[field.name] = value
 
         # if job is 'exhaustive' prompt user to specify target
-        if "target" not in row and row["is_exhaustive"] and "taxonomy_id" in row:
-            tax_id = row["taxonomy_id"]
-            label = prompt.enter_label(db, tax_id)
+        if (
+            "is_exhaustive" in row
+            and "taxonomy_id" in row
+            and "target" not in row
+            and row["is_exhaustive"]
+        ):
+
+            cursor.item = "target"
+            row["target"] = prompt.enter_label(db, row["taxonomy_id"])
 
     idx = tbl.add(row)
 
-    print(txt.info(f"\nSuccessfully added job with id={idx} to the database."))
+    print(txt.info(f"Successfully added job with id={idx} to the database."))
 
     return idx
 
