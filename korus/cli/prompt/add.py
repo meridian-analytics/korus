@@ -149,9 +149,7 @@ def add_job(db: Database) -> int:
 
     idx = tbl.add(row)
 
-    print(
-        txt.info(f"\nSuccessfully added job with id={idx} to the database.")
-    )
+    print(txt.info(f"\nSuccessfully added job with id={idx} to the database."))
 
     return idx
 
