@@ -218,6 +218,23 @@ def enter_label(db: Database, taxonomy_id: int = None) -> list[tuple]:
     # TODO: implement this function
     tax = db.taxonomy.get_taxonomy(taxonomy_id)
 
+    VIEW_TAXONOMY = 0
+    ENTER_LABEL = 1
+
+    labels = []
+    while True:
+        # sound sources
+        choices = {
+            "View the taxonomy tree": VIEW_TAXONOMY,
+            "Enter the label": ENTER_LABEL,
+        }
+        msg = str(cursor) + "Specify which sounds ... Which sound source was systematically targeted in this job?"
+
+
+        msg = str(cursor) + "Add another label?"
+        if not inquirer.confirm(msg):
+            break
+
     pass
 
 
