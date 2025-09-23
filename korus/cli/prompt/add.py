@@ -142,7 +142,7 @@ def add_job(db: Database) -> int:
         if value is not None:
             row[field.name] = value
 
-        # if job is 'exhaustive' prompt user to specify target/scope
+        # if job is 'exhaustive' prompt user to specify target
         if "target" not in row and row["is_exhaustive"] and "taxonomy_id" in row:
             tax_id = row["taxonomy_id"]
             label = prompt.enter_label(db, tax_id)
@@ -150,7 +150,7 @@ def add_job(db: Database) -> int:
     idx = tbl.add(row)
 
     print(
-        txt.info(f"\nSuccessfully added new row with id={idx} to {table_name} table.")
+        txt.info(f"\nSuccessfully added job with id={idx} to the database.")
     )
 
     return idx
@@ -161,7 +161,7 @@ def add_annotation(db: Database) -> list[int]:
     tbl = getattr(db, table_name)
 
     # prompt user to specify path to RavenPro selection table(s)
-    msg = "Enter the path to the RavenPro selection table you wish to add to the database (use comma as separator in case of multiple tables)"
+    msg = "Enter the path(s) to the RavenPro selection table(s) you wish to add to the database"
     paths = prompt.enter_path(multiple=True, msg=msg)
 
     # prompt user to specify job_id

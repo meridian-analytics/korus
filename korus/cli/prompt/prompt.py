@@ -133,7 +133,7 @@ def select_field_action(
 
         # if the external table is empty, instruct the user to add some data to it
         else:
-            msg = f"The {ext_name} table is empty. To add a row to the {table_name} table, you must first add a {ext_name}."
+            msg = f"The {ext_name} table is empty. To add an entry to the {table_name} table, you must first add a {ext_name}."
             print(txt.error(msg))
             raise KeyboardInterrupt()
 
