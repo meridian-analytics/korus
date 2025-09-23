@@ -1,6 +1,9 @@
+import os
+import shutil
 import inquirer
 from tqdm import tqdm
 import pandas as pd
+from datetime import datetime
 from korus.database.database import Database
 from korus.database.interface import FieldDefinition
 import korus.cli.prompt.prompt as prompt
@@ -154,8 +157,6 @@ def add_job(db: Database) -> int:
 
 
 def add_annotation(db: Database) -> list[int]:
-    # TODO: finish implementing this function
-
     table_name = "annotation"
     tbl = getattr(db, table_name)
 
@@ -179,8 +180,15 @@ def add_annotation(db: Database) -> list[int]:
     # granularity level
     (granularity,) = db.granularity.get(granularity_id, fields="name")[0]
 
+    # create folder for storing validated selection tables
+    epoch = int(datetime.now().timestamp())
+    dir_path = os.path.join(os.getcwd(), f"korus-validation-{epoch}")
+    os.makedirs(dir_path)
+
     # load all tables
+    print(txt.info(f"Loading and validating annotations ..."))
     dfs = []
+    num_err = []
     for path in paths:
         df, df_raven = tbl.load_raven(
             path=path,
@@ -189,10 +197,39 @@ def add_annotation(db: Database) -> list[int]:
             progress_bar=True,
         )
 
-        # TODO: check `Valid` and `Errors` columsn of df_raven
-
         dfs.append(df)
 
+        # save validation result
+        fname = os.path.basename(path)
+        p = fname.rfind(".")
+        fname = fname[:p] + "-val" + fname[p:]
+        df_raven.to_csv(os.path.join(dir_path, fname), index=False)
+
+        # count errors
+        num_err.append({"filename": fname, "errors": df_raven.Valid.sum()})
+
+    # save error counts
+    num_err = pd.DataFrame(num_err)
+    num_err.to_csv(os.path.join(dir_path, "errors.csv"), index=False)
+
+    num_err_tot = num_err.errors.sum()
+
+    if num_err_tot == 0:
+        # if there are no errors, inform user and remove tmp directory
+        print(txt.info(f"Validation successful. No errors detected."))
+        shutil.rmtree(dir_path)
+
+    else:
+        # if errors were found, alert user and exit
+        msg = (
+            f"Validation failed. Errors detected in {num_err_tot} entries out of {len(df)}."
+            + f" The validated tables have been saved to {dir_path}."
+            + f" Please review and correct the offending entries before resubmitting."
+        )
+        print(txt.error(msg))
+        raise KeyboardInterrupt
+
+    # concat
     df = pd.concat(dfs, ignore_index=True)
 
     # add annotations

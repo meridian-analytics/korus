@@ -32,7 +32,7 @@ setup(
             "korus-submit = korus.app.submit:main",
         ],
     },
-    setup_requires=["pytest-runner", "wheel"],
+    setup_requires=["pytest-runner", "build"],
     tests_require=[
         "pytest",
     ],
