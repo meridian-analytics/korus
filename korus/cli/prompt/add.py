@@ -221,7 +221,7 @@ def add_annotation(db: Database) -> list[int]:
         df_raven.to_csv(os.path.join(dir_path, fname), index=False)
 
         # count errors
-        num_err.append({"filename": fname, "errors": df_raven.Valid.sum()})
+        num_err.append({"filename": fname, "errors": (~df_raven.Valid).sum()})
 
     # save error counts
     num_err = pd.DataFrame(num_err)

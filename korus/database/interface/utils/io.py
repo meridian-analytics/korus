@@ -440,7 +440,7 @@ def read_raven(
     df = pd.DataFrame(data)
 
     dtypes = {
-        # "file_id": int,
+        "file_id": int,
         "channel": int,
         "start": float,
         "duration": float,
@@ -469,6 +469,9 @@ def read_raven(
     idx = df["file_id"].isna()
     df_raven.loc[idx, "Valid"] = False
     df_raven.loc[idx, "Errors"] += "FileNotFoundError | "
+    
+    # for missing file, set ID to -1
+    df = df.fillna(value={"file_id": -1})
 
     # copy data
     df["channel"] = df_raven["Channel"] - 1

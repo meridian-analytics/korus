@@ -80,7 +80,7 @@ def validate_deployment_id(row: dict, file: FileInterface) -> dict:
     """Helper function for validating deployment ID.
     Raises AssertionError, if inconsistent deployment IDs are encountered.
     """
-    if "file_id" not in row:
+    if row.get("file_id", -1) == -1:
         return row
 
     # look up file metadata
@@ -192,16 +192,19 @@ def validate_frequency(row: dict, file: FileInterface) -> dict:
         if "freq_max_hz" not in row:
             row["freq_max_hz"] = nyquist_freq
 
-    assert_msg = f"Lower frequency limit cannot exceed Nyquist frequency"
+    assert_msg = f"Lower frequency limit exceeds Nyquist frequency"
     assert nyquist_freq is None or row["freq_min_hz"] <= nyquist_freq, assert_msg
 
     if row.get("freq_max_hz", None) is not None:
-        assert_msg = f"Upper frequency limit cannot exceed Nyquist frequency"
-        assert nyquist_freq is None or row["freq_max_hz"] <= nyquist_freq, assert_msg
+        freq_min = row["freq_min_hz"]
+        freq_max = row["freq_max_hz"] 
+
+        assert_msg = f"Upper frequency limit ({freq_max:.0f} Hz) exceeds Nyquist frequency ({nyquist_freq:.0f} Hz)"
+        assert nyquist_freq is None or freq_max <= nyquist_freq, assert_msg
 
         assert_msg = (
-            f"Upper frequency limit cannot be less than the lower frequency limit"
+            f"Upper frequency limit ({freq_max:.0f} Hz) is less than the lower frequency limit ({freq_min:.0f} Hz)"
         )
-        assert row["freq_max_hz"] >= row["freq_min_hz"], assert_msg
+        assert freq_max >= freq_min, assert_msg
 
     return row
