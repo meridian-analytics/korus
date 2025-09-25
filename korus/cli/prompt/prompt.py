@@ -239,9 +239,18 @@ def enter_label(db: Database, taxonomy_id: int = None) -> list[tuple]:
             continue
 
         elif choice == ENTER_LABEL:
-            msg = "Enter sound-source label"
+            msg = str(cursor) + "Enter sound-source label"
 
-            sound_source = inquirer.text(msg)
+            def validate(answers, current):
+                if tax.label_exists(current):
+                    return True
+                else:
+                    reason = (
+                        f"The taxonomy does not contain the sound source `{current}`"
+                    )
+                    raise inquirer.errors.ValidationError("", reason=reason)
+
+            sound_source = inquirer.text(msg, validate=validate)
 
         # sound types
         while True:
@@ -264,8 +273,15 @@ def enter_label(db: Database, taxonomy_id: int = None) -> list[tuple]:
 
             elif choice == ENTER_LABEL:
                 msg = str(cursor) + "Enter sound-type label"
-                # TODO: validation
-                sound_type = inquirer.text(msg)
+
+                def validate(answers, current):
+                    if tax.label_exists(sound_source, current):
+                        return True
+                    else:
+                        reason = f"The taxonomy does not contain the sound type `{current}` for the sound source `{sound_source}`"
+                        raise inquirer.errors.ValidationError("", reason=reason)
+
+                sound_type = inquirer.text(msg, validate=validate)
 
             elif choice == SELECT_ALL:
                 sound_type = "*"
