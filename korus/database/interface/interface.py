@@ -725,15 +725,22 @@ class TableViewer:
             Which fields to include
         nrows: int
             Number of rows printed per page
+        transforms: dict[str, callable]
+            Custom transformations applied to individual fields
     """
 
     def __init__(
-        self, table: TableInterface, fields: str | list[str] = None, nrows: int = 20
+        self,
+        table: TableInterface,
+        fields: str | list[str] = None,
+        nrows: int = 20,
+        transforms: dict = None,
     ):
         self.table = table
         self.fields = fields
         self.nrows = nrows
         self.counter = 0
+        self.transforms = dict() if transforms is None else transforms
         self.table.backend.reset_cursor()
 
     def __next__(self):
@@ -754,6 +761,10 @@ class TableViewer:
                 break
 
         df = pd.concat(df)
+
+        # apply custom transformations, if any
+        for k, fcn in self.transforms.items():
+            df[k] = df[k].apply(lambda x: fcn(x))
 
         if len(df) == 1:
             header = f"Showing entry no. {self.counter} of {len(self.table)} entries"

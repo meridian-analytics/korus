@@ -215,7 +215,6 @@ def select_value(
 
 
 def enter_label(db: Database, taxonomy_id: int = None) -> list[tuple]:
-    # TODO: implement this function
     tax = db.taxonomy.get_taxonomy(taxonomy_id)
 
     VIEW_TAXONOMY = 0

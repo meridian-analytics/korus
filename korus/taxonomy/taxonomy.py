@@ -385,7 +385,7 @@ class Taxonomy(Tree):
         )
         self._tag_to_id[tag] = node.identifier
 
-        self._changes.append(f"{self.name}: Added {tag}")
+        self._changes.append(f"Added: {tag}")
 
         return node
 
@@ -445,7 +445,7 @@ class Taxonomy(Tree):
 
         # change message
         children_tags = ", ".join([self.get_node(id).tag for id in children])
-        msg = f"{self.name}: Merged {children_tags} -> {tag} with remove={remove}"
+        msg = f"Merged: {children_tags} -> {tag} with remove={remove}"
         self._changes.append(msg)
 
         # move or remove original nodes
@@ -470,7 +470,7 @@ class Taxonomy(Tree):
         n = self.get_id(n)  # tag -> identifier
 
         # change message
-        self._changes.append(f"{self.name}: Removed {self.get_node(n).tag}")
+        self._changes.append(f"Removed: {self.get_node(n).tag}")
 
         # set inheritors of removed nodes
         parent_id = self.parent(n).identifier
@@ -491,7 +491,7 @@ class Taxonomy(Tree):
         n = self.get_id(n)  # tag -> identifier
         new_parent = self.get_id(new_parent)
 
-        msg = f"{self.name}: Moved {self.get_node(n).tag} from {self.parent(n).tag} -> {self.get_node(new_parent).tag}"
+        msg = f"Moved: {self.get_node(n).tag} from {self.parent(n).tag} -> {self.get_node(new_parent).tag}"
         self._changes.append(msg)
 
         return super().move_node(n, new_parent)
@@ -512,7 +512,7 @@ class Taxonomy(Tree):
             True,
         )  # (IDs, is_equivalent)
 
-        msg = f"{self.name}: Linked past {self.get_node(n).tag}"
+        msg = f"Linked past: {self.get_node(n).tag}"
         self._changes.append(msg)
 
         return super().link_past_node(n)

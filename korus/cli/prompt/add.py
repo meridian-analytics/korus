@@ -129,7 +129,6 @@ def add_file(db: Database, filename: str | list[str] = None) -> list[int]:
 
 
 def add_job(db: Database) -> int:
-    # TODO: finish implementing this function
     table_name = "job"
     tbl = getattr(db, table_name)
 

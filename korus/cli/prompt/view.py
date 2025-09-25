@@ -32,7 +32,15 @@ def view_contents_detailed(db: Database, table_name: str):
         print(txt.info(f"The {table_name} table is empty"))
         return
 
-    viewer = TableViewer(tbl, nrows=1)
+    if table_name == "taxonomy":
+        field_names = ["version", "timestamp", "changes", "comment"]
+        transforms = {"timestamp": lambda x: x.strftime("%Y-%m-%d %H:%M:%S")}
+
+    else:
+        field_names = None
+        transforms = None
+
+    viewer = TableViewer(tbl, field_names, nrows=1, transforms=transforms)
     counter = 0
     for page in iter(viewer):
         if counter >= 1:
@@ -44,7 +52,7 @@ def view_contents_detailed(db: Database, table_name: str):
         counter += 1
 
 
-def view_contents_condensed(db: Database, table_name: str, required: bool = True):
+def view_contents_condensed(db: Database, table_name: str):
     """View table contents in condensed form
 
     Args:
@@ -61,12 +69,16 @@ def view_contents_condensed(db: Database, table_name: str, required: bool = True
         print(txt.info(f"The {table_name} table is empty"))
         return
 
-    if required:
-        field_names = [field.name for field in tbl.fields if field.required]
-    else:
-        field_names = None
+    if table_name == "taxonomy":
+        field_names = ["version", "timestamp", "comment"]
+        transforms = {"timestamp": lambda x: x.strftime("%Y-%m-%d %H:%M:%S")}
 
-    viewer = TableViewer(tbl, field_names)
+    else:
+        # for all other tables, include all `required` fields
+        field_names = [field.name for field in tbl.fields if field.required]
+        transforms = None
+
+    viewer = TableViewer(tbl, field_names, transforms=transforms)
     counter = 0
     for page in iter(viewer):
         if counter >= 1:
