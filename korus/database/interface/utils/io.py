@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from .validate import validate_annotation
 
 
 # Sound source/type ENUM
@@ -469,7 +470,7 @@ def read_raven(
     idx = df["file_id"].isna()
     df_raven.loc[idx, "Valid"] = False
     df_raven.loc[idx, "Errors"] += "FileNotFoundError | "
-    
+
     # for missing file, set ID to -1
     df = df.fillna(value={"file_id": -1})
 
@@ -492,7 +493,7 @@ def read_raven(
     # granularity
     df["granularity"] = df_raven["Batch"].apply(lambda x: "batch" if x else granularity)
 
-    # parse labels
+    # iterate through the rows, parsing labels and checking for errors
     label = []
     tentative_label = []
     excluded_label = []
@@ -501,6 +502,7 @@ def read_raven(
     for idx, row in tqdm(
         df_raven.iterrows(), total=df.shape[0], disable=not progress_bar
     ):
+        # parse labels
         res = _parse_labels(row, taxonomy, taxonomy_version)
 
         label.append(res["label"])
@@ -509,6 +511,14 @@ def read_raven(
         ambiguous_label.append(res["ambiguous_label"])
         multiple_label.append(res["multiple_label"])
 
+        # do further validation
+        try:
+            validate_annotation(df.iloc[idx].to_dict(), file)
+        except Exception as err:
+            res["valid"] = False
+            res["errors"].append(str(err))
+
+        # store validation status and error messages
         df_raven.loc[idx, "Valid"] *= res["valid"]
         df_raven.loc[idx, "Errors"] += " | ".join(res["errors"])
 

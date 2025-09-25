@@ -197,14 +197,12 @@ def validate_frequency(row: dict, file: FileInterface) -> dict:
 
     if row.get("freq_max_hz", None) is not None:
         freq_min = row["freq_min_hz"]
-        freq_max = row["freq_max_hz"] 
+        freq_max = row["freq_max_hz"]
 
         assert_msg = f"Upper frequency limit ({freq_max:.0f} Hz) exceeds Nyquist frequency ({nyquist_freq:.0f} Hz)"
         assert nyquist_freq is None or freq_max <= nyquist_freq, assert_msg
 
-        assert_msg = (
-            f"Upper frequency limit ({freq_max:.0f} Hz) is less than the lower frequency limit ({freq_min:.0f} Hz)"
-        )
+        assert_msg = f"Upper frequency limit ({freq_max:.0f} Hz) is less than the lower frequency limit ({freq_min:.0f} Hz)"
         assert freq_max >= freq_min, assert_msg
 
     return row
