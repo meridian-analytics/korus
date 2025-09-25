@@ -36,7 +36,7 @@ def view_contents_detailed(db: Database, table_name: str):
         field_names = ["version", "timestamp", "changes", "comment"]
         transforms = {
             "timestamp": lambda x: x.strftime("%Y-%m-%d %H:%M:%S"),
-            "changes": lambda x: None if x is None else " | ".join(x) 
+            "changes": lambda x: None if x is None else " | ".join(x),
         }
 
     else:
@@ -76,7 +76,7 @@ def view_contents_condensed(db: Database, table_name: str):
         field_names = ["version", "timestamp", "changes", "comment"]
         transforms = {
             "timestamp": lambda x: x.strftime("%Y-%m-%d %H:%M:%S"),
-            "changes": lambda x: None if x is None else " | ".join(x) 
+            "changes": lambda x: None if x is None else " | ".join(x),
         }
 
     else:

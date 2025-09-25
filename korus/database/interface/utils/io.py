@@ -210,6 +210,10 @@ def _parse_labels(row: pd.Series, taxonomy_interface, version: int = None) -> di
     # create labels
     labels = _create_labels(sources, types, res["errors"], taxonomy_interface, version)
 
+    if labels is None:
+        res["valid"] = len(res["errors"]) == 0
+        return res
+
     # confident label
     conf_src, conf_typ = tax.last_common_ancestor(labels)
 

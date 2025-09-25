@@ -7,7 +7,7 @@ def bold(x: str, color: str = "white") -> str:
 
 def question(msg: str) -> str:
     """Format string as a PROMPT message"""
-    return "[" + colored("?", "yellow") + "]" + msg + ": "
+    return "[" + colored("?", "yellow") + "] " + msg + ": "
 
 
 def info(msg: str, newline: bool = True) -> str:
