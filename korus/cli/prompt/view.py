@@ -34,7 +34,10 @@ def view_contents_detailed(db: Database, table_name: str):
 
     if table_name == "taxonomy":
         field_names = ["version", "timestamp", "changes", "comment"]
-        transforms = {"timestamp": lambda x: x.strftime("%Y-%m-%d %H:%M:%S")}
+        transforms = {
+            "timestamp": lambda x: x.strftime("%Y-%m-%d %H:%M:%S"),
+            "changes": lambda x: None if x is None else " | ".join(x) 
+        }
 
     else:
         field_names = None
@@ -70,8 +73,11 @@ def view_contents_condensed(db: Database, table_name: str):
         return
 
     if table_name == "taxonomy":
-        field_names = ["version", "timestamp", "comment"]
-        transforms = {"timestamp": lambda x: x.strftime("%Y-%m-%d %H:%M:%S")}
+        field_names = ["version", "timestamp", "changes", "comment"]
+        transforms = {
+            "timestamp": lambda x: x.strftime("%Y-%m-%d %H:%M:%S"),
+            "changes": lambda x: None if x is None else " | ".join(x) 
+        }
 
     else:
         # for all other tables, include all `required` fields

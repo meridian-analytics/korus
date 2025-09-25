@@ -1,4 +1,5 @@
 from dataclasses import dataclass, asdict
+import textwrap
 from tabulate import tabulate
 from korus.database.backend import TableBackend
 import numpy as np
@@ -725,6 +726,8 @@ class TableViewer:
             Which fields to include
         nrows: int
             Number of rows printed per page
+        max_char: int
+            Column width no. characters
         transforms: dict[str, callable]
             Custom transformations applied to individual fields
     """
@@ -734,11 +737,13 @@ class TableViewer:
         table: TableInterface,
         fields: str | list[str] = None,
         nrows: int = 20,
+        max_char: int = 60,
         transforms: dict = None,
     ):
         self.table = table
         self.fields = fields
         self.nrows = nrows
+        self.max_char = max_char
         self.counter = 0
         self.transforms = dict() if transforms is None else transforms
         self.table.backend.reset_cursor()
@@ -765,6 +770,15 @@ class TableViewer:
         # apply custom transformations, if any
         for k, fcn in self.transforms.items():
             df[k] = df[k].apply(lambda x: fcn(x))
+
+        # enforce max no. characters per line
+        for idx, row in df.iterrows():
+            for col in df.columns.values:
+                v = row[col]
+
+                # wrap text to desired column width
+                if isinstance(v, str):
+                    df.loc[idx, col] = textwrap.fill(v, self.max_char)
 
         if len(df) == 1:
             header = f"Showing entry no. {self.counter} of {len(self.table)} entries"
