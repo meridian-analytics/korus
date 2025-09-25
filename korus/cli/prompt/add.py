@@ -163,8 +163,19 @@ def add_annotation(db: Database) -> list[int]:
     table_name = "annotation"
     tbl = getattr(db, table_name)
 
+    # prompt user for deployment ID
+    msg = (
+        "Enter "
+        + txt.bold("id")
+        + " of the hydrophone deployment that the audiofiles belong to"
+    )
+
+    field = tbl.fields_asdict["deployment_id"]
+    msg = "Specify which hydrophone deployment the audiofiles are from"
+    deployment_id = get_field_value(db, "deployment", field, msg)
+
     # prompt user to specify path to RavenPro selection table(s)
-    msg = "Enter the path(s) to the RavenPro selection table(s) you wish to add to the database"
+    msg = "Enter the path(s) to the RavenPro selection table(s)"
     paths = prompt.enter_path(multiple=True, msg=msg)
 
     # prompt user to specify job_id
@@ -195,6 +206,7 @@ def add_annotation(db: Database) -> list[int]:
     for path in paths:
         df, df_raven = tbl.load_raven(
             path=path,
+            deployment_id=deployment_id,
             granularity=granularity,
             taxonomy_version=tax_id,
             progress_bar=True,
