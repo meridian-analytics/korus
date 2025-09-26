@@ -175,7 +175,7 @@ def add_annotation(db: Database) -> list[int]:
     deployment_id = get_field_value(db, "deployment", field, msg)
 
     # prompt user to specify path to RavenPro selection table(s)
-    msg = "Enter the path(s) to the RavenPro selection table(s)"
+    msg = "Enter path to RavenPro selection table(s)"
     paths = prompt.enter_path(multiple=True, msg=msg)
 
     # prompt user to specify job_id
@@ -218,7 +218,7 @@ def add_annotation(db: Database) -> list[int]:
         fname = os.path.basename(path)
         p = fname.rfind(".")
         fname = fname[:p] + "-val" + fname[p:]
-        df_raven.to_csv(os.path.join(dir_path, fname), index=False)
+        df_raven.to_csv(os.path.join(dir_path, fname), index=False, sep="\t")
 
         # count errors
         num_err.append({"filename": fname, "errors": (~df_raven.Valid).sum()})

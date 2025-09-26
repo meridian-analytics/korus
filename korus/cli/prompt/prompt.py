@@ -79,6 +79,11 @@ def select_table_action(table_name: str) -> int:
         "Update": TABLE_UPDATE,
     }
 
+    if table_name == "taxonomy":
+        choices.pop("View contents (detailed)")
+        choices.pop("Add")
+        choices.pop("Update")
+
     # prompt user to select from choices
     message = str(cursor) + "Select table action"
     choice = inquirer.list_input(message=message, choices=list(choices.keys()))
@@ -249,7 +254,10 @@ def enter_label(db: Database, taxonomy_id: int = None) -> list[tuple]:
                     )
                     raise inquirer.errors.ValidationError("", reason=reason)
 
-            sound_source = inquirer.text(msg, validate=validate)
+            try:
+                sound_source = inquirer.text(msg, validate=validate)
+            except KeyboardInterrupt:
+                continue
 
         # sound types
         while True:
@@ -280,7 +288,10 @@ def enter_label(db: Database, taxonomy_id: int = None) -> list[tuple]:
                         reason = f"The taxonomy does not contain the sound type `{current}` for the sound source `{sound_source}`"
                         raise inquirer.errors.ValidationError("", reason=reason)
 
-                sound_type = inquirer.text(msg, validate=validate)
+                try:
+                    sound_type = inquirer.text(msg, validate=validate)
+                except KeyboardInterrupt:
+                    continue
 
             elif choice == SELECT_ALL:
                 sound_type = "*"
