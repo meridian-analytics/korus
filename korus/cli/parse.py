@@ -17,6 +17,11 @@ def create_validate_index(table):
     def validate(answers, current):
         id = int(current)
         all_indices = table.reset_filter().filter().indices
+
+        # special case: do not allow user to select the 0th entry in the taxonomy table (draft taxonomy)
+        if table.name == "taxonomy":
+            all_indices = [idx for idx in all_indices if idx != 0]
+
         if id not in all_indices:
             raise inquirer.errors.ValidationError(
                 "", reason="Invalid index. Please enter a valid index."

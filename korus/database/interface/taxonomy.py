@@ -45,6 +45,7 @@ class TaxonomyInterface(TableInterface, AcousticTaxonomyManager):
         versions = [
             AcousticTaxonomy.from_dict(self.values_asdict(values)) for values in self
         ]
+
         self.releases = versions[1:]
         if len(versions) > 0:
             self.draft = versions[0]

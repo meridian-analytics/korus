@@ -190,6 +190,7 @@ def add_annotation(db: Database) -> list[int]:
 
     # taxonomy version
     (tax_id,) = db.job.get(job_id, fields="taxonomy_id")[0]
+    (tax_version,) = db.taxonomy.get(tax_id, fields="version")[0]
 
     # granularity level
     (granularity,) = db.granularity.get(granularity_id, fields="name")[0]
@@ -208,7 +209,7 @@ def add_annotation(db: Database) -> list[int]:
             path=path,
             deployment_id=deployment_id,
             granularity=granularity,
-            taxonomy_version=tax_id,
+            taxonomy_version=tax_version,
             progress_bar=True,
         )
 

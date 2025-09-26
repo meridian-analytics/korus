@@ -175,7 +175,7 @@ def _parse_labels(row: pd.Series, taxonomy_interface, version: int = None) -> di
             Dictionary with keys `label`, `tentative_label`, `excluded_label`, `ambiguous_label`, `multiple_label`, `valid`, `errors`
     """
     tax = (
-        interface.current
+        taxonomy_interface.current
         if version is None
         else taxonomy_interface.releases[version - 1]
     )
@@ -407,6 +407,7 @@ def read_raven(
     for name, dtype in dtypes.items():
         if dtype == str:
             df_raven = df_raven.replace({name: "nan"}, None)
+            df_raven = df_raven.replace({name: "None"}, None)
 
     # sort according to filename and start time
     df_raven = df_raven.sort_values(by=["Begin File", "File Offset (s)"])

@@ -1,11 +1,16 @@
+import os
 import pytest
 import pandas as pd
 import pandas.testing
-from copy import copy
 from datetime import datetime, timezone
 from korus.database.interface import TaxonomyInterface, LabelInterface
 from korus.taxonomy import AcousticTaxonomy
 from korus.tests.helpers import InMemoryTableBackend
+from korus.database import SQLiteDatabase
+
+
+path_to_assets = os.path.join("korus", "tests", "assets")
+path_to_tmp = os.path.join(path_to_assets, "tmp")
 
 
 def test_taxonomy_interface():
@@ -150,3 +155,27 @@ def test_get_label_id_acoustic_taxonomy(sqlite_database_with_taxonomy):
         db.taxonomy.get_label_id(
             ("*", "LoudSound"), version, ascend=False, descend=True
         )
+
+
+def test_load_taxonomy_from_sqlite():
+    path = os.path.join(path_to_tmp, "db_with_tax.sqlite")
+
+    if os.path.exists(path):
+        os.remove(path)
+
+    # create db and make 1 taxonomy release
+    db = SQLiteDatabase(path, new=True)
+    tax = db.taxonomy.draft
+    tax.create_sound_source("Bio", name="Biological sound source")
+    db.taxonomy.release()
+    assert db.taxonomy.get_taxonomy(1).version == 1
+    db.backend.close()
+
+    # load db again, check version no
+    db = SQLiteDatabase(path)
+    assert db.taxonomy.get_taxonomy(1).version == 1
+    db.backend.close()
+
+    # cleanup
+    if os.path.exists(path):
+        os.remove(path)

@@ -36,12 +36,12 @@ def update_field(db: Database, table_name: str):
     field = prompt.select_field(db, table_name, msg)
 
     msg = f"Enter a new value for " + txt.bold(field.name)
-    value = prompt.enter_value(table_name, field, msg=msg)
+    value = prompt.enter_value(field, msg=msg)
 
     if value is None:
         return
 
-    value = parse.parse_value(field, value)
+    value = parse.parse_value(value, field.type, field.required)
     row = {field.name: value}
     tbl = getattr(db, table_name)
 

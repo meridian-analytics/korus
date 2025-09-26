@@ -44,7 +44,6 @@ def tree_from_dict(tree, recipe, parent=None, data_transform=None):
         if branch_key in value.keys() and isinstance(value[branch_key], dict):
             tree = tree_from_dict(tree, value[branch_key], nid, data_transform)
 
-    tree.clear_history()
     return tree
 
 
