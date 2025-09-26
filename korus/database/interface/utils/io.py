@@ -135,16 +135,18 @@ def _create_labels(
 
     # validate labels
     valid_labels = []
+    invalid_labels = []
     for label in labels:
         try:
             taxonomy_interface.get_label_id(label, version)
             valid_labels.append(label)
 
         except ValueError:
+            invalid_labels.append(label)
             continue
 
     if len(valid_labels) < max(len(sources), len(types)):
-        errors.append("LabelError: Invalid label")
+        errors.append(f"LabelError: Invalid labels {invalid_labels}")
 
     if not is_list and len(valid_labels) == 1:
         valid_labels = valid_labels[0]
@@ -485,6 +487,14 @@ def read_raven(
 
     # set dtypes
     df = df.astype(dtypes)
+
+    # cast frequency limits to int
+    df["freq_min_hz"] = np.floor(
+        pd.to_numeric(df["freq_min_hz"], errors="coerce")
+    ).astype("Int64")
+    df["freq_max_hz"] = np.floor(
+        pd.to_numeric(df["freq_max_hz"], errors="coerce")
+    ).astype("Int64")
 
     # tag
     df["tag"] = df_raven["Tag"].apply(

@@ -248,6 +248,9 @@ def add_annotation(db: Database) -> list[int]:
     # concat
     df = pd.concat(dfs, ignore_index=True)
 
+    # add job_id
+    df["job_id"] = job_id
+
     # add annotations
     print(txt.info(f"Adding {len(df)} annotations to database ..."))
     indices = tbl.add_batch(df)

@@ -180,7 +180,7 @@ def validate_frequency(row: dict, file: FileInterface) -> dict:
     """Helper function for validating or inferring frequency limits"""
     nyquist_freq = None
 
-    if "freq_min_hz" not in row:
+    if row.get("freq_min_hz", None) is None:
         row["freq_min_hz"] = 0
 
     if "file_id" in row:
