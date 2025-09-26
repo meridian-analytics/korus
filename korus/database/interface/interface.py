@@ -499,7 +499,7 @@ class TableInterface:
             indices: int | list[int]
                 The indices of the entries to be returned. If None, all entries in the table are returned.
             fields: str | list[str]
-                The fields to be returned. If None, all fields are returned.
+                The fields to be returned. If None, all fields are returned. Can also be aliases.
             return_indices: bool
                 Whether to also return the indices. If True, indices are inserted at the beginning of each row tuple.
             always_tuple: bool
