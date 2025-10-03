@@ -167,7 +167,10 @@ def select_field_action(
 
 
 def select_field(
-    db: Database, table_name: str, msg: str = "Select field"
+    db: Database,
+    table_name: str,
+    msg: str = "Select field",
+    alias: bool = False,
 ) -> FieldDefinition:
     """Prompt user to select a field from the table.
 
@@ -178,6 +181,8 @@ def select_field(
             Table name
         msg: str
             Prompt message
+        alias: bool
+            Also select from aliases.
 
     Returns:
         field: korus.database.interface.FieldDefinition
@@ -188,7 +193,11 @@ def select_field(
     """
     tbl = getattr(db, table_name)
     msg = str(cursor) + msg
-    field_name = inquirer.list_input(message=msg, choices=tbl.field_names)
+    choices = tbl.field_names
+    if alias:
+        choices += tbl.alias_names
+
+    field_name = inquirer.list_input(message=msg, choices=choices)
     field = tbl.fields_asdict[field_name]
     return field
 

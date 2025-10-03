@@ -33,7 +33,7 @@ def update_field(db: Database, table_name: str):
     idx = prompt.enter_index(db, table_name, msg)
 
     msg = "Select the field you wish to update"
-    field = prompt.select_field(db, table_name, msg)
+    field = prompt.select_field(db, table_name, msg, alias=True)
 
     msg = f"Enter a new value for " + txt.bold(field.name)
     value = prompt.enter_value(field, msg=msg)
