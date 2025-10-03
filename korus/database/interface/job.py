@@ -17,7 +17,7 @@ class JobInterface(TableInterface):
         self._create_field(
             "annotator",
             str,
-            "Name of person or model who annotated the data",
+            "Name of person who annotated the data",
             required=False,
         )
         self._create_field(
@@ -30,39 +30,11 @@ class JobInterface(TableInterface):
             "target", list, "Systematically annotated sounds", required=False
         )
         self._create_field(
-            "configuration",
-            dict,
-            "Model configuration or instructions given to the annotator",
-            required=False,
-        )
-        self._create_field(
-            "start_utc",
+            "completion_date",
             datetime,
-            "Start time of the annotation effort",
+            "Completion date of annotation effort",
             required=False,
         )
-        self._create_field(
-            "end_utc",
-            datetime,
-            "End time of the annotation effort",
-            required=False,
-        )
-        self._create_field(
-            "by_human",
-            bool,
-            "True, if annotations were made/validated by a human",
-            default=True,
-        )
-        self._create_field(
-            "by_machine",
-            bool,
-            "True, if annotations were made by a machine",
-            default=False,
-        )
-        self._create_field(
-            "issues", list, "Issues or limitations with the annotations", required=False
-        )
-        self._create_field("comments", str, "Additional observations", required=False)
 
     def add_file(self, job_id: int, file_id: int, channel: int = 0):
         """Add an audio-file channel to an annotation job.

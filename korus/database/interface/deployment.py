@@ -25,6 +25,6 @@ class DeploymentInterface(TableInterface):
         self._create_field(
             "trajectory",
             list,
-            "Sequence of timestamped coordinates (timestamp,lat,lon,depth) [mobile deployments only]",
+            "Sequence of timestamped coordinates (timestamp,lat,lon,depth)",
             required=False,
         )

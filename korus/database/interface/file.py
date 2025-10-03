@@ -31,8 +31,6 @@ class FileInterface(TableInterface):
             "End time of recording (UTC) [inferred from the start time, number of samples, and sampling rate]",
             required=False,
         )
-        self._create_field("format", str, "Audio format", required=False)
-        self._create_field("codec", str, "Audio codec", required=False)
 
     def add(self, row: dict):
         """Add an entry to the table.

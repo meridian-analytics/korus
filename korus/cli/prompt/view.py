@@ -1,4 +1,5 @@
 import inquirer
+import pandas as pd
 from korus.database.database import Database
 from korus.database.interface import TableViewer
 import korus.cli.text as txt
@@ -54,17 +55,28 @@ def view_contents(db: Database, table_name: str):
             "changes": lambda x: None if x is None else " | ".join(x),
         }
 
+    elif table_name == "file":
+        defaults = tbl.field_names
+        transforms = {
+            "start_utc": lambda x: (
+                "" if x is None or pd.isna(x) else x.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            ),
+            "end_utc": lambda x: (
+                "" if x is None or pd.isna(x) else x.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            ),
+        }        
+
     elif table_name == "job":
         defaults = [
             "annotator",
-            "end_utc",
+            "completion_date",
             "is_exhaustive",
             "target",
             "taxonomy_id",
             "comments",
         ]
-        defaults = {
-            "end_utc": lambda x: "" if x is None else x.strftime("%Y-%m-%d"),
+        transforms = {
+            "completion_date": lambda x: "" if x is None or pd.isna(x) else x.strftime("%Y-%m-%d"),
         }
 
     elif table_name == "annotation":
@@ -82,7 +94,7 @@ def view_contents(db: Database, table_name: str):
         ]
         transforms = {
             "start_utc": lambda x: (
-                "" if x is None else x.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+                "" if x is None or pd.isna(x)  else x.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
             ),
             "label": label_as_str,
             "tentative_label": label_as_str,
@@ -99,11 +111,11 @@ def view_contents(db: Database, table_name: str):
     # prompt user to select which fields to display
     msg = (
         str(cursor)
-        + "Select the files you wish to add to the database, or hit Ctrl+C to abort"
+        + "Select the fields you wish to display"
     )
     field_names = inquirer.checkbox(
         msg,
-        choices=tbl.field_names,
+        choices=tbl.field_names + tbl.alias_names,
         default=defaults,
     )
 
