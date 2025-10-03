@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from .validate import validate_annotation
 
 
 # Sound source/type ENUM
@@ -134,16 +135,18 @@ def _create_labels(
 
     # validate labels
     valid_labels = []
+    invalid_labels = []
     for label in labels:
         try:
             taxonomy_interface.get_label_id(label, version)
             valid_labels.append(label)
 
         except ValueError:
+            invalid_labels.append(label)
             continue
 
     if len(valid_labels) < max(len(sources), len(types)):
-        errors.append("LabelError: Invalid label")
+        errors.append(f"LabelError: Invalid labels {invalid_labels}")
 
     if not is_list and len(valid_labels) == 1:
         valid_labels = valid_labels[0]
@@ -174,7 +177,7 @@ def _parse_labels(row: pd.Series, taxonomy_interface, version: int = None) -> di
             Dictionary with keys `label`, `tentative_label`, `excluded_label`, `ambiguous_label`, `multiple_label`, `valid`, `errors`
     """
     tax = (
-        interface.current
+        taxonomy_interface.current
         if version is None
         else taxonomy_interface.releases[version - 1]
     )
@@ -209,6 +212,10 @@ def _parse_labels(row: pd.Series, taxonomy_interface, version: int = None) -> di
 
     # create labels
     labels = _create_labels(sources, types, res["errors"], taxonomy_interface, version)
+
+    if labels is None:
+        res["valid"] = len(res["errors"]) == 0
+        return res
 
     # confident label
     conf_src, conf_typ = tax.last_common_ancestor(labels)
@@ -402,6 +409,7 @@ def read_raven(
     for name, dtype in dtypes.items():
         if dtype == str:
             df_raven = df_raven.replace({name: "nan"}, None)
+            df_raven = df_raven.replace({name: "None"}, None)
 
     # sort according to filename and start time
     df_raven = df_raven.sort_values(by=["Begin File", "File Offset (s)"])
@@ -436,7 +444,7 @@ def read_raven(
     df = pd.DataFrame(data)
 
     dtypes = {
-        # "file_id": int,
+        "file_id": int,
         "channel": int,
         "start": float,
         "duration": float,
@@ -466,6 +474,9 @@ def read_raven(
     df_raven.loc[idx, "Valid"] = False
     df_raven.loc[idx, "Errors"] += "FileNotFoundError | "
 
+    # for missing file, set ID to -1
+    df = df.fillna(value={"file_id": -1})
+
     # copy data
     df["channel"] = df_raven["Channel"] - 1
     df["start"] = df_raven["File Offset (s)"]
@@ -477,6 +488,14 @@ def read_raven(
     # set dtypes
     df = df.astype(dtypes)
 
+    # cast frequency limits to int
+    df["freq_min_hz"] = np.floor(
+        pd.to_numeric(df["freq_min_hz"], errors="coerce")
+    ).astype("Int64")
+    df["freq_max_hz"] = np.floor(
+        pd.to_numeric(df["freq_max_hz"], errors="coerce")
+    ).astype("Int64")
+
     # tag
     df["tag"] = df_raven["Tag"].apply(
         lambda x: x.split("&") if isinstance(x, str) else None
@@ -485,7 +504,7 @@ def read_raven(
     # granularity
     df["granularity"] = df_raven["Batch"].apply(lambda x: "batch" if x else granularity)
 
-    # parse labels
+    # iterate through the rows, parsing labels and checking for errors
     label = []
     tentative_label = []
     excluded_label = []
@@ -494,6 +513,7 @@ def read_raven(
     for idx, row in tqdm(
         df_raven.iterrows(), total=df.shape[0], disable=not progress_bar
     ):
+        # parse labels
         res = _parse_labels(row, taxonomy, taxonomy_version)
 
         label.append(res["label"])
@@ -502,6 +522,14 @@ def read_raven(
         ambiguous_label.append(res["ambiguous_label"])
         multiple_label.append(res["multiple_label"])
 
+        # do further validation
+        try:
+            validate_annotation(df.iloc[idx].to_dict(), file)
+        except Exception as err:
+            res["valid"] = False
+            res["errors"].append(str(err))
+
+        # store validation status and error messages
         df_raven.loc[idx, "Valid"] *= res["valid"]
         df_raven.loc[idx, "Errors"] += " | ".join(res["errors"])
 

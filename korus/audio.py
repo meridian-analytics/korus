@@ -3,24 +3,56 @@ import shutil
 import logging
 import soundfile as sf
 import pandas as pd
-import numpy as np
 import tarfile
-from datetime import timedelta
+from datetime import datetime, timedelta, date
 from tqdm import tqdm
 
 
+def group_by_date(filenames: list[str], timestamp_parser: callable):
+    """Helper function for grouping audiofiles by their start date.
+
+    Args:
+        filenames: list[str]
+            Filenames or paths
+        timestamp_parser: callable
+            Function that takes a string as input and returns a datetime.datetime object.
+
+    Returns:
+        grouped: dict[datetime.date, list[str]]
+            Dictionary mapping of dates in the form %Y%m%d to filenames.
+            OBS: If timestamp parsing fails for ANY of the files, ALL files are grouped together with null key.
+    """
+    # attempt to parse timestamps
+    indices, timestamps = parse_timestamp(
+        filenames, timestamp_parser, progress_bar=False
+    )
+
+    if len(indices) < len(filenames):
+        return {None: filenames}
+
+    # group according to date
+    grouped = {}
+    for i, t in zip(indices, timestamps):
+        date_key = t.date()
+        fname = filenames[i]
+        grouped[date_key] = grouped.get(date_key, []) + [fname]
+
+    return grouped
+
+
 def collect_audiofile_metadata(
-    path,
-    ext="WAV",
-    timestamp_parser=None,
-    earliest_start_utc=None,
-    latest_start_utc=None,
-    subset=None,
-    tar_path="",
-    progress_bar=False,
-    date_subfolder=False,
-    inspect_files=True,
-    tmp_path="./korus-tmp",
+    path: str,
+    ext: str | list[str] = "WAV",
+    timestamp_parser: callable = None,
+    earliest_start_utc: datetime | date = None,
+    latest_start_utc: datetime | date = None,
+    subset: str | list[str] = None,
+    subset_filename: str | list[str] = None,
+    tar_path: str = "",
+    progress_bar: bool = False,
+    by_date: bool = False,
+    inspect_files: bool = True,
+    tmp_path: str = "./korus-tmp",
 ):
     """Collect metadata records for all audio files in a specified directory.
 
@@ -32,22 +64,24 @@ def collect_audiofile_metadata(
     Args:
         path: str
             Path to the directory or tar archive where the audio files are stored.
-        ext: str
-            Audio file extension. Default is WAV.
+        ext: str | list[str]
+            Audio file extension(s). Default is WAV.
         timestamp_parser: callable
             Function that takes a string as input and returns a datetime.datetime object.
-        earliest_start_utc: datetime.datetime
+        earliest_start_utc: datetime.datetime | datetime.date
             Only consider files starting at or after this UTC time.
-        latest_start_utc: datetime.datetime
+        latest_start_utc: datetime.datetime | datetime.date
             Only consider files starting at or before this UTC time.
-        subset: str, list(str)
-            File paths relative to the top directory given by the @path argument. Use
+        subset: str | list(str)
+            Paths relative to the top directory given by the `path` argument. Use
             this argument to restrict attention to a subset of the files.
+        subset_filename: str | list(str)
+            Same as `subset` except only requires the filename(s) to be specified.
         tar_path: str
             Path within tar archive. Only relavant if @path points to a tar archive.
         progress_bar: bool
             Display progress bar. Default is False.
-        date_subfolder: bool
+        by_date: bool
             If audio files are organized in date-stamped subfolders with format yyyymmdd,
             and both the earliest and latest start time have been specified, this argument
             can be used to restrict the search space to only the relevant subfolders.
@@ -67,18 +101,78 @@ def collect_audiofile_metadata(
 
     Examples:
     """
+    if isinstance(subset_filename, str):
+        subset_filename = [subset_filename]
+
+    if isinstance(ext, str):
+        ext = [ext]
+
+    if isinstance(earliest_start_utc, date):
+        earliest_start_utc = datetime.combine(earliest_start_utc, datetime.min.time())
+
+    if isinstance(latest_start_utc, date):
+        latest_start_utc = datetime.combine(latest_start_utc, datetime.max.time())
+
+    # user has specified a list of filenames:
+    if subset_filename is not None:
+        if by_date and timestamp_parser:
+            # group filenames by date
+            grouped = group_by_date(subset_filename, timestamp_parser)
+
+            # recursive call to collect audiofile metadata, one date-stamped subfolder at the time
+            df = [
+                collect_audiofile_metadata(
+                    path=path,
+                    ext=ext,
+                    timestamp_parser=timestamp_parser,
+                    earliest_start_utc=_date,
+                    latest_start_utc=_date,
+                    tar_path=tar_path,
+                    progress_bar=progress_bar,
+                    by_date=True,
+                    inspect_files=inspect_files,
+                )
+                for _date, filenames in grouped.items()
+                if len(filenames) > 0
+            ]
+            df = pd.concat(df, ignore_index=True)
+
+            # only keep files with matching filenames
+            df = df[df.filename.isin(subset_filename)]
+
+            return df
+
+        else:
+            # search for files based on filename
+            subset = find_files(
+                path,
+                substr=subset_filename,
+                subdirs=True,
+                progress_bar=progress_bar,
+            )
+
+    # both start and end time must be specified to allow date-restricted search
+    search_by_date = (
+        by_date and earliest_start_utc is not None and latest_start_utc is not None
+    )
+    if search_by_date:
+        earliest_date = earliest_start_utc.date()
+        latest_date = latest_start_utc.date()
+
+    # whether base path points to a tar archive instead of a directory
     is_tar = os.path.isfile(path) and tarfile.is_tarfile(path)
 
+    # rename
     rel_path = subset
 
     if rel_path is None:
-        if date_subfolder and earliest_start_utc and latest_start_utc:
+        if search_by_date:
             sub_folders = []
-            date = earliest_start_utc.date()
-            while date <= latest_start_utc.date():
-                date_str = date.strftime("%Y%m%d")
+            _date = earliest_date
+            while _date <= latest_date:
+                date_str = _date.strftime("%Y%m%d")
                 sub_folders.append(date_str)
-                date += timedelta(days=1)
+                _date += timedelta(days=1)
         else:
             sub_folders = [""]
 
@@ -90,9 +184,11 @@ def collect_audiofile_metadata(
             else:
                 kwargs = {"path": os.path.join(path, sub_folder)}
 
+            substr = [x.lower() for x in ext] + [x.upper() for x in ext]
+
             file_paths = find_files(
                 **kwargs,
-                substr=[ext.lower(), ext.upper()],
+                substr=substr,
                 subdirs=True,
                 progress_bar=progress_bar,
             )
@@ -105,7 +201,15 @@ def collect_audiofile_metadata(
 
     df = pd.DataFrame({"rel_path": rel_path})
 
-    df["format"] = ext.upper()
+    def get_ext(x):
+        """Helper function for parsing the file extension"""
+        p = x.rfind(".")
+        if p == -1:
+            return ""
+        else:
+            return x[p + 1 :].upper()
+
+    df["format"] = df["rel_path"].apply(lambda x: get_ext(x))
 
     logging.debug(f"Found {len(df)} {ext} files in {path}")
 
@@ -113,85 +217,119 @@ def collect_audiofile_metadata(
     if timestamp_parser is not None:
         indices, timestamps = parse_timestamp(rel_path, timestamp_parser, progress_bar)
 
-        df["t"] = None
-        df.t = pd.to_datetime(df.t)
-        df.loc[indices, "t"] = timestamps
-
-        df["start_utc"] = ""
-        df.loc[indices, "start_utc"] = df.t.loc[indices].dt.strftime(
-            "%Y-%m-%d %H:%M:%S.%f"
-        )
+        df["start_utc"] = None
+        df.start_utc = pd.to_datetime(df.start_utc)
+        df.loc[indices, "start_utc"] = timestamps
 
         logging.debug(f"Successfully parsed {len(indices)} of {len(df)} timestamps")
 
         # optionally, apply time cuts
         if earliest_start_utc is not None:
-            df = df[df.t >= earliest_start_utc]
+            df = df[df.start_utc >= earliest_start_utc]
         if latest_start_utc is not None:
-            df = df[df.t <= latest_start_utc]
+            df = df[df.start_utc <= latest_start_utc]
 
     # inspect files to obtain no. samples and sampling rate
     if inspect_files:
-        if progress_bar:
-            print("Determining sampling rates and file sizes ...")
-
-        # open tar archive, and create temporary folder for extracting audio files
-        if is_tar:
-            tar = tarfile.open(path)
-            shutil.rmtree(tmp_path, ignore_errors=True)
-            os.makedirs(tmp_path)
-
-        # loop over files and get no. samples and sampling rate for each one
-        num_samples, sample_rate = [], []
-        for _, row in tqdm(df.iterrows(), total=df.shape[0], disable=not progress_bar):
-            if is_tar:
-                member = tar.getmember(row.rel_path)
-                tar.extract(member, path=tmp_path)
-                full_path = os.path.join(tmp_path, row.rel_path)
-
-            else:
-                full_path = os.path.join(path, row.rel_path)
-
-            n, sr = get_num_samples_and_rate(full_path)
-            num_samples.append(n)
-            sample_rate.append(sr)
-
-            if is_tar:
-                os.remove(full_path)
-
-        if is_tar:
-            tar.close()
-            shutil.rmtree(tmp_path, ignore_errors=True)
+        num_samples, sample_rate = extract_num_samples_and_samplerate(
+            path=df.rel_path,
+            base_path=path,
+            tmp_path=tmp_path,
+            progress_bar=progress_bar,
+        )
 
         df["num_samples"] = num_samples
         df["sample_rate"] = sample_rate
 
         # end_utc
         if "start_utc" in df.columns:
-            df["t_end"] = df.apply(
-                lambda r: r.t + timedelta(seconds=float(r.num_samples) / r.sample_rate),
+            df["end_utc"] = df.apply(
+                lambda r: r.start_utc
+                + timedelta(seconds=float(r.num_samples) / r.sample_rate),
                 axis=1,
             )
-            df["end_utc"] = df.t_end.dt.strftime("%Y-%m-%d %H:%M:%S.%f")
 
     # rel_path -> filename, relative_path
     df["filename"] = df["rel_path"].apply(lambda x: os.path.basename(x))
     df["relative_path"] = df["rel_path"].apply(lambda x: os.path.dirname(x))
 
     # drop unneccesary columns
-    drop_cols = ["rel_path"]
-    if "t" in df.columns:
-        drop_cols += ["t"]
-    if "t_end" in df.columns:
-        drop_cols += ["t_end"]
-
-    df.drop(columns=drop_cols, inplace=True)
+    df.drop(columns=["rel_path"], inplace=True)
 
     df.reset_index(drop=True, inplace=True)
     return df
 
 
-def get_num_samples_and_rate(path):
+def extract_num_samples_and_samplerate(
+    path: str | list[str],
+    base_path: str = "",
+    tmp_path: str = "./korus-tmp",
+    progress_bar: bool = False,
+):
+    """Obtain duration and samplerate of a set of audio files
+
+    TODO: implement error handling; return args should include which
+        files were succesfully read and which could not be read
+
+    Args:
+        path: str | list[str]
+            Relative paths including filename to the audio files
+        base_path: str
+            Top directory
+        tmp_path: str
+            If the audio files are stored in tar archive, and @inspect_files is True, audio files
+            will be extracted to this folder temporarily to allow the file size and sampling rate
+            to be determined.
+        progress_bar: bool
+            Display progress bar. Default is False.
+
+    Returns:
+        num_samples: list
+            Number of samples per file
+        sample_rate: list
+            Samplerate in samples/s.
+    """
+    if progress_bar:
+        print("Determining sampling rates and file sizes ...")
+
+    # whether base path points to a tar archive instead of a directory
+    is_tar = os.path.isfile(base_path) and tarfile.is_tarfile(base_path)
+
+    if isinstance(path, str):
+        path = [path]
+
+    # open tar archive, and create temporary folder for extracting audio files
+    if is_tar:
+        tar = tarfile.open(base_path)
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        os.makedirs(tmp_path)
+
+    # loop over files and get no. samples and sampling rate for each one
+    num_samples, sample_rate = [], []
+    for x in tqdm(path, disable=not progress_bar):
+        if is_tar:
+            member = tar.getmember(x)
+            tar.extract(member, path=tmp_path)
+            full_path = os.path.join(tmp_path, x)
+
+        else:
+            full_path = os.path.join(base_path, x)
+
+        n, sr = read_num_samples_and_samplerate(full_path)
+        num_samples.append(n)
+        sample_rate.append(sr)
+
+        if is_tar:
+            os.remove(full_path)
+
+    if is_tar:
+        tar.close()
+        shutil.rmtree(tmp_path, ignore_errors=True)
+
+    return num_samples, sample_rate
+
+
+def read_num_samples_and_samplerate(path):
     """Determine the number of samples and sampling rate of a given audio file.
 
     Args:
@@ -219,12 +357,12 @@ def find_files(path, substr=None, subdirs=False, tar_path="", progress_bar=False
     Args:
         path: str
             Path to directory or tar archive file
-        substr: str or list(str)
+        substr: str | list(str)
             Search for files that have this string/these strings in their path.
         subdirs: bool
             If True, also search all subdirectories.
         tar_path: str
-            Path within tar archive. Only relavant if @path points to a tar archive.
+            Path within tar archive. Only relavant if `path` points to a tar archive.
         progress_bar: bool
             Display progress bar. Default is False.
 

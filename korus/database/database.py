@@ -36,8 +36,22 @@ class Database:
             granularity=self.granularity,
         )
 
+    @property
+    def tables(self) -> dict:
+        """Returns a dict with all the tables in the database"""
+        return {
+            "deployment": self.deployment,
+            "storage": self.storage,
+            "file": self.file,
+            "job": self.job,
+            "taxonomy": self.taxonomy,
+            "tag": self.tag,
+            "granularity": self.granularity,
+            "annotation": self.annotation,
+        }
+
 
 class SQLiteDatabase(Database):
 
-    def __init__(self, path: str):
-        super().__init__(SQLiteBackend(path))
+    def __init__(self, path: str, new: bool = False):
+        super().__init__(SQLiteBackend(path, new))

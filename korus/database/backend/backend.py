@@ -20,7 +20,7 @@ class TableBackend:
     def remove(self, indices: int | list[int] = None):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "remove"))
 
-    def set(self, idx: int, row: dict):
+    def update(self, idx: int, row: dict):
         raise NotImplementedError(not_impl_err_msg(self.__class__.__name__, "set"))
 
     def filter(
@@ -39,6 +39,28 @@ class TableBackend:
         """Return to first row"""
         raise NotImplementedError(
             not_impl_err_msg(self.__class__.__name__, "reset_cursor")
+        )
+
+    def save_field(self, field_attrs: dict):
+        """Save custom field description to the database
+
+        Args:
+            field_attrs: dict
+                The field attributes
+        """
+        raise NotImplementedError(
+            not_impl_err_msg(self.__class__.__name__, "save_field")
+        )
+
+    def get_fields(self) -> list[dict]:
+        """Get custom field descriptions saved to the database
+
+        Returns:
+            field_attrs: list[dict]
+                The field attributes
+        """
+        raise NotImplementedError(
+            not_impl_err_msg(self.__class__.__name__, "get_fields")
         )
 
 

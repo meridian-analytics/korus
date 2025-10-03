@@ -39,6 +39,10 @@ class TaxonomyManager:
         else:
             return self.releases[-1]
 
+    def get_taxonomy(self, version: int = None) -> AcousticTaxonomy:
+        """Get a given version of the taxonomy"""
+        return self.current if version is None else self.releases[version - 1]
+
     def release(self, comment: str = None):
         """Release a new version of the taxonomy.
 
@@ -112,7 +116,7 @@ class TaxonomyManager:
 
             return ids
 
-        tax = self.current if version is None else self.releases[version - 1]
+        tax = self.get_taxonomy(version)
 
         ids = get_label_id(
             label,

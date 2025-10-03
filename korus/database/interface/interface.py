@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
+import textwrap
 from tabulate import tabulate
 from korus.database.backend import TableBackend
 import numpy as np
@@ -13,6 +14,8 @@ class FieldDefinition:
 
         bool,str,int,float,datetime
 
+    Table indices are stored in fields with type `int` and name ending in `_id`.
+
     Attrs:
         name: str
             The name of the field
@@ -26,6 +29,12 @@ class FieldDefinition:
             The field default value
         options: list (optional)
             Allowed values
+        is_path: bool
+            Whether the field is an OS path.
+
+    Properties:
+        is_index: bool
+            Whether the field is a table index
     """
 
     name: str
@@ -34,6 +43,11 @@ class FieldDefinition:
     required: bool = True
     default: "typing.Any" = None
     options: list = None
+    is_path: bool = False
+
+    @property
+    def is_index(self) -> bool:
+        return self.type == int and len(self.name) > 2 and self.name[-3:] == "_id"
 
     def options_as_str(self) -> str:
         """Returns:
@@ -58,6 +72,22 @@ class FieldDefinition:
             "Y" if self.required else "N",
             str(self.default),
             self.options_as_str(),
+        )
+
+    def info(self) -> str:
+        return (
+            tabulate(
+                [self.as_tuple_str()],
+                headers=[
+                    "Name",
+                    "Type",
+                    "Description",
+                    "Required",
+                    "Default Value",
+                    "Allowed Values",
+                ],
+            )
+            + "\n"
         )
 
 
@@ -122,6 +152,7 @@ class TableInterface:
         self._index = -1
         self._count = 0
         self.indices = None
+        self._load_fields()
 
     @property
     def fields(self) -> list[FieldDefinition]:
@@ -201,7 +232,7 @@ class TableInterface:
 
         return {name: value for name, value in zip(fields, values)}
 
-    def add_field(
+    def _create_field(
         self,
         name: str,
         type: "typing.Any",
@@ -209,8 +240,9 @@ class TableInterface:
         required: bool = True,
         default: "typing.Any" = None,
         options: list = None,
+        is_path: bool = False,
     ):
-        """Add a field to the table interface.
+        """Helper function for creating fields.
 
         Args:
             name: str
@@ -225,12 +257,61 @@ class TableInterface:
                 The field default value
             options: list (optional)
                 Allowed values
-        """
-        self._fields.append(
-            FieldDefinition(name, type, description, required, default, options)
-        )
+            is_path: bool
+                Whether the field is an OS path.
 
-    def add_alias(
+        Returns:
+            field: FieldDefinition
+                The created field
+        """
+        field = FieldDefinition(
+            name, type, description, required, default, options, is_path
+        )
+        self._fields.append(field)
+        return field
+
+    def _load_fields(self):
+        """Helper function for loading custom fields from the database"""
+        for field_attrs in self.backend.get_fields():
+            self._create_field(**field_attrs)
+
+    def add_field(
+        self,
+        name: str,
+        type: "typing.Any",
+        description: str,
+        required: bool = True,
+        default: "typing.Any" = None,
+        options: list = None,
+        is_path: bool = False,
+    ):
+        """Add a custom field to the table interface.
+
+        The field is saved to the database. This allows it to be automatically re-created
+        at every subsequent connection to the database.
+
+        Args:
+            name: str
+                The field's name
+            type: Any
+                The field's type
+            description: str
+                Short, human-readable description of the data stored in this field
+            required: bool
+                True if the field is required to have a non-null value. False otherwise
+            default: same as type (optional)
+                The field default value
+            options: list (optional)
+                Allowed values
+            is_path: bool
+                Whether the field is an OS path.
+        """
+        field = self._create_field(
+            name, type, description, required, default, options, is_path
+        )
+        self.backend.save_field(asdict(field))
+
+    def create_alias(
         self,
         field_name: str,
         name: str,
@@ -239,7 +320,9 @@ class TableInterface:
         transform: callable = None,
         reverse_transform: callable = None,
     ):
-        """Add an alias to the table interface.
+        """Create a custom alias.
+
+        OBS: Note that the alias is *not* saved to the database, so the alias needs to be re-created every time the table interface is instantiated.
 
         Args:
             field_name: str
@@ -256,11 +339,10 @@ class TableInterface:
                 Transform applied to every row of output data to convert the field value to its corresponding alias value.
                 Expects the field value as the first positional argument, and accepts other field/alias values as keyword arguments.
         """
-        self._aliases.append(
-            FieldAlias(
-                field_name, name, type, description, transform, reverse_transform
-            )
+        alias = FieldAlias(
+            field_name, name, type, description, transform, reverse_transform
         )
+        self._aliases.append(alias)
 
     def _validate_data(self, row: dict):
         """Helper function for validating input data.
@@ -380,7 +462,7 @@ class TableInterface:
         """
         self.backend.remove(indices)
 
-    def set(self, idx: int, row: dict):
+    def update(self, idx: int, row: dict):
         """Modify an existing entry in the table
 
         Args:
@@ -395,7 +477,7 @@ class TableInterface:
         row = self._replace_missing_values(row, current_values)
         row = self._validate_data(row)
         try:
-            self.backend.set(idx, row)
+            self.backend.update(idx, row)
         except Exception as err:
             err_msg = f"Attempt to update row {idx} in the {self.name} table failed due to an error in the backend."
             err.args = (err_msg,) + err.args
@@ -417,7 +499,7 @@ class TableInterface:
             indices: int | list[int]
                 The indices of the entries to be returned. If None, all entries in the table are returned.
             fields: str | list[str]
-                The fields to be returned. If None, all fields are returned.
+                The fields to be returned. If None, all fields are returned. Can also be aliases.
             return_indices: bool
                 Whether to also return the indices. If True, indices are inserted at the beginning of each row tuple.
             always_tuple: bool
@@ -469,6 +551,37 @@ class TableInterface:
             data = _as_pandas_dataframe(data, fields, return_indices)
 
         return data
+
+    def get_next(
+        self,
+        fields: str | list[str] = None,
+        return_indices: bool = False,
+        always_tuple: bool = True,
+        as_pandas: bool = False,
+    ):
+        """Get the next row from the table"""
+        idx = next(self.backend)
+        res = self.get(idx, fields, return_indices, always_tuple, as_pandas)
+        if not as_pandas:
+            res = res[0]
+
+        return res
+
+    def unique(self, field: str) -> list:
+        """Get the unique values of a given field.
+
+        Args:
+            field: str
+                The field name
+
+        Returns:
+            values: list
+                The non-null, unique values
+        """
+        values = self.get(fields=field, always_tuple=False)
+        values = list(set(values))
+        values = [v for v in values if v is not None]
+        return values
 
     def __len__(self) -> int:
         """Number of rows in the table"""
@@ -556,15 +669,15 @@ class TableInterface:
 
         return condition
 
-    def __str__(self) -> str:
-        """Nicely formatted summary of the table definition
+    def info(self) -> str:
+        """Nicely formatted summary of the table definition.
 
         Returns:
             res: str
-                Table summary
+                Table definition
         """
-        # table name and no. entries
-        res = f"\nName: {self.name}\nEntries: {len(self)}"
+        # table name
+        res = f"\nName: {self.name}"
 
         # fields
         res += "\nFields:\n"
@@ -595,7 +708,90 @@ class TableInterface:
             ],
         )
 
+        res += "\n"
+
         return res
+
+    def __str__(self) -> str:
+        return self.info()
+
+
+class TableViewer:
+    """Class for viewing table contents
+
+    Args:
+        table: TableInterface
+            The table interface
+        fields: str | list[str]
+            Which fields to include
+        nrows: int
+            Number of rows printed per page
+        max_char: int
+            Column width no. characters
+        transforms: dict[str, callable]
+            Custom transformations applied to individual fields
+    """
+
+    def __init__(
+        self,
+        table: TableInterface,
+        fields: str | list[str] = None,
+        nrows: int = 20,
+        max_char: int = 60,
+        transforms: dict = None,
+    ):
+        self.table = table
+        self.fields = fields
+        self.nrows = nrows
+        self.max_char = max_char
+        self.counter = 0
+        self.transforms = dict() if transforms is None else transforms
+        self.table.backend.reset_cursor()
+
+    def __next__(self):
+        """Returns a nicely formatted view of the next `nrows` of the table"""
+        if self.counter >= len(self.table):
+            raise StopIteration
+
+        df = []
+        for _ in range(self.nrows):
+            try:
+                row = self.table.get_next(
+                    self.fields, return_indices=True, as_pandas=True
+                )
+                df.append(row)
+                self.counter += 1
+
+            except StopIteration:
+                break
+
+        df = pd.concat(df)
+
+        # apply custom transformations, if any
+        for k, fcn in self.transforms.items():
+            df[k] = df[k].apply(lambda x: fcn(x))
+
+        # enforce max no. characters per line
+        for idx, row in df.iterrows():
+            for col in df.columns.values:
+                v = row[col]
+
+                # wrap text to desired column width
+                if isinstance(v, str):
+                    df.loc[idx, col] = textwrap.fill(v, self.max_char)
+
+        if len(df) == 1:
+            header = f"Showing entry no. {self.counter} of {len(self.table)} entries"
+        else:
+            header = f"Showing entries {self.counter - len(df) + 1}-{self.counter} of {len(self.table)} entries"
+
+        contents = tabulate(df, headers="keys", tablefmt="psql")
+        return "\n" + header + "\n" + contents + "\n"
+
+    def __iter__(self):
+        self.table.backend.reset_cursor()
+        self.counter = 0
+        return self
 
 
 def _as_pandas_dataframe(
