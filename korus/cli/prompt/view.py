@@ -93,7 +93,7 @@ def view_contents(db: Database, table_name: str):
 
     else:
         # for all other tables, include all fields
-        defaults = None
+        defaults = tbl.field_names
         transforms = None
 
     # prompt user to select which fields to display
