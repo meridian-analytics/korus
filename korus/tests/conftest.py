@@ -142,7 +142,7 @@ def minimal_sqlite_backend():
     if os.path.exists(path):
         os.remove(path)
 
-    backend = SQLiteBackend(path)
+    backend = SQLiteBackend(path, new=True)
 
     backend.deployment.add({"name": "MyDeployment"})
     backend.storage.add({"name": "MyFileStorage"})
@@ -173,7 +173,7 @@ def sqlite_database_with_taxonomy():
     if os.path.exists(path):
         os.remove(path)
 
-    db = SQLiteDatabase(path)
+    db = SQLiteDatabase(path, new=True)
 
     # create a fairly simple acoustic taxonomy
     tax = db.taxonomy.draft
@@ -229,7 +229,6 @@ def one_storage_location():
     v = {
         "name": "laptop",
         "path": "/",
-        "description": "data from my latest deployments",
     }
     return v
 
@@ -240,27 +239,12 @@ def one_deployment():
     lon = -122.05154
     depth = 18.0
     v = {
-        "owner": "OceanResearch",
         "name": "WestPoint",
         "start_utc": datetime(2022, 6, 24),
         "end_utc": datetime(2022, 10, 3),
-        "location": "Salt Spring Island, BC, Canada",
         "latitude_deg": lat,
         "longitude_deg": lon,
         "depth_m": depth,
-        "latitude_min_deg": lat,
-        "latitude_max_deg": lat,
-        "longitude_min_deg": lon,
-        "longitude_max_deg": lon,
-        "depth_min_m": depth,
-        "depth_max_m": depth,
-        "license": None,
-        "hydrophone": None,
-        "bits_per_sample": None,
-        "sample_rate": 128000,
-        "num_channels": 1,
-        "sensitivity": None,
-        "comments": None,
     }
     return v
 
@@ -294,8 +278,6 @@ def two_files():
             "relative_path": dir_path,
             "sample_rate": sample_rate,
             "num_samples": num_samples,
-            "format": "FLAC",
-            "codec": "FLAC",
             "start_utc": dt,
         }
         file_data.append(v)
@@ -312,13 +294,7 @@ def one_job():
         "annotator": "LL",
         "target": target,
         "is_exhaustive": True,
-        "start_utc": datetime(2022, 10, 1),
-        "end_utc": datetime(2023, 3, 1),
-        "comments": "Vessel noise annotated opportunistically",
-        "issues": [
-            "start and end times may not always be accurate",
-            "some KW sounds may have been incorrectly labelled as HW",
-        ],
+        "completion_date": datetime(2023, 3, 1),
     }
 
     return job_data
@@ -442,27 +418,12 @@ def deploy_data():
     lon = -122.05154
     depth = 18.0
     v = {
-        "owner": "OceanResearch",
         "name": "WestPoint",
         "start_utc": "2022-06-24",
         "end_utc": "2022-10-03",
-        "location": "Salt Spring Island, BC, Canada",
         "latitude_deg": lat,
         "longitude_deg": lon,
         "depth_m": depth,
-        "latitude_min_deg": lat,
-        "latitude_max_deg": lat,
-        "longitude_min_deg": lon,
-        "longitude_max_deg": lon,
-        "depth_min_m": depth,
-        "depth_max_m": depth,
-        "license": None,
-        "hydrophone": None,
-        "bits_per_sample": None,
-        "sample_rate": 128000,
-        "num_channels": 1,
-        "sensitivity": None,
-        "comments": None,
     }
     return v
 
@@ -498,10 +459,7 @@ def file_data():
             "filename": fname,
             "relative_path": dir_path,
             "sample_rate": sample_rate,
-            "downsample": None,
             "num_samples": num_samples,
-            "format": "FLAC",
-            "codec": "FLAC",
             "start_utc": start_utc_str,
             "end_utc": end_utc_str,
         }

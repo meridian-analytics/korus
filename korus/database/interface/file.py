@@ -13,26 +13,24 @@ class FileInterface(TableInterface):
 
         self._storage = storage
 
-        self.add_field("deployment_id", int, "Deployment index")
-        self.add_field("storage_id", int, "Storage index")
-        self.add_field("filename", str, "Filename")
-        self.add_field("relative_path", str, "Directory path", default="")
-        self.add_field("sample_rate", int, "Sampling rate in Hz")
-        self.add_field("num_samples", int, "Number of samples")
-        self.add_field(
+        self._create_field("deployment_id", int, "Deployment index")
+        self._create_field("storage_id", int, "Storage index")
+        self._create_field("filename", str, "Filename")
+        self._create_field("relative_path", str, "Directory path", default="")
+        self._create_field("sample_rate", int, "Sampling rate in Hz")
+        self._create_field("num_samples", int, "Number of samples")
+        self._create_field(
             "start_utc",
             datetime,
             "Start time of recording (UTC)",
             required=False,
         )
-        self.add_field(
+        self._create_field(
             "end_utc",
             datetime,
             "End time of recording (UTC) [inferred from the start time, number of samples, and sampling rate]",
             required=False,
         )
-        self.add_field("format", str, "Audio format", required=False)
-        self.add_field("codec", str, "Audio codec", required=False)
 
     def add(self, row: dict):
         """Add an entry to the table.

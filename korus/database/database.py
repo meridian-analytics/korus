@@ -53,5 +53,5 @@ class Database:
 
 class SQLiteDatabase(Database):
 
-    def __init__(self, path: str):
-        super().__init__(SQLiteBackend(path))
+    def __init__(self, path: str, new: bool = False):
+        super().__init__(SQLiteBackend(path, new))

@@ -16,6 +16,7 @@ class InMemoryTableBackend(TableBackend):
         super().__init__("in_memory")
         self.rows = []
         self.fields = []
+        self._custom_fields = []
         self.reset_cursor()
 
     def __len__(self):
@@ -141,6 +142,12 @@ class InMemoryTableBackend(TableBackend):
             filtered_indices = [idx for idx in filtered_indices if idx in indices]
 
         return filtered_indices
+
+    def save_field(self, field_attrs: dict):
+        self._custom_fields.append(field_attrs)
+
+    def get_fields(self) -> list[dict]:
+        return self._custom_fields
 
 
 class InMemoryJobBackend(InMemoryTableBackend):

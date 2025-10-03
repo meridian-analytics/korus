@@ -1,42 +1,12 @@
 from korus.database.database import Database
-import korus.cli.prompt as prompt
-import korus.cli.view as vw
-from .add import add
-from .update import update
+from .module import create_modules
+from .cursor import cursor
 
 
 def main(db: Database):
+    modules, id = create_modules(db)
 
-    while True:
-        try:
-            table_name = prompt.select_table(db)
-
-        except KeyboardInterrupt:
-            break
-
-        while True:
-            try:
-                tbl_action = prompt.table_action(table_name)
-            except KeyboardInterrupt:
-                break
-
-            try:
-                if tbl_action == prompt.TABLE_ADD:
-                    add(db, table_name)
-
-                elif tbl_action == prompt.TABLE_UPDATE:
-                    update(db, table_name)
-
-                elif tbl_action == prompt.TABLE_INFO:
-                    vw.view_info(db, table_name)
-
-                elif tbl_action == prompt.TABLE_CONTENTS_CONDENSED:
-                    vw.view_contents_condensed(db, table_name)
-
-                elif tbl_action == prompt.TABLE_CONTENTS_DETAILED:
-                    vw.view_contents_detailed(db, table_name)
-
-            except KeyboardInterrupt:
-                continue
-
-    db.backend.close()
+    while id is not None:
+        m = modules.get(id)
+        cursor.go_to(m)
+        id = cursor.execute()

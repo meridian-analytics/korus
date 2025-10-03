@@ -10,6 +10,7 @@ from korus.database.database import Database
 from korus.database.interface import FieldDefinition
 import korus.cli.parse as parse
 import korus.cli.text as txt
+from korus.cli.cursor import cursor
 
 
 # tab completion for directory/file paths
@@ -27,10 +28,10 @@ FIELD_SKIP = 4
 
 # Table action ENUMs
 TABLE_INFO = 0
-TABLE_CONTENTS_CONDENSED = 1
-TABLE_CONTENTS_DETAILED = 2
-TABLE_ADD = 3
-TABLE_UPDATE = 4
+TABLE_CONTENTS = 1
+TABLE_ADD = 2
+TABLE_UPDATE = 3
+TABLE_VIEW_TAXONOMY = 4
 
 
 def select_table(db: Database) -> str:
@@ -47,17 +48,15 @@ def select_table(db: Database) -> str:
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
-    name = "main"
-    message = txt.header() + "Select table"
-    question = inquirer.List(name, message=message, choices=list(db.tables.keys()))
-    answers = inquirer.prompt([question])
-    if answers is None:
+    message = str(cursor) + "Select table"
+    choice = inquirer.list_input(message, choices=list(db.tables.keys()))
+    if choice is None:
         raise KeyboardInterrupt
 
-    return answers[name]
+    return choice
 
 
-def table_action(table_name: str) -> int:
+def select_table_action(table_name: str) -> int:
     """Prompt user to select a table action.
 
     Args:
@@ -66,35 +65,39 @@ def table_action(table_name: str) -> int:
 
     Returns:
         : int
-            The table action ENUM
+            Table action ENUM
 
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
-    name = table_name
-
     # create list with choices
-    choices = {}
-    choices["View info"] = TABLE_INFO
-    choices["View contents (condensed)"] = TABLE_CONTENTS_CONDENSED
-    choices["View contents (detailed)"] = TABLE_CONTENTS_DETAILED
-    choices["Add"] = TABLE_ADD
-    choices["Update"] = TABLE_UPDATE
+    choices = {
+        "View info": TABLE_INFO,
+        "View contents": TABLE_CONTENTS,
+        "Add": TABLE_ADD,
+        "Update": TABLE_UPDATE,
+    }
+
+    if table_name == "taxonomy":
+        choices.pop("Add")
+        choices.pop("Update")
+        choices["View taxonomy"] = TABLE_VIEW_TAXONOMY
 
     # prompt user to select from choices
-    message = txt.header(table_name) + "Select table action"
-    question = inquirer.List(
-        name=table_name, message=message, choices=list(choices.keys())
-    )
-
-    answers = inquirer.prompt([question])
-    if answers is None:
+    message = str(cursor) + "Select table action"
+    choice = inquirer.list_input(message=message, choices=list(choices.keys()))
+    if choice is None:
         raise KeyboardInterrupt
 
-    return choices[answers[name]]
+    return choices[choice]
 
 
-def field_action(db: Database, table_name: str, field: FieldDefinition):
+def select_field_action(
+    db: Database,
+    table_name: str,
+    field: FieldDefinition,
+    msg: str = "Select field action",
+):
     """Prompt user to select a field action.
 
     Args:
@@ -104,6 +107,8 @@ def field_action(db: Database, table_name: str, field: FieldDefinition):
             Table name
         field: korus.database.interface.FieldDefinition
             The field definition
+        msg: str
+            Prompt message
 
     Returns:
         : tuple(int, dict)
@@ -116,7 +121,6 @@ def field_action(db: Database, table_name: str, field: FieldDefinition):
 
     # choices
     choices = {}
-    choices["View info"] = (FIELD_INFO, {})
 
     if field.is_index:
 
@@ -133,37 +137,38 @@ def field_action(db: Database, table_name: str, field: FieldDefinition):
 
         # if the external table is empty, instruct the user to add some data to it
         else:
-            msg = f"The {ext_name} table is empty. To add a row to the {table_name} table, you must first add a {ext_name}."
+            msg = f"The {ext_name} table is empty. To add an entry to the {table_name} table, you must first add a {ext_name}."
             print(txt.error(msg))
             raise KeyboardInterrupt()
 
     else:
+        choices["View info"] = (FIELD_INFO, {})
         choices["Enter value"] = (FIELD_ENTER, {})
 
         # if table has data, give user option to select from existing values
         existing_values = tbl.unique(field.name)
         if len(existing_values) > 0:
             kwargs = {"values": existing_values}
-            choices["Reuse existing value"] = (FIELD_SELECT, kwargs)
+            choices["Select previously entered value"] = (FIELD_SELECT, kwargs)
 
     if not field.required:
         choices["Skip"] = (FIELD_SKIP, {})
 
     # form the question
-    name = table_name + ":" + field.name
-    message = txt.header(table_name, field.name) + "Select field action"
-    question = inquirer.List(name=name, message=message, choices=list(choices.keys()))
+    msg = str(cursor) + msg
 
     # prompt user
-    answers = inquirer.prompt([question])
+    choice = inquirer.list_input(message=msg, choices=list(choices.keys()))
 
-    if answers is None:
+    if choice is None:
         raise KeyboardInterrupt
 
-    return choices[answers[name]]
+    return choices[choice]
 
 
-def select_field(db: Database, table_name: str) -> FieldDefinition:
+def select_field(
+    db: Database, table_name: str, msg: str = "Select field"
+) -> FieldDefinition:
     """Prompt user to select a field from the table.
 
     Args:
@@ -171,6 +176,8 @@ def select_field(db: Database, table_name: str) -> FieldDefinition:
             The database instance
         table_name: str
             Table name
+        msg: str
+            Prompt message
 
     Returns:
         field: korus.database.interface.FieldDefinition
@@ -180,28 +187,24 @@ def select_field(db: Database, table_name: str) -> FieldDefinition:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
     tbl = getattr(db, table_name)
-    name = table_name
-    message = txt.header(table_name) + "Select field"
-    question = inquirer.List(name, message=message, choices=tbl.field_names)
-    answers = inquirer.prompt([question])
-    if answers is None:
-        raise KeyboardInterrupt
-
-    field_name = answers[name]
+    msg = str(cursor) + msg
+    field_name = inquirer.list_input(message=msg, choices=tbl.field_names)
     field = tbl.fields_asdict[field_name]
     return field
 
 
-def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
+def select_value(
+    field: FieldDefinition, values: list, msg: str = "Select value"
+) -> str:
     """Prompt user to select a value from a list of options.
 
     Args:
-        table_name: str
-            Table name
         field: korus.database.interface.FieldDefinition
             The field definition
         values: list
             The values to choose from
+        msg: str
+            Prompt message
 
     Returns:
         : any
@@ -210,26 +213,101 @@ def select_value(table_name: str, field: FieldDefinition, values: list) -> str:
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
-    name = table_name + ":" + field.name + ":value"
-    message = txt.header(table_name, field.name) + "Select value"
-    question = inquirer.List(name, message=message, choices=values)
-    answers = inquirer.prompt([question])
-    if answers is None:
-        raise KeyboardInterrupt
-
-    value = answers[name]
-    if value is not None:
-        value = parse.parse_value(field, value)
-
-    return value
+    msg = str(cursor) + msg
+    value = inquirer.list_input(message=msg, choices=values)
+    return parse.parse_value(value, field.type, field.required)
 
 
-def select_label(db, table_name, field_name):
-    # TODO: implement this function
-    pass
+def enter_label(db: Database, taxonomy_id: int = None) -> list[tuple]:
+    tax = db.taxonomy.get_taxonomy(taxonomy_id)
+
+    VIEW_TAXONOMY = 0
+    ENTER_LABEL = 1
+    SELECT_ALL = 2
+
+    labels = []
+    while True:
+        # sound sources
+        choices = {
+            "View taxonomy tree": VIEW_TAXONOMY,
+            "Specify sound source": ENTER_LABEL,
+        }
+        msg = str(cursor) + "Specify which sounds were subject to exhaustive annotation"
+
+        answer = inquirer.list_input(msg, choices=list(choices.keys()))
+        choice = choices[answer]
+
+        if choice == VIEW_TAXONOMY:
+            tax.show()
+            continue
+
+        elif choice == ENTER_LABEL:
+            msg = str(cursor) + "Enter sound-source label"
+
+            def validate(answers, current):
+                if tax.label_exists(current):
+                    return True
+                else:
+                    reason = (
+                        f"The taxonomy does not contain the sound source `{current}`"
+                    )
+                    raise inquirer.errors.ValidationError("", reason=reason)
+
+            try:
+                sound_source = inquirer.text(msg, validate=validate)
+            except KeyboardInterrupt:
+                continue
+
+        # sound types
+        while True:
+            choices = {
+                "View sound types": VIEW_TAXONOMY,
+                "Specify sound type": ENTER_LABEL,
+                "Select all sound types": SELECT_ALL,
+            }
+            msg = (
+                str(cursor)
+                + f"For the selected sound source ({sound_source}), specify which sound types were subject to exhaustive annotation"
+            )
+
+            answer = inquirer.list_input(msg, choices=list(choices.keys()))
+            choice = choices[answer]
+
+            if choice == VIEW_TAXONOMY:
+                tax.sound_types(sound_source).show()
+                continue
+
+            elif choice == ENTER_LABEL:
+                msg = str(cursor) + "Enter sound-type label"
+
+                def validate(answers, current):
+                    if tax.label_exists(sound_source, current):
+                        return True
+                    else:
+                        reason = f"The taxonomy does not contain the sound type `{current}` for the sound source `{sound_source}`"
+                        raise inquirer.errors.ValidationError("", reason=reason)
+
+                try:
+                    sound_type = inquirer.text(msg, validate=validate)
+                except KeyboardInterrupt:
+                    continue
+
+            elif choice == SELECT_ALL:
+                sound_type = "*"
+
+            break
+
+        labels.append((sound_source, sound_type))
+
+        # ask user if they want to add another sound
+        msg = str(cursor) + "Add another sound?"
+        if not inquirer.confirm(msg):
+            break
+
+    return labels
 
 
-def enter_index(db: Database, table_name: str) -> int:
+def enter_index(db: Database, table_name: str, msg: str = None) -> int:
     """Prompt user to enter a row index for the table.
 
     Args:
@@ -237,6 +315,8 @@ def enter_index(db: Database, table_name: str) -> int:
             The database instance
         table_name: str
             Table name
+        msg: str
+            Prompt message
 
     Returns:
         : int
@@ -250,13 +330,11 @@ def enter_index(db: Database, table_name: str) -> int:
         name="id", description="Table index", type=int, required=True
     )
     validate = parse.create_validate_index(tbl)
-    val_str = enter_value(table_name, field, validate=validate)
-    return parse.parse_value(field, val_str)
+    val_str = enter_value(field, validate=validate, msg=msg)
+    return parse.parse_value(val_str, field.type, field.required)
 
 
-def enter_path(
-    table_name: str, field_name: str, multiple: bool = False
-) -> str | list[str]:
+def enter_path(multiple: bool = False, msg: str = "Enter path") -> str | list[str]:
     """Prompt user to enter a file or directory path.
 
     Checks that the path is valid.
@@ -265,12 +343,10 @@ def enter_path(
     Returns str if multiple=False, and a list of strings otherwise.
 
     Args:
-        table_name: str
-            Table name
-        field_name: str
-            The field name
         multiple: bool
             Allow multiple comma-separated input values
+        msg: str
+            Prompt message
 
     Returns:
         paths: str | list[str]
@@ -286,9 +362,8 @@ def enter_path(
     sys.stdout = sys.__stdout__
     while True:
         try:
-            # TODO: make question mark yellow
-            message = txt.header(table_name, field_name) + "Enter path"
-            paths = input(txt.question(message)).split(",")
+            msg = str(cursor) + msg
+            paths = input(txt.question(msg)).split(",")
 
         except KeyboardInterrupt:
             sys.stdout = original_stdout
@@ -313,14 +388,20 @@ def enter_path(
     return paths
 
 
-def enter_value(table_name, field, validate=None):
+def enter_value(
+    field: FieldDefinition,
+    validate: callable = None,
+    msg: str = "Enter value",
+):
     """Prompt user to enter a field value.
 
     Args:
-        table_name: str
-            Table name
         field: korus.database.interface.FieldDefinition
             The field definition
+        validate: callable
+            Validation function with signature fcn(answers, current) -> bool
+        msg: str
+            Prompt message
 
     Returns:
         value: any
@@ -329,13 +410,11 @@ def enter_value(table_name, field, validate=None):
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
+    msg = str(cursor) + msg
 
-    name = table_name + ":" + field.name + ":value"
-    message = txt.header(table_name, field.name) + "Enter value"
-
+    # collect keyword args for inquirer methods
     kwargs = dict(
-        name=name,
-        message=message,
+        message=msg,
         default=field.default,
     )
 
@@ -345,41 +424,35 @@ def enter_value(table_name, field, validate=None):
     validates = [validate]
 
     if field.is_path:
-        return enter_path(table_name, field.name)
+        return enter_path()
 
     if field.options is not None:
-        question = inquirer.List(**kwargs, choices=field.options)
+        value = inquirer.list_input(**kwargs, choices=field.options)
 
     elif field.type == bool:
-        question = inquirer.Confirm(**kwargs)
+        value = inquirer.confirm(**kwargs)
 
     elif field.type == datetime:
         kwargs["message"] += f" ({parse.DATETIME_FORMAT})"
         validates.insert(0, parse.create_validate_datetime(field.required))
         validate = parse.join(validates)
-        question = inquirer.Text(**kwargs, validate=validate)
+        value = inquirer.text(**kwargs, validate=validate)
 
     elif field.type == int:
         validates.insert(0, parse.create_validate_int(field.required))
         validate = parse.join(validates)
-        question = inquirer.Text(**kwargs, validate=validate)
+        value = inquirer.text(**kwargs, validate=validate)
 
     elif field.type == float:
         validates.insert(0, parse.create_validate_float(field.required))
         validate = parse.join(validates)
-        question = inquirer.Text(**kwargs, validate=validate)
+        value = inquirer.text(**kwargs, validate=validate)
 
     else:
-        question = inquirer.Text(**kwargs)
+        value = inquirer.text(**kwargs)
 
-    answers = inquirer.prompt([question])
-
-    if answers is None:
-        raise KeyboardInterrupt
-
-    value = answers[name]
     if value is not None:
-        value = parse.parse_value(field, value)
+        value = parse.parse_value(value, field.type, field.required)
 
     return value
 
@@ -423,18 +496,17 @@ def select_timestamp_parser():
 
     if answers is None:
         raise KeyboardInterrupt
-    
+
     choice = choices[answers["method"]]
 
     if choice is NONE:
         fcn = None
 
     elif choice is AUTO:
+
         def fcn(filename: str) -> datetime:
             try:
-                return dateutil.parser.parse(
-                    filename, default=datetime(1970), fuzzy=True
-                )
+                return dateutil.parser.parse(filename, fuzzy=True)
 
             except:
                 err_msg = f"Failed to parse timestamp from {filename}"
