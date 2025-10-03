@@ -8,7 +8,7 @@ from korus.database.database import Database
 from korus.database.interface import FieldDefinition
 import korus.cli.prompt.prompt as prompt
 import korus.cli.text as txt
-from korus.cli.prompt.view import view_contents_condensed
+from korus.cli.prompt.view import view_contents
 from korus.cli.cursor import cursor
 import korus.cli.prompt.file as fil
 
@@ -263,9 +263,24 @@ def add_annotation(db: Database) -> list[int]:
 
 
 def add_deployment(db: Database) -> int:
-    # TODO: allow user to select between fixed or mobile
-    # TODO: implement this
-    return add_row(db, "deployment")
+    # ask user to specify deployement type
+    STATIONARY = 0
+    MOBILE = 1
+    msg = str(cursor) + "Select type of hydrophone deployment"
+    choices = {
+        "Stationary (e.g. bottom mounted or anchored buoy)": STATIONARY,
+        "Mobile (e.g. towed by vessel or USV)": MOBILE,
+    }
+    choice = inquirer.list_input(msg, choices=choices.keys())
+    deployement_type = choices[choice]
+
+    if deployement_type == STATIONARY:
+        ignore = ["trajectory"]
+
+    elif deployement_type == MOBILE:
+        ignore = ["start_utc", "end_utc", "latitude_deg", "longitude_deg", "depth_m"]
+
+    return add_row(db, "deployment", ignore=ignore)
 
 
 def get_field_value(
@@ -308,7 +323,7 @@ def get_field_value(
                 break
 
             elif action == prompt.FIELD_EXTERNAL:
-                view_contents_condensed(db, **kwargs)
+                view_contents(db, **kwargs)
 
             elif action == prompt.FIELD_SKIP:
                 value = None
@@ -320,7 +335,7 @@ def get_field_value(
     return value
 
 
-def add_row(db: Database, table_name: str) -> int:
+def add_row(db: Database, table_name: str, ignore: str | list[str] = None) -> int:
     """Add a single row to the specified table.
 
     Args:
@@ -328,6 +343,8 @@ def add_row(db: Database, table_name: str) -> int:
             The database instance
         table_name: str
             Table name
+        ignore: str | list[str]
+            Ignored fields, if any.
 
     Returns:
         : int
@@ -336,10 +353,18 @@ def add_row(db: Database, table_name: str) -> int:
     Raises:
         KeyboardInterrupt: if the user hits Ctrl+C
     """
+    if ignore is None:
+        ignore = []
+    elif isinstance(ignore, str):
+        ignore = [ignore]
+
     tbl = getattr(db, table_name)
 
     row = {}
     for field in tbl.fields:
+        if field.name in ignore:
+            continue
+
         value = get_field_value(db, table_name, field)
         if value is not None:
             row[field.name] = value

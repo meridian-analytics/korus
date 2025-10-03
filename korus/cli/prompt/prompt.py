@@ -74,13 +74,11 @@ def select_table_action(table_name: str) -> int:
     choices = {
         "View info": TABLE_INFO,
         "View contents": TABLE_CONTENTS,
-        "View contents (detailed)": TABLE_CONTENTS_DETAILED,
         "Add": TABLE_ADD,
         "Update": TABLE_UPDATE,
     }
 
     if table_name == "taxonomy":
-        choices.pop("View contents (detailed)")
         choices.pop("Add")
         choices.pop("Update")
 

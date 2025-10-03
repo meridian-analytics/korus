@@ -229,7 +229,10 @@ def from_filename(
 
         choices[choice_str] = idx
 
-    msg = "Select the files you wish to add to the database, or hit Ctrl+C to abort"
+    msg = (
+        str(cursor)
+        + "Select the files you wish to add to the database, or hit Ctrl+C to abort"
+    )
     answers = inquirer.checkbox(
         msg,
         choices=choices.keys(),

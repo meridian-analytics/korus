@@ -72,17 +72,7 @@ class ViewTableContents(Module):
         super().__init__(
             name="contents",
             id=module_id(table_name, "contents"),
-            fcn=vw.view_contents_condensed,
-            args=(db, table_name),
-        )
-
-
-class ViewTableContentsDetailed(Module):
-    def __init__(self, db, table_name):
-        super().__init__(
-            name="contents-detailed",
-            id=module_id(table_name, "contents-detailed"),
-            fcn=vw.view_contents_detailed,
+            fcn=vw.view_contents,
             args=(db, table_name),
         )
 
@@ -134,12 +124,8 @@ def create_modules(db: Database) -> dict[str, Module]:
         m = ViewTableInfo(db, table_name)
         modules[m.id] = m
 
-        # view contents (condensed)
+        # view contents
         m = ViewTableContents(db, table_name)
-        modules[m.id] = m
-
-        # view contents (detailed)
-        m = ViewTableContentsDetailed(db, table_name)
         modules[m.id] = m
 
         # add data

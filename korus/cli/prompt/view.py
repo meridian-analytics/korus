@@ -2,6 +2,7 @@ import inquirer
 from korus.database.database import Database
 from korus.database.interface import TableViewer
 import korus.cli.text as txt
+from korus.cli.cursor import cursor
 
 
 def label_as_str(label: tuple | list[tuple]) -> str:
@@ -30,8 +31,8 @@ def view_info(db: Database, table_name: str):
     print(tbl)
 
 
-def view_contents_detailed(db: Database, table_name: str):
-    """View table contents in detail
+def view_contents(db: Database, table_name: str):
+    """View table contents
 
     Args:
         db: korus.database.Database
@@ -45,16 +46,16 @@ def view_contents_detailed(db: Database, table_name: str):
         print(txt.info(f"The {table_name} table is empty"))
         return
 
-    # for each table, specify which fields should be printed
+    # for each table, specify default field choices and transforms
     if table_name == "taxonomy":
-        field_names = ["version", "timestamp", "changes", "comment"]
+        defaults = ["version", "timestamp", "changes", "comment"]
         transforms = {
             "timestamp": lambda x: x.strftime("%Y-%m-%d %H:%M:%S"),
             "changes": lambda x: None if x is None else " | ".join(x),
         }
 
     elif table_name == "job":
-        field_names = [
+        defaults = [
             "annotator",
             "end_utc",
             "is_exhaustive",
@@ -62,12 +63,12 @@ def view_contents_detailed(db: Database, table_name: str):
             "taxonomy_id",
             "comments",
         ]
-        transforms = {
+        defaults = {
             "end_utc": lambda x: "" if x is None else x.strftime("%Y-%m-%d"),
         }
 
     elif table_name == "annotation":
-        field_names = [
+        defaults = [
             "deployment_id",
             "start_utc",
             "duration",
@@ -91,65 +92,20 @@ def view_contents_detailed(db: Database, table_name: str):
         }
 
     else:
-        field_names = None
+        # for all other tables, include all fields
+        defaults = None
         transforms = None
 
-    viewer = TableViewer(tbl, field_names, nrows=1, transforms=transforms)
-    counter = 0
-    for page in iter(viewer):
-        if counter >= 1:
-            proceed = inquirer.confirm("Continue?", default=True)
-            if not proceed:
-                break
-
-        print(page)
-        counter += 1
-
-
-def view_contents_condensed(db: Database, table_name: str):
-    """View table contents in condensed form
-
-    Args:
-        db: korus.database.Database
-            The database instance
-        table_name: str
-            Table name
-        required: bool
-            Only show required fields.
-    """
-    tbl = getattr(db, table_name)
-
-    if len(tbl) == 0:
-        print(txt.info(f"The {table_name} table is empty"))
-        return
-
-    # for each table, specify which fields should be printed
-    if table_name == "taxonomy":
-        field_names = ["version", "timestamp", "changes", "comment"]
-        transforms = {
-            "timestamp": lambda x: x.strftime("%Y-%m-%d %H:%M:%S"),
-            "changes": lambda x: None if x is None else " | ".join(x),
-        }
-
-    elif table_name == "job":
-        field_names = ["annotator", "end_utc", "is_exhaustive", "target", "taxonomy_id"]
-        transforms = {
-            "end_utc": lambda x: "" if x is None else x.strftime("%Y-%m-%d"),
-        }
-
-    elif table_name == "annotation":
-        field_names = ["start_utc", "duration", "label"]
-        transforms = {
-            "start_utc": lambda x: (
-                "" if x is None else x.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-            ),
-            "label": label_as_str,
-        }
-
-    else:
-        # for all other tables, include all `required` fields
-        field_names = [field.name for field in tbl.fields if field.required]
-        transforms = None
+    # prompt user to select which fields to display
+    msg = (
+        str(cursor)
+        + "Select the files you wish to add to the database, or hit Ctrl+C to abort"
+    )
+    field_names = inquirer.checkbox(
+        msg,
+        choices=tbl.field_names,
+        default=defaults,
+    )
 
     viewer = TableViewer(tbl, field_names, transforms=transforms)
     counter = 0
