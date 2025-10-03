@@ -96,7 +96,6 @@ def create_annotation_table(conn):
                 freq_min_hz INTEGER DEFAULT 0,
                 freq_max_hz INTEGER,
                 channel INTEGER NOT NULL DEFAULT 0,
-                machine_prediction JSON,
                 valid INTEGER NOT NULL DEFAULT 1,
                 comments TEXT,
                 PRIMARY KEY (id),
@@ -188,26 +187,14 @@ def create_job_table(conn):
             {tbl_name}(
                 id INTEGER NOT NULL,
                 taxonomy_id INTEGER,
-                model_id INTEGER,
                 annotator TEXT,
                 target JSON,
                 is_exhaustive INTEGER,
-                configuration JSON,
-                start_utc TEXT,
-                end_utc TEXT,
-                by_human INTEGER NOT NULL DEFAULT 1,
-                by_machine INTEGER NOT NULL DEFAULT 0,
-                issues JSON,
-                comments TEXT,
+                completion_date TEXT,
                 PRIMARY KEY (id),
                 FOREIGN KEY (taxonomy_id) REFERENCES taxonomy (id),
-                FOREIGN KEY (model_id) REFERENCES model (id),
                 CHECK (
                     is_exhaustive IN (0, 1)
-                    AND by_human IN (0, 1)
-                    AND by_machine IN (0, 1)
-                    AND (by_human > 0 OR by_machine > 0)
-                    AND start_utc < end_utc
                 )
             )
         """
@@ -234,35 +221,14 @@ def create_deployment_table(conn):
             {tbl_name}(
                 id INTEGER NOT NULL,
                 name TEXT NOT NULL,
-                owner TEXT,
                 start_utc TEXT,
                 end_utc TEXT,
-                location TEXT,
                 latitude_deg REAL,
                 longitude_deg REAL,
                 depth_m REAL,
                 trajectory JSON,
-                latitude_min_deg REAL,
-                latitude_max_deg REAL,
-                longitude_min_deg REAL,
-                longitude_max_deg REAL,
-                depth_min_m REAL,
-                depth_max_m REAL,
-                license TEXT,
-                hydrophone TEXT,
-                bits_per_sample INTEGER,
-                sample_rate INTEGER,
-                num_channels INTEGER,
-                sensitivity REAL,
-                comments TEXT,
                 PRIMARY KEY (id),
-                UNIQUE (owner, name, start_utc, end_utc),
-                CHECK (
-                    latitude_deg BETWEEN -90 AND 90
-                    AND longitude_deg BETWEEN -180 AND 180
-                    AND depth_m BETWEEN 0 and 11000
-                    AND start_utc <= end_utc 
-                )
+                UNIQUE (name, start_utc, end_utc, trajectory)
             )
         """
     c.execute(tbl_def)
@@ -296,8 +262,6 @@ def create_file_table(conn):
                 relative_path TEXT NOT NULL DEFAULT '',
                 sample_rate INTEGER NOT NULL,
                 num_samples INTEGER NOT NULL,
-                format TEXT,
-                codec TEXT,
                 start_utc TEXT,
                 end_utc TEXT,
                 PRIMARY KEY (id),
@@ -391,11 +355,9 @@ def create_storage_table(conn):
                 id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 path TEXT NOT NULL DEFAULT '/',
-                address TEXT,
-                description TEXT,
                 by_date INTEGER DEFAULT 0,
                 PRIMARY KEY (id),
-                UNIQUE (name, path, address)
+                UNIQUE (name, path)
             )
         """
     c.execute(tbl_def)

@@ -1,4 +1,4 @@
-'''
+"""
 # === deployment
 
 self._create_field("owner", str, "Data owner or source", required=False)
@@ -61,7 +61,7 @@ self._create_field(
     )
     self._create_field("comments", str, "Additional observations", required=False)
 
-    
+
 === storage
 
 self._create_field(
@@ -69,4 +69,4 @@ self._create_field(
 )
 self._create_field("description", str, "Brief description", required=False)
 
-'''
+"""

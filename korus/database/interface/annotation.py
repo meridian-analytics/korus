@@ -113,9 +113,6 @@ class AnnotationInterface(TableInterface):
             "freq_max_hz", int, "Upper frequency bound in Hz", required=False
         )
         self._create_field("channel", int, "Hydrophone channel", default=0)
-        self._create_field(
-            "machine_prediction", dict, "Machine prediction", required=False
-        )
         self._create_field("valid", bool, "Validation status", default=True)
         self._create_field("comments", str, "Additional observations", required=False)
 
