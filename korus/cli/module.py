@@ -40,9 +40,9 @@ class SelectTableAction(Module):
         self.action_names = {
             prompt.TABLE_INFO: "info",
             prompt.TABLE_CONTENTS: "contents",
-            prompt.TABLE_CONTENTS_DETAILED: "contents-detailed",
             prompt.TABLE_ADD: "add",
             prompt.TABLE_UPDATE: "update",
+            prompt.TABLE_VIEW_TAXONOMY: "view_taxonomy",
         }
 
     def __call__(self):
@@ -57,7 +57,7 @@ class SelectTableAction(Module):
             return id
 
 
-class ViewTableInfo(Module):
+class TableInfo(Module):
     def __init__(self, db, table_name):
         super().__init__(
             name="info",
@@ -67,7 +67,7 @@ class ViewTableInfo(Module):
         )
 
 
-class ViewTableContents(Module):
+class TableContents(Module):
     def __init__(self, db, table_name):
         super().__init__(
             name="contents",
@@ -97,6 +97,16 @@ class TableUpdate(Module):
         )
 
 
+class TableViewTaxonomy(Module):
+    def __init__(self, db):
+        super().__init__(
+            name="view_taxonomy",
+            id=module_id("taxonomy", "view_taxonomy"),
+            fcn=vw.view_taxonomy,
+            args=(db,),
+        )
+
+
 def module_id(*keys):
     return ".".join(keys)
 
@@ -121,11 +131,11 @@ def create_modules(db: Database) -> dict[str, Module]:
     for table_name in db.tables.keys():
 
         # view info
-        m = ViewTableInfo(db, table_name)
+        m = TableInfo(db, table_name)
         modules[m.id] = m
 
         # view contents
-        m = ViewTableContents(db, table_name)
+        m = TableContents(db, table_name)
         modules[m.id] = m
 
         # add data
@@ -134,6 +144,10 @@ def create_modules(db: Database) -> dict[str, Module]:
 
         # update entries
         m = TableUpdate(db, table_name)
+        modules[m.id] = m
+
+        # view taxonomy
+        m = TableViewTaxonomy(db)
         modules[m.id] = m
 
     return modules, main_id

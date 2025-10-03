@@ -29,9 +29,9 @@ FIELD_SKIP = 4
 # Table action ENUMs
 TABLE_INFO = 0
 TABLE_CONTENTS = 1
-TABLE_CONTENTS_DETAILED = 2
-TABLE_ADD = 3
-TABLE_UPDATE = 4
+TABLE_ADD = 2
+TABLE_UPDATE = 3
+TABLE_VIEW_TAXONOMY = 4
 
 
 def select_table(db: Database) -> str:
@@ -81,6 +81,7 @@ def select_table_action(table_name: str) -> int:
     if table_name == "taxonomy":
         choices.pop("Add")
         choices.pop("Update")
+        choices["View taxonomy"] = TABLE_VIEW_TAXONOMY
 
     # prompt user to select from choices
     message = str(cursor) + "Select table action"
