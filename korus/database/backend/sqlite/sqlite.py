@@ -119,6 +119,10 @@ class SQLiteTableBackend(TableBackend):
         default: "typing.Any" = None,
         required: bool = True,
     ):
+        # add encoding/decoding rules
+        self.add_codec(name, type)
+
+        # encode type and default value
         sqlite_type = get_sqlite_type(type)
         sqlite_default = self.codec.encode(default, self.name, name)
 
@@ -132,13 +136,10 @@ class SQLiteTableBackend(TableBackend):
             sqlite_default,
         )
 
-        # add encoding/decoding rules
-        self.add_codec(name, type)
-
         self.conn.commit()
 
     def add_codec(self, field_name: str, field_type: "typing.Any"):
-        """Add default encoding and decoding rules the specified field.
+        """Add default encoding and decoding rules for the specified field.
 
         Args:
             field_name: str

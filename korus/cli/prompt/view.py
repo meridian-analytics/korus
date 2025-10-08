@@ -131,6 +131,24 @@ def view_contents(db: Database, table_name: str):
             "changes": lambda x: None if x is None else " | ".join(x),
         }
 
+    elif table_name == "deployment":
+        defaults = [
+            "name",
+            "start_utc",
+            "end_utc",
+            "latitude_deg",
+            "longitude_deg",
+            "depth_m",
+        ]
+        transforms = {
+            "start_utc": lambda x: (
+                "" if x is None or pd.isna(x) else x.strftime("%Y-%m-%d %H:%M:%S")[:-3]
+            ),
+            "end_utc": lambda x: (
+                "" if x is None or pd.isna(x) else x.strftime("%Y-%m-%d %H:%M:%S")[:-3]
+            ),
+        }
+
     elif table_name == "file":
         defaults = tbl.field_names
         transforms = {

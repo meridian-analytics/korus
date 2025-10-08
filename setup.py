@@ -29,7 +29,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "korus-submit = korus.app.submit:main",
+            "korus-cli = korus.cli.cli:main",
         ],
     },
     setup_requires=["pytest-runner", "build"],

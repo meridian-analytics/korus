@@ -13,4 +13,4 @@ if os.path.exists(path):
 db = SQLiteDatabase(path)
 
 
-cli.main(db)
+cli.exec_cli(db)
