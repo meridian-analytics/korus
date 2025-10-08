@@ -174,6 +174,7 @@ def view_contents(db: Database, table_name: str):
             "comments",
         ]
         transforms = {
+            "target": label_as_str,
             "completion_date": lambda x: (
                 "" if x is None or pd.isna(x) else x.strftime("%Y-%m-%d")
             ),
