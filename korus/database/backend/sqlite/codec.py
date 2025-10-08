@@ -175,7 +175,19 @@ def decode_row(row, fcns=None):
     if fcns is None:
         fcns = {}
 
-    return {k: decode_field(v, fcns.get(k, None)) for k, v in row.items()}
+    decoded = {}
+    for k, v in row.items():
+        try:
+            decoded[k] = decode_field(v, fcns.get(k, None))
+
+        except Exception as e:
+            if hasattr(e, "add_note"):
+                err_msg = f"Failed to decode value {v} in field {k}"
+                e.add_note(err_msg)
+
+            raise
+
+    return decoded
 
 
 class RuleSet:
