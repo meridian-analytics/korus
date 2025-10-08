@@ -248,6 +248,7 @@ def create_codec(conn):
     codec.decoder.add_rule("file", "start_utc", decode_datetime)
     codec.decoder.add_rule("file", "end_utc", decode_datetime)
     codec.decoder.add_rule("taxonomy", "timestamp", decode_datetime)
+    codec.decoder.add_rule("job", "completion_date", decode_datetime)
 
     # decode boolean fields
     codec.decoder.add_rule("storage", "by_date", decode_bool)
