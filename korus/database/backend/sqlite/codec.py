@@ -181,9 +181,12 @@ def decode_row(row, fcns=None):
             decoded[k] = decode_field(v, fcns.get(k, None))
 
         except Exception as e:
-            if hasattr(e, "add_note"):
+            if hasattr(e, "add_note"):  #requires Python>=3.11
                 err_msg = f"Failed to decode value {v} in field {k}"
                 e.add_note(err_msg)
+
+            err_msg = f"Failed to decode value {v} in field {k}"
+            print(err_msg)
 
             raise
 
