@@ -12,7 +12,7 @@ from .codec import (
     decode_str_by_type,
 )
 from .tables import create_tables, field_table_name, table_exists, create_field_table
-from .codec import create_codec, decode_bool, decode_datetime, decode_json
+from .codec import create_codec, decode_bool, decode_datetime, decode_json, encode_type, decode_type
 from .query import (
     get_row_count,
     insert_row,
@@ -160,6 +160,9 @@ class SQLiteTableBackend(TableBackend):
         # if _field table does not exist yet, create it
         if not table_exists(self.conn, tbl_name):
             create_field_table(self.conn, self.name)
+            # also create encoding & decoding rules:
+            self.codec.encoder.add_rule(tbl_name, "type", encode_type)
+            self.codec.decoder.add_rule(tbl_name, "type", decode_type)
 
         # rename: default -> default_value
         row = field_attrs.copy()
