@@ -12,7 +12,14 @@ from .codec import (
     decode_str_by_type,
 )
 from .tables import create_tables, field_table_name, table_exists, create_field_table
-from .codec import create_codec, decode_bool, decode_datetime, decode_json, encode_type, decode_type
+from .codec import (
+    create_codec,
+    decode_bool,
+    decode_datetime,
+    decode_json,
+    encode_type,
+    decode_type,
+)
 from .query import (
     get_row_count,
     insert_row,

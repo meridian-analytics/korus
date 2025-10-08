@@ -142,10 +142,10 @@ def view_contents(db: Database, table_name: str):
         ]
         transforms = {
             "start_utc": lambda x: (
-                "" if x is None or pd.isna(x) else x.strftime("%Y-%m-%d %H:%M:%S")[:-3]
+                "" if x is None or pd.isna(x) else x.strftime("%Y-%m-%d %H:%M:%S")
             ),
             "end_utc": lambda x: (
-                "" if x is None or pd.isna(x) else x.strftime("%Y-%m-%d %H:%M:%S")[:-3]
+                "" if x is None or pd.isna(x) else x.strftime("%Y-%m-%d %H:%M:%S")
             ),
         }
 
