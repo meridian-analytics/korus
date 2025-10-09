@@ -123,6 +123,7 @@ def test_get_label_id_acoustic_taxonomy(sqlite_database_with_taxonomy):
     df.set_index("id", inplace=True)
 
     l = db.taxonomy.get_label_id(("SRKW", "S01"), version, ascend=False, descend=False)
+
     assert df.loc[l].ss == "SRKW"
     assert df.loc[l].st == "S01"
 

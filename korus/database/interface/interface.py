@@ -462,7 +462,7 @@ class TableInterface:
         """
         self.backend.remove(indices)
 
-    def update(self, idx: int, row: dict):
+    def update(self, idx: int, row: dict, insert: bool = False):
         """Modify an existing entry in the table
 
         Args:
@@ -470,14 +470,27 @@ class TableInterface:
                 Row index
             row: dict
                 New data to replace the existing data
+            insert: bool
+                If True, and the index does not exist in the table, create a new row with this index
         """
         row = row.copy()
         row = self._apply_alias_transforms(row)
-        current_values = self.values_asdict(self.get(idx)[0])
-        row = self._replace_missing_values(row, current_values)
+
+        try:
+            current_values = self.values_asdict(self.get(idx)[0])
+            row = self._replace_missing_values(row, current_values)
+
+        except IndexError as e:
+            if insert:
+                pass
+            else:
+                raise
+
         row = self._validate_data(row)
+
         try:
             self.backend.update(idx, row)
+
         except Exception as err:
             err_msg = f"Attempt to update row {idx} in the {self.name} table failed due to an error in the backend."
             err.args = (err_msg,) + err.args
@@ -525,16 +538,21 @@ class TableInterface:
             indices = [indices]
 
         if indices is None:
-            unique = inverse = None
+            unique = None
         else:
-            unique, inverse = np.unique(indices, return_inverse=True)
+            unique = np.unique(indices)
 
         # pass query to backend
-        data = self.backend.get(unique, fields_noalias, return_indices)
+        data = self.backend.get(unique, fields_noalias, return_indices=True)
 
         # inverse index mapping
         if indices is not None:
-            data = [data[i] for i in inverse]
+            data = {values[0]: values for values in data}
+            data = [data[i] for i in indices if i in data]
+
+        # drop indices, if not requested
+        if not return_indices:
+            data = [values[1:] for values in data]
 
         # apply reverse alias transforms
         data = [

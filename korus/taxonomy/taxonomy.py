@@ -165,7 +165,7 @@ class Taxonomy(Tree):
         self._data_merge_fcn = lambda x: dict()
 
         if root_tag is not None:
-            self.create_node(root_tag)
+            self.create_node(root_tag, log=False)
 
     @property
     def changes(self):
@@ -343,7 +343,9 @@ class Taxonomy(Tree):
         else:
             return id_list[0]
 
-    def create_node(self, tag, identifier=None, parent=None, precursor=None, **kwargs):
+    def create_node(
+        self, tag, identifier=None, parent=None, precursor=None, log=True, **kwargs
+    ):
         """Create a new, child node for a parent node.
 
         Node attributes can be specified using keyword arguments.
@@ -358,6 +360,8 @@ class Taxonomy(Tree):
             precursor: tuple
                 (IDs, is_equivalent) tuple, used for tracking the ancestry of the child node.
                 If None, the parent identifier will be used.
+            log: bool
+                If True (default), add a node-created message to the _changes attr
 
         Returns:
             node: treelib.node.Node
@@ -384,7 +388,8 @@ class Taxonomy(Tree):
         )
         self._tag_to_id[tag] = node.identifier
 
-        self._changes.append(f"Added: {tag}")
+        if log:
+            self._changes.append(f"Added: {tag}")
 
         return node
 

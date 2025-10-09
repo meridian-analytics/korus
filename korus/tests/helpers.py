@@ -81,7 +81,10 @@ class InMemoryTableBackend(TableBackend):
                 del self.rows[idx]
 
     def update(self, idx, row):
-        self.rows[idx] = row
+        if idx == 0 and len(self.rows) == 0:
+            self.rows.append(row)
+        else:
+            self.rows[idx] = row
 
     def filter(self, *conditions, indices=None, **_):
         filtered_indices = []

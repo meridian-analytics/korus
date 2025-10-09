@@ -38,17 +38,37 @@ class TaxonomyInterface(TableInterface, AcousticTaxonomyManager):
         self.load()
 
     def load(self):
-        """Load all taxonomy releases including draft version from the database into memory.
+        """Load all taxonomy releases - including draft version which should have ID=0 - from the database into memory.
 
         Also load the label mapping.
         """
-        versions = [
-            AcousticTaxonomy.from_dict(self.values_asdict(values)) for values in self
-        ]
+        # load draft, if there is one
+        rows = self.get(0)
+        if len(rows) == 1:
+            draft = AcousticTaxonomy.from_dict(self.values_asdict(rows[0]))
+        else:
+            draft = None
 
-        self.releases = versions[1:]
-        if len(versions) > 0:
-            self.draft = versions[0]
+        # load all releases
+        rows = self.get(return_indices=True)
+        self.releases = []
+        for row in rows:
+            if row[0] != 0:
+                self.releases.append(
+                    AcousticTaxonomy.from_dict(self.values_asdict(row[1:]))
+                )
+
+        # ensure releases are ordered according to version no.
+        self.releases = sorted(self.releases, key=lambda x: x.version)
+
+        # if there is no draft, create one from the latest release
+        if draft is None and len(self.releases) > 0:
+            draft = self.releases[-1].deepcopy()
+            draft.clear_history()
+            self.save("New draft")
+
+        if draft is not None:
+            self.draft = draft
 
         # load label data
         fields = self.label_interface.names
@@ -68,11 +88,11 @@ class TaxonomyInterface(TableInterface, AcousticTaxonomyManager):
         """
         self.draft.comment = comment
         self.draft.timestamp = datetime.now(timezone.utc)
+        print()
+        print(self.draft.changes, self.draft.comment)
         row = self.draft.to_dict()
-        if len(self) == 0:
-            self.add(row)
-        else:
-            self.update(0, row)
+        print(self.draft.changes)
+        self.update(0, row, insert=True)
 
     def release(self, comment: str = None):
         """Release a new version of the taxonomy and save it to the database

@@ -214,6 +214,9 @@ def fetch_row(
     if fields is None:
         fields = []
 
+    if isinstance(indices, int):
+        indices = [indices]
+
     if isinstance(fields, str):
         fields = [fields]
 
@@ -243,14 +246,19 @@ def fetch_row(
 
     rows = c.execute(q).fetchall()
 
-    # remove index, if not requested
-    if not return_indices:
-        rows = [row[1:] for row in rows]
+    # remove invalid query indices (i.e. indices that don't match an entry in the table)
+    if indices is not None:
+        valid_indices = [row[0] for row in rows]
+        indices = [idx for idx in indices if idx in valid_indices]
 
     # preserve index ordering
     if indices is not None and np.ndim(indices) > 0:
         idx = np.argsort(np.argsort(indices))
         rows = [rows[i] for i in idx]
+
+    # remove index, if not requested
+    if not return_indices:
+        rows = [row[1:] for row in rows]
 
     if as_dict:
         if len(fields) == 0:
@@ -302,6 +310,7 @@ def update_row(conn, table_name, idx, row):
     """Update a row in a table in the database.
 
     Note: Expects the table to have an `id` index column
+    OBS: If a row with the specified id does not exist, it is created!
 
     Args:
         conn: sqlite3.Connection
@@ -327,7 +336,18 @@ def update_row(conn, table_name, idx, row):
         [f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}" for k, v in row.items()]
     )
     q = f"UPDATE {table_name} SET {values} WHERE id = {idx}"
-    c.execute(q)
+    c = c.execute(q)
+
+    if c.rowcount == 0:
+        # if row did not exist, insert a new one
+        cols = ["id"] + list(row.keys())
+        col_names = ",".join(cols)
+        val_str = ",".join(["?" for _ in cols])
+        q = f"INSERT INTO {table_name} ({col_names}) VALUES ({val_str})"
+        print()
+        print(q)
+        c = c.execute(q, [idx] + list(row.values()))
+
     return c
 
 
