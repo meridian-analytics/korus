@@ -130,6 +130,7 @@ def view_contents(db: Database, table_name: str):
             "timestamp": lambda x: x.strftime("%Y-%m-%d %H:%M:%S"),
             "changes": lambda x: None if x is None else " | ".join(x),
         }
+        max_char = 60
 
     elif table_name == "deployment":
         defaults = [
@@ -148,9 +149,14 @@ def view_contents(db: Database, table_name: str):
                 "" if x is None or pd.isna(x) else x.strftime("%Y-%m-%d %H:%M:%S")
             ),
         }
+        max_char = 60
 
     elif table_name == "file":
-        defaults = tbl.field_names
+        defaults = [
+            "deployment_id",
+            "filename",
+            "start_utc",
+        ]
         transforms = {
             "start_utc": lambda x: (
                 ""
@@ -163,6 +169,7 @@ def view_contents(db: Database, table_name: str):
                 else x.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
             ),
         }
+        max_char = 61
 
     elif table_name == "job":
         defaults = [
@@ -179,6 +186,7 @@ def view_contents(db: Database, table_name: str):
                 "" if x is None or pd.isna(x) else x.strftime("%Y-%m-%d")
             ),
         }
+        max_char = 60
 
     elif table_name == "annotation":
         defaults = [
@@ -205,11 +213,13 @@ def view_contents(db: Database, table_name: str):
             "multiple_label": label_as_str,
             "excluded_label": label_as_str,
         }
+        max_char = 60
 
     else:
         # for all other tables, include all fields
         defaults = tbl.field_names
         transforms = None
+        max_char = 60
 
     # prompt user to select which fields to display
     msg = str(cursor) + "Select the fields you wish to display"
@@ -219,7 +229,7 @@ def view_contents(db: Database, table_name: str):
         default=defaults,
     )
 
-    viewer = TableViewer(tbl, field_names, transforms=transforms)
+    viewer = TableViewer(tbl, field_names, max_char=max_char, transforms=transforms)
     counter = 0
     for page in iter(viewer):
         if counter >= 1:

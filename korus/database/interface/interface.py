@@ -769,7 +769,8 @@ class TableViewer:
 
         # apply custom transformations, if any
         for k, fcn in self.transforms.items():
-            df[k] = df[k].apply(lambda x: fcn(x))
+            if k in df.columns.values:
+                df[k] = df[k].apply(lambda x: fcn(x))
 
         # enforce max no. characters per line
         for idx, row in df.iterrows():
