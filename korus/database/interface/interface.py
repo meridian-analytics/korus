@@ -576,9 +576,14 @@ class TableInterface:
         return_indices: bool = False,
         always_tuple: bool = True,
         as_pandas: bool = False,
+        idx: int = None,
     ):
         """Get the next row from the table"""
-        idx = next(self.backend)
+        if idx is None:
+            idx = next(self.backend)
+        else:
+            self.go_to(idx)
+
         res = self.get(idx, fields, return_indices, always_tuple, as_pandas)
         if not as_pandas:
             res = res[0]
@@ -613,6 +618,15 @@ class TableInterface:
     def __next__(self):
         """Get the next row from the table"""
         return self.get(next(self.backend))[0]
+
+    def go_to(self, idx: int):
+        """Move cursor to a given row
+
+        Args:
+            idx: int
+                Row index
+        """
+        self.backend.set_cursor(idx)
 
     def reset_filter(self):
         """Reset the search filter"""
@@ -765,23 +779,41 @@ class TableViewer:
         self.counter = 0
         self.transforms = dict() if transforms is None else transforms
         self.table.backend.reset_cursor()
+        self._goto_index = None
+
+    def go_to(self, idx: int):
+        """Jump to a given row
+
+        Args:
+            idx: int
+                Row index
+        """
+        self._goto_index = idx
 
     def __next__(self):
         """Returns a nicely formatted view of the next `nrows` of the table"""
-        if self.counter >= len(self.table):
-            raise StopIteration
-
         df = []
         for _ in range(self.nrows):
             try:
+                # index of row to be retrieved
+                if self._goto_index is None:
+                    idx = None
+                else:
+                    idx = self._goto_index
+                    self._goto_index = None
+
+                # retrieve data
                 row = self.table.get_next(
-                    self.fields, return_indices=True, as_pandas=True
+                    self.fields, return_indices=True, as_pandas=True, idx=idx
                 )
                 df.append(row)
                 self.counter += 1
 
             except StopIteration:
                 break
+
+        if len(df) == 0:
+            raise StopIteration
 
         df = pd.concat(df)
 
@@ -799,11 +831,7 @@ class TableViewer:
                 if isinstance(v, str):
                     df.loc[idx, col] = textwrap.fill(v, self.max_char)
 
-        if len(df) == 1:
-            header = f"Showing entry no. {self.counter} of {len(self.table)} entries"
-        else:
-            header = f"Showing entries {self.counter - len(df) + 1}-{self.counter} of {len(self.table)} entries"
-
+        header = f"Showing {len(df)} of {len(self.table)} entries"
         contents = tabulate(df, headers="keys", tablefmt="psql")
         return "\n" + header + "\n" + contents + "\n"
 
