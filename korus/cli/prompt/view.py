@@ -190,7 +190,6 @@ def view_contents(db: Database, table_name: str):
 
     elif table_name == "annotation":
         defaults = [
-            "deployment_id",
             "start_utc",
             "duration",
             "label",
@@ -233,9 +232,28 @@ def view_contents(db: Database, table_name: str):
     counter = 0
     for page in iter(viewer):
         if counter >= 1:
-            proceed = inquirer.confirm("Continue?", default=True)
-            if not proceed:
+
+            CONTINUE = 0
+            JUMP = 1
+            RETURN = 2
+
+            msg = str(cursor) + "Select action"
+            choices = {
+                f"View next {viewer.nrows} entries": CONTINUE,
+                "Jump to a specific entry": JUMP,
+                "Return to previous menu": RETURN,
+            }
+            choice = inquirer.list_input(msg, choices=choices.keys())
+            method = choices[choice]
+
+            if method == RETURN:
                 break
+
+            elif method == JUMP:
+                msg = "Enter the " + txt.bold("id") + " of the row you wish to jump to"
+                idx = prompt.enter_index(db, table_name, msg)
+                viewer.go_to(idx)
+                page = next(viewer)
 
         print(page)
         counter += 1

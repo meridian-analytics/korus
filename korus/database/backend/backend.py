@@ -41,6 +41,12 @@ class TableBackend:
             not_impl_err_msg(self.__class__.__name__, "reset_cursor")
         )
 
+    def set_cursor(self, idx: int):
+        """Move to a given row"""
+        raise NotImplementedError(
+            not_impl_err_msg(self.__class__.__name__, "set_cursor")
+        )
+
     def save_field(self, field_attrs: dict):
         """Save custom field description to the database
 

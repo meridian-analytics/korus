@@ -2,23 +2,21 @@ import os
 import sqlite3
 from datetime import datetime
 from korus.database.backend import TableBackend, DatabaseBackend
+from .tables import create_tables, field_table_name, table_exists, create_field_table
 from .codec import (
     Codec,
     encode_condition,
-    decode_key,
     index_to_key,
     key_to_index,
     decode_row,
     decode_str_by_type,
-)
-from .tables import create_tables, field_table_name, table_exists, create_field_table
-from .codec import (
     create_codec,
     decode_bool,
     decode_datetime,
     decode_json,
     encode_type,
     decode_type,
+    decode_key,
 )
 from .query import (
     get_row_count,
@@ -71,6 +69,13 @@ class SQLiteTableBackend(TableBackend):
 
     def reset_cursor(self):
         self._cursor = self.conn.cursor().execute(f"SELECT id FROM {self.name}")
+
+    def set_cursor(self, idx: int):
+        target_id = index_to_key(idx)
+        self.reset_cursor()
+        for (id,) in iter(self._cursor):
+            if id == target_id:
+                break
 
     def add(self, row: dict) -> int:
         cursor = insert_row(self.conn, self.name, self.codec.encode(row, self.name))

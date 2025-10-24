@@ -192,7 +192,9 @@ def query_table(conn, table_name, condition=None, indices=None):
         q += f" {condition}"
 
     rows = c.execute(q).fetchall()
-    return [row[0] for row in rows]
+    ids = [row[0] for row in rows]
+    unique_ids = np.unique(ids).tolist()
+    return unique_ids
 
 
 def delete_row(conn, table_name, indices=None):
