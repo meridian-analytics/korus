@@ -775,6 +775,7 @@ class TableViewer:
         self.transforms = dict() if transforms is None else transforms
         self.table.backend.reset_cursor()
         self._goto_index = None
+        self._EOF = False
 
     def go_to(self, idx: int):
         """Jump to a given row
@@ -783,10 +784,14 @@ class TableViewer:
             idx: int
                 Row index
         """
+        self._EOF = False
         self._goto_index = idx
 
     def __next__(self):
         """Returns a nicely formatted view of the next `nrows` of the table"""
+        if self._EOF:
+            raise StopIteration
+
         df = []
         for _ in range(self.nrows):
             try:
@@ -810,10 +815,8 @@ class TableViewer:
                 self.counter += 1
 
             except StopIteration:
+                self._EOF = True
                 break
-
-        if len(df) == 0:
-            raise StopIteration
 
         df = pd.concat(df)
 
