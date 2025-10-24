@@ -190,7 +190,6 @@ def view_contents(db: Database, table_name: str):
 
     elif table_name == "annotation":
         defaults = [
-            "deployment_id",
             "start_utc",
             "duration",
             "label",
