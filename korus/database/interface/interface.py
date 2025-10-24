@@ -576,14 +576,9 @@ class TableInterface:
         return_indices: bool = False,
         always_tuple: bool = True,
         as_pandas: bool = False,
-        idx: int = None,
-    ):
+    ) -> tuple:
         """Get the next row from the table"""
-        if idx is None:
-            idx = next(self.backend)
-        else:
-            self.go_to(idx)
-
+        idx = next(self.backend)
         res = self.get(idx, fields, return_indices, always_tuple, as_pandas)
         if not as_pandas:
             res = res[0]
@@ -795,17 +790,22 @@ class TableViewer:
         df = []
         for _ in range(self.nrows):
             try:
-                # index of row to be retrieved
                 if self._goto_index is None:
-                    idx = None
+                    row = self.table.get_next(
+                        self.fields, return_indices=True, as_pandas=True
+                    )
+
                 else:
-                    idx = self._goto_index
+                    self.table.go_to(self._goto_index)
+                    row = self.table.get(
+                        self._goto_index,
+                        self.fields,
+                        return_indices=True,
+                        as_pandas=True,
+                    )
                     self._goto_index = None
 
                 # retrieve data
-                row = self.table.get_next(
-                    self.fields, return_indices=True, as_pandas=True, idx=idx
-                )
                 df.append(row)
                 self.counter += 1
 
