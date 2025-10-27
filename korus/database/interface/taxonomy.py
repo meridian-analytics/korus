@@ -88,10 +88,7 @@ class TaxonomyInterface(TableInterface, AcousticTaxonomyManager):
         """
         self.draft.comment = comment
         self.draft.timestamp = datetime.now(timezone.utc)
-        print()
-        print(self.draft.changes, self.draft.comment)
         row = self.draft.to_dict()
-        print(self.draft.changes)
         self.update(0, row, insert=True)
 
     def release(self, comment: str = None):

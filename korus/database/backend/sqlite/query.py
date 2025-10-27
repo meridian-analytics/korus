@@ -346,8 +346,6 @@ def update_row(conn, table_name, idx, row):
         col_names = ",".join(cols)
         val_str = ",".join(["?" for _ in cols])
         q = f"INSERT INTO {table_name} ({col_names}) VALUES ({val_str})"
-        print()
-        print(q)
         c = c.execute(q, [idx] + list(row.values()))
 
     return c
