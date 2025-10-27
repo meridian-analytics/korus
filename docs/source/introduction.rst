@@ -51,7 +51,7 @@ Korus CLI
 
 .. code-block:: console
 
-    >>> $ korus-cli test.sqlite 
+    >>> $ korus-cli db.sqlite 
     >>> ╔═════════════════════════════════════════════════════════════╗
     >>> ║ Welcome to the Korus command-line-interface v0.1.0.         ║
     >>> ║ Use the prompts to view, add, or edit data in the database. ║
