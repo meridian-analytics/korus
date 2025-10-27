@@ -7,9 +7,10 @@ import korus.cli.text as txt
 from korus.__init__ import __version__
 
 
-def welcome_message():
+def welcome_message(path):
     msg = f"Welcome to the Korus command-line-interface v{__version__}."
-    msg += "\nUse the prompts to view, add, or edit data in the database."
+    msg += f"\nConnected to: {path}"
+    msg += "\nUse the prompts to view, add, or edit data."
     msg += "\nhttps://meridian-analytics.github.io/korus/"
     msg = tabulate([[msg]], tablefmt="double_grid")
     return msg
@@ -45,7 +46,7 @@ def main():
 
     try:
         db = SQLiteDatabase(args.path, new=args.new)
-        print(welcome_message())
+        print(welcome_message(args.path))
         exec_cli(db)
         db.backend.close()
 
