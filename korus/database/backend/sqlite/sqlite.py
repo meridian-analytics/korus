@@ -17,6 +17,8 @@ from .codec import (
     encode_type,
     decode_type,
     decode_key,
+    encode_version,
+    decode_version,
 )
 from .query import (
     get_row_count,
@@ -272,6 +274,9 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
         # enable foreign keys
         self.execute("PRAGMA foreign_keys = on")
 
+        # save Korus version (if not already saved)
+        self._save_korus_version()
+
         # create SQLite tables, if they don't already exist
         create_tables(self)
 
@@ -291,6 +296,21 @@ class SQLiteBackend(DatabaseBackend, sqlite3.Connection):
         self._label = SQLiteTableBackend(self, "label", self.codec)
         self._tag = SQLiteTableBackend(self, "tag", self.codec)
         self._granularity = SQLiteTableBackend(self, "granularity", self.codec)
+
+    def _save_korus_version(self):
+        """Helper method for saving Korus version"""
+        if self.korus_version is None:
+            from korus.__init__ import __version__
+
+            v = encode_version(__version__)
+            c = self.cursor()
+            c.execute(f"PRAGMA user_version = {v}")
+
+    @property
+    def korus_version(self) -> str:
+        c = self.cursor()
+        v = c.execute("PRAGMA user_version").fetchall()[0][0]
+        return decode_version(v)
 
     @property
     def deployment(self) -> SQLiteTableBackend:

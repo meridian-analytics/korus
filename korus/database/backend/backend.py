@@ -81,6 +81,18 @@ class JobBackend(TableBackend):
 class DatabaseBackend:
 
     @property
+    def korus_version(self) -> str:
+        """Get Korus version used to create the database.
+
+        Returns:
+            version: str
+                The Korus version in the form x.y.z
+        """
+        raise NotImplementedError(
+            not_impl_err_msg(self.__class__.__name__, "korus_version")
+        )
+
+    @property
     def deployment(self) -> TableBackend:
         raise NotImplementedError(
             not_impl_err_msg(self.__class__.__name__, "deployment")

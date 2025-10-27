@@ -8,6 +8,45 @@ from korus.database.backend.sqlite.tables import is_field_table
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 
+def encode_version(v: str) -> int:
+    """Encode package version as an int
+
+    Args:
+        v: str
+            Version in the form x.y.z
+
+    Returns:
+        : int
+            The encoded versio no.
+    """
+    xyz = v.split(".")
+    x = int(xyz[0])
+    y = int(xyz[1])
+    z = int(xyz[2])
+    v = 1000000 * x + 10000 * y + 100 * z
+    return v
+
+
+def decode_version(v: int) -> str:
+    """Decode package version to a str.
+
+    Args:
+        : int
+            The encoded versio no.
+
+    Returns:
+        v: str
+            Version in the form x.y.z
+    """
+    if v == 0:
+        return None
+
+    x = v // 1000000
+    y = (v - x * 1000000) // 10000
+    z = (v - x * 1000000 - y * 10000) // 100
+    return f"{x}.{y}.{z}"
+
+
 def encode_condition(table_name, condition, encoder):
     encoded_condition = {}
     for name, values in condition.items():

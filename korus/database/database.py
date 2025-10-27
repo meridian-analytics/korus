@@ -37,6 +37,16 @@ class Database:
         )
 
     @property
+    def korus_version(self) -> str:
+        """Get Korus version used to create the database.
+
+        Returns:
+            version: str
+                The Korus version in the form x.y.z
+        """
+        return self.backend.korus_version
+
+    @property
     def tables(self) -> dict:
         """Returns a dict with all the tables in the database"""
         return {

@@ -1,8 +1,18 @@
 import argparse
+from tabulate import tabulate
 from korus.database.database import Database, SQLiteDatabase
 from .module import create_modules
 from .cursor import cursor
 import korus.cli.text as txt
+from korus.__init__ import __version__
+
+
+def welcome_message():
+    msg = f"Welcome to the Korus command-line-interface v{__version__}."
+    msg += "\nUse the prompts to view, add, or edit data in the database."
+    msg += "\nhttps://meridian-analytics.github.io/korus/"
+    msg = tabulate([[msg]], tablefmt="double_grid")
+    return msg
 
 
 def exec_cli(db: Database):
@@ -35,6 +45,7 @@ def main():
 
     try:
         db = SQLiteDatabase(args.path, new=args.new)
+        print(welcome_message())
         exec_cli(db)
         db.backend.close()
 
