@@ -52,12 +52,13 @@ Korus CLI
 .. code-block:: console
 
     >>> $ korus-cli db.sqlite
-    >>> ╔═════════════════════════════════════════════════════╗
-    >>> ║ Welcome to the Korus command-line-interface v0.1.0. ║
-    >>> ║ Connected to: db.sqlite                             ║
-    >>> ║ Use the prompts to view, add, or edit data.         ║
-    >>> ║ https://meridian-analytics.github.io/korus/         ║
-    >>> ╚═════════════════════════════════════════════════════╝
+    >>> ╔══════════════════════════════════════════════════════════════════╗
+    >>> ║ Welcome to the Korus command-line-interface v0.1.0.              ║
+    >>> ║ Connected to: test.sqlite                                        ║
+    >>> ║ Use the prompts to view, add, or edit data.                      ║
+    >>> ║ To return to the previous prompt or exit the program, hit Ctrl+C ║
+    >>> ║ https://meridian-analytics.github.io/korus/                      ║
+    >>> ╚══════════════════════════════════════════════════════════════════╝
     >>> [?] [main] Select table: 
     >>>  > deployment
     >>>    storage

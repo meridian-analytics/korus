@@ -11,6 +11,7 @@ def welcome_message(path):
     msg = f"Welcome to the Korus command-line-interface v{__version__}."
     msg += f"\nConnected to: {path}"
     msg += "\nUse the prompts to view, add, or edit data."
+    msg += "\nTo return to the previous prompt or exit the program, hit Ctrl+C"
     msg += "\nhttps://meridian-analytics.github.io/korus/"
     msg = tabulate([[msg]], tablefmt="double_grid")
     return msg
