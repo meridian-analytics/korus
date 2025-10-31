@@ -18,8 +18,8 @@ tables being
  - taxonomy: taxonomies used for annotating sound sources and sound types
  - job: metadata pertaining to annotation jobs
  - annotation: acoustic annotations
- - label: standardized annotation labels employed by the taxonomies
  - tag: non-standardized tags used for annotating sound events
+ - granularity: levels of granularity used for annotating sounds
 
 The Korus Python API includes functions to facilitate common operations 
 on the database such as adding data and performing certain searches. 
