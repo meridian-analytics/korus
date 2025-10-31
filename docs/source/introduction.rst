@@ -29,6 +29,9 @@ using standard SQLite syntax.
 The Python API also includes functions for creating and managing annotation 
 taxonomies programmatically. 
 
+Support for saving data to other database formats than SQLite, including 
+cloud-based platforms such as MongoDB, may be added in the future.
+
 
 Usage
 =====
