@@ -179,6 +179,11 @@ class TaxonomyManager:
                 mode = "b" if src_version > dst_version else "f"
                 relatives, equiv = self.get_closest_relative(nid, dst_version, mode)
 
+                relativesx = self.labels.get_label(
+                    self.labels.get_label_id(dst_version, nid=relatives),
+                    return_version=False,
+                )
+
                 if equivalent_only and not equiv:
                     continue
 
@@ -266,7 +271,7 @@ class TaxonomyManager:
             relatives: list[str] | list[tuple[str]]
                 IDs of the closest relatives
             is_equivalent: bool
-                Whether the source node and the relative node may be considered equivalent.
+                Whether the source node and the relative nodes may be considered equivalent.
         """
         is_equivalent = True
 

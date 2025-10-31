@@ -1,5 +1,6 @@
 import numpy as np
 from korus.database.backend import TableBackend
+from copy import deepcopy
 
 
 class InMemoryTableBackend(TableBackend):
@@ -49,14 +50,12 @@ class InMemoryTableBackend(TableBackend):
         if np.ndim(fields) == 0:
             fields = [fields]
 
+        rows = deepcopy(self.rows)
+
         if return_indices:
             fields = ["id"] + fields
-            rows = self.rows.copy()
             for i in range(len(rows)):
                 rows[i]["id"] = i
-        else:
-            rows = self.rows
-
         return [
             tuple([row.get(field, None) for field in fields])
             for idx, row in enumerate(rows)

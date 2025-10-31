@@ -39,7 +39,9 @@ def tree_from_dict(tree, recipe, parent=None, data_transform=None):
             data = None
 
         nid = value["id"]
-        tree.create_node(tag=key, identifier=nid, parent=parent, **data)
+        tree.create_node(
+            tag=key, identifier=nid, parent=parent, **data, log=False, load=True
+        )
 
         if branch_key in value.keys() and isinstance(value[branch_key], dict):
             tree = tree_from_dict(tree, value[branch_key], nid, data_transform)
@@ -344,7 +346,14 @@ class Taxonomy(Tree):
             return id_list[0]
 
     def create_node(
-        self, tag, identifier=None, parent=None, precursor=None, log=True, **kwargs
+        self,
+        tag,
+        identifier=None,
+        parent=None,
+        precursor=None,
+        log=True,
+        load=False,
+        **kwargs,
     ):
         """Create a new, child node for a parent node.
 
@@ -362,6 +371,8 @@ class Taxonomy(Tree):
                 If None, the parent identifier will be used.
             log: bool
                 If True (default), add a node-created message to the _changes attr
+            load: bool
+                Always set to True when loading from a dict. If False, the _create_nodes attrs gets updated.
 
         Returns:
             node: treelib.node.Node
@@ -383,9 +394,11 @@ class Taxonomy(Tree):
             tag=tag, identifier=identifier, parent=parent, data=kwargs
         )
 
-        self._created_nodes[node.identifier] = (
-            ([self.get_id(parent)], False) if precursor is None else precursor
-        )
+        if not load:
+            self._created_nodes[node.identifier] = (
+                ([self.get_id(parent)], False) if precursor is None else precursor
+            )
+
         self._tag_to_id[tag] = node.identifier
 
         if log:

@@ -82,6 +82,23 @@ def test_taxonomy_interface():
     assert ti.current.comment == "abc"
     assert ti.draft.comment == "xyz"
 
+    # make copies of created_nodes, removed_nodes, and changes attrs
+    created_nodes_list = [
+        ti.draft.created_nodes.copy(),
+        ti.releases[0].created_nodes.copy(),
+        ti.releases[1].created_nodes.copy(),
+    ]
+    removed_nodes_list = [
+        ti.draft.removed_nodes.copy(),
+        ti.releases[0].removed_nodes.copy(),
+        ti.releases[1].removed_nodes.copy(),
+    ]
+    changes_list = [
+        ti.draft.changes.copy(),
+        ti.releases[0].changes.copy(),
+        ti.releases[1].changes.copy(),
+    ]
+
     # check that we can reload the releases and saved draft
     ti.load()
 
@@ -95,6 +112,15 @@ def test_taxonomy_interface():
     )
     diff = first_release_labels_upon_load - first_release_labels
     assert diff == set()
+
+    # check that created_nodes, removed_nodes, and changes were correctly saved and re-loaded
+    assert created_nodes_list[0] == ti.draft.created_nodes
+    assert removed_nodes_list[0] == ti.draft.removed_nodes
+    assert changes_list[0] == ti.draft.changes
+    for i in [0, 1]:
+        assert created_nodes_list[i + 1] == ti.releases[i].created_nodes
+        assert removed_nodes_list[i + 1] == ti.releases[i].removed_nodes
+        assert changes_list[i + 1] == ti.releases[i].changes
 
 
 def test_get_label_id_acoustic_taxonomy(sqlite_database_with_taxonomy):

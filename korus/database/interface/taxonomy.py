@@ -51,6 +51,7 @@ class TaxonomyInterface(TableInterface, AcousticTaxonomyManager):
 
         # load all releases
         rows = self.get(return_indices=True)
+
         self.releases = []
         for row in rows:
             if row[0] != 0:
