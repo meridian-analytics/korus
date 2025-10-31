@@ -88,7 +88,7 @@ class StereoTimePeriod:
             self.mono_periods[channel] = MonoTimePeriod(
                 deployment_id=self.deployment_id,
                 max_file_gap=self.max_file_gap,
-                file_ids=p.file_ids,
+                file_ids=[p.file_ids[-1]],
                 channel=channel,
                 file_end_utc=p.file_end_utc,
                 start_utc=annot_end_utc,

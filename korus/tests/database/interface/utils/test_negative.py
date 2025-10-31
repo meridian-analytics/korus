@@ -11,7 +11,9 @@ from korus.database.interface.utils.negative import (
 def test_find_unannotated_periods_single_deployment_single_channel():
     t0 = datetime(2022, 12, 2)
 
-    # three 1-minute long files, spaced apart by 0s and 1s
+    # three 1-minute long files
+    # file #2 starts where file #1 ends
+    # file #3 starts 1 s after file #2 ends
     files = pd.DataFrame(
         {
             "deployment_id": [0, 0, 0],
@@ -31,13 +33,14 @@ def test_find_unannotated_periods_single_deployment_single_channel():
     )
 
     # two short annotations in the 1st file
+    # and one annotation in the second file
     annots = pd.DataFrame(
         {
-            "deployment_id": [0, 0],
-            "file_id": [10, 10],
-            "channel": [0, 0],
-            "start": [10.0, 20.0],
-            "duration": [3.0, 4.0],
+            "deployment_id": [0, 0, 0],
+            "file_id": [10, 10, 11],
+            "channel": [0, 0, 0],
+            "start": [10.0, 20.0, 15.0],
+            "duration": [3.0, 4.0, 2.0],
         }
     )
 
@@ -46,8 +49,10 @@ def test_find_unannotated_periods_single_deployment_single_channel():
     expected = """   deployment_id  file_id file_id_list  channel  duration  start
 0              0       10         [10]        0      10.0    0.0
 1              0       10         [10]        0       7.0   13.0
-2              0       10     [10, 11]        0      96.0   24.0
-3              0       12         [12]        0      60.0    0.0"""
+2              0       10     [10, 11]        0      51.0   24.0
+3              0       11         [11]        0      43.0   17.0
+4              0       12         [12]        0      60.0    0.0"""
+
     assert negatives.to_string() == expected
 
 
