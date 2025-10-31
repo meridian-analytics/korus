@@ -1,6 +1,10 @@
 Change log
 ==========
 
+**Version 0.1.0** (Nov X, 2025)
+
+ * Major rewrite of the codebase. First (semi-)stable release.
+
 **Version 0.0.11** (April 7, 2025)
 
  * `db.get_annotations` function can export to RavenPro format
