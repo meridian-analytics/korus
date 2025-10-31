@@ -1,9 +1,9 @@
 Utilities
 ===========
 
-.. currentmodule:: korus.util
+.. currentmodule:: korus.utils
 
-.. automodule:: korus.util
+.. automodule:: korus.utils
    :members:
    :undoc-members:
    :show-inheritance:

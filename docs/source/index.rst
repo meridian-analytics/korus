@@ -10,7 +10,6 @@ Korus Documentation
    :hidden:
 
    introduction
-   Database Schema <schema/index>
    Tutorials <tutorials/index>
    Modules <modules/index>
    Versions <versions/index>
