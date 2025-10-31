@@ -122,11 +122,10 @@ Or, generate a set of selection windows - for creating a machine-learning traini
 
     >>> df = db.annotation.create_selections(indices, window=3.0)
     >>> print(df)
-    >>> #TODO: update this
-                               filename  dir_path     start  duration  freq_min  freq_max  label comments 
-    0   audio_20130623T080000.116Z.flac  20130623  1127.340       3.0         0       500      0     None 
-    1   audio_20130623T080000.116Z.flac  20130623  1152.026       3.0         0       500      0     None
-    2   audio_20130623T080000.116Z.flac  20130623  1195.278       3.0         0       500      0     None
+    sel_id                                  filename     start       end  annot_id
+0        0  20130623/audio_20130623T080000.116Z.flac  1127.340  1130.340         0
+1        1  20130623/audio_20130623T080000.116Z.flac  1152.026  1155.026         1
+2        2  20130623/audio_20130623T080000.116Z.flac  1195.278  1198.278         2
 
 Finally, close the connection to the database,
 
