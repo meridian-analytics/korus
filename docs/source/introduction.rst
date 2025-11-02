@@ -21,8 +21,8 @@ tables being
  - tag: non-standardized tags used for annotating sound events
  - granularity: levels of granularity used for annotating sounds
 
-The Korus Python API includes functions to facilitate common operations 
-on the database such as adding data and performing certain searches. 
+The Korus Python API includes functions to facilitate common database 
+operations such as adding data or performing searches. 
 However, it is also possible to interact directly with the database 
 using standard SQLite syntax.
 
@@ -46,8 +46,8 @@ Usage
 
 There are two ways to use Korus:
 
- 1. Write your own Python scripts using the Korus Python API
- 2. Use the Korus command-line-interface application, `korus-cli`
+ 1. Write your own Python scripts using the Korus application programming interface (API)
+ 2. Use the Korus command-line-interface (CLI) application
 
 
 Korus CLI
@@ -74,19 +74,22 @@ Korus CLI
     >>>    annotation
 
 .. note::
-    Currently, Korus CLI only lets you view annotation taxonomies. 
+    Currently, Korus CLI only lets you *view* annotation taxonomies. 
     To create a new taxonomy or make changes to an existing taxonomy you must use the Python API.
 
 
-Korus API: Getting Started
-==========================
+Korus API
+=========
+
+Getting Started
+---------------
 
 To familiarize yourself with the Korus Python API we encourage you to 
 explore the Jupyter notebooks :ref:`tutorials_page`.
 
 
-Korus API: Code Examples
-========================
+Code Examples
+-------------
 
 Import modules and connect to an existing database,
 
