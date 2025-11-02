@@ -5,3 +5,4 @@ Taxonomy
    
    Taxonomy <taxonomy>
    Acoustic Taxonomy <acoustic>
+   Taxonomy Manager <manager>

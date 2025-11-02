@@ -32,6 +32,14 @@ taxonomies programmatically.
 Support for other database formats than SQLite, including cloud-based 
 platforms such as MongoDB, may be added in the future.
 
+.. caution::
+    Korus is still in its infancy and under active development. We aim to have a first, stable 
+    release out by the end of 2025, but until then users should be prepared for substantial and 
+    non-backward compatible changes to the code base. If you have any feedback for us, we would 
+    love to hear it. Please create an issue on the 
+    `Korus GitHub repository <https://github.com/meridian-analytics/korus>`_.
+
+
 
 Usage
 =====
@@ -45,7 +53,7 @@ There are two ways to use Korus:
 Korus CLI
 =========
 
-.. code-block:: console
+.. code-block:: bash
 
     >>> $ korus-cli db.sqlite
     >>> ╔══════════════════════════════════════════════════════════════════╗
@@ -65,12 +73,13 @@ Korus CLI
     >>>    granularity
     >>>    annotation
 
-Note: Currently, Korus CLI only lets you view annotation taxonomies. To create a new taxonomy or 
-make changes to an existing taxonomy you must use the Python API.
+.. note::
+    Currently, Korus CLI only lets you view annotation taxonomies. 
+    To create a new taxonomy or make changes to an existing taxonomy you must use the Python API.
 
 
 Korus API: Getting Started
-===============
+==========================
 
 To familiarize yourself with the Korus Python API we encourage you to 
 explore the Jupyter notebooks :ref:`tutorials_page`.
@@ -124,30 +133,21 @@ Export the annotations to a plain text file in the standard (RavenPro-compatible
 
     >>> db.annotation.to_raven("annotations.tsv", indices)
 
-Or, generate a set of selection windows - for creating a machine-learning training set with `Ketos <https://docs.meridian.cs.dal.ca/ketos/introduction.html>`_,
+Or - to create a training set for a machine-learning model - generate a set of uniformly-sized 
+selection windows in the format expected by `Ketos <https://docs.meridian.cs.dal.ca/ketos/introduction.html>`_,
 
     >>> df = db.annotation.create_selections(indices, window=3.0)
     >>> print(df)
-    sel_id                                  filename     start       end  annot_id
-0        0  20130623/audio_20130623T080000.116Z.flac  1127.340  1130.340         0
-1        1  20130623/audio_20130623T080000.116Z.flac  1152.026  1155.026         1
-2        2  20130623/audio_20130623T080000.116Z.flac  1195.278  1198.278         2
+        sel_id                                  filename     start       end  annot_id
+    0        0  20130623/audio_20130623T080000.116Z.flac  1127.340  1130.340         0
+    1        1  20130623/audio_20130623T080000.116Z.flac  1152.026  1155.026         1
+    2        2  20130623/audio_20130623T080000.116Z.flac  1195.278  1198.278         2
 
 Finally, close the connection to the database,
 
 .. code-block:: python
     
     >>> db.backend.close()
-
-
-Cautionary Note
-===============
-
-Korus is still in its infancy and under active development. We aim to have a first, stable 
-release out by the end of 2025, but until then users should be prepared for substantial and 
-non-backward compatible changes to the code base. If you have any feedback for us, we would 
-love to hear it. Please create an issue on the 
-`Korus GitHub repository <https://github.com/meridian-analytics/korus>`_.
 
 
 Annotation Taxonomies
