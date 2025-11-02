@@ -1,7 +1,7 @@
-Database Utilities
-==================
+Database
+========
 
 .. toctree::
    
-   Table <table>
-   Label <label>
+   Interface <interface/index.rst>
+   SQLite <backend/sqlite/index.rst>

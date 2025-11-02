@@ -29,8 +29,8 @@ using standard SQLite syntax.
 The Python API also includes functions for creating and managing annotation 
 taxonomies programmatically. 
 
-Support for saving data to other database formats than SQLite, including 
-cloud-based platforms such as MongoDB, may be added in the future.
+Support for other database formats than SQLite, including cloud-based 
+platforms such as MongoDB, may be added in the future.
 
 
 Usage
@@ -40,13 +40,6 @@ There are two ways to use Korus:
 
  1. Write your own Python scripts using the Korus Python API
  2. Use the Korus command-line-interface application, `korus-cli`
-
-
-Getting Started
-===============
-
-To familiarize yourself with the Korus Python API we encourage you to 
-explore the Jupyter notebooks :ref:`tutorials_page`.
 
 
 Korus CLI
@@ -71,6 +64,16 @@ Korus CLI
     >>>    tag
     >>>    granularity
     >>>    annotation
+
+Note: Currently, Korus CLI only lets you view annotation taxonomies. To create a new taxonomy or 
+make changes to an existing taxonomy you must use the Python API.
+
+
+Korus API: Getting Started
+===============
+
+To familiarize yourself with the Korus Python API we encourage you to 
+explore the Jupyter notebooks :ref:`tutorials_page`.
 
 
 Korus API: Code Examples
