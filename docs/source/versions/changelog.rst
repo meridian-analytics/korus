@@ -1,7 +1,7 @@
 Change log
 ==========
 
-**Version 0.1.0** (Nov X, 2025)
+**Version 0.1.0** (Nov 2, 2025)
 
  * Major rewrite of the codebase. First (semi-)stable release.
 
