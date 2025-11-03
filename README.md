@@ -10,7 +10,7 @@ can be found at [meridian-analytics.github.io/korus](https://meridian-analytics.
 # Installation 
 
 ```
-python setup.py sdist
+python -m build
 pip install dist/korus*
 ```
 
@@ -47,33 +47,15 @@ Port's ECHO Program.
 # Project status
 
 Korus is still in its infancy and under active development. We aim to have a first, stable 
-release out by the end of 2024, but until then users should be prepared for substantial and 
+release out by the end of 2025, but until then users should be prepared for substantial and 
 non-backward compatible changes to the code base. If you have any feedback for us, we would 
 love to hear it. Please create an issue with your question or suggestion.
 
 
 # Notes for developers
 
-The database schema diagram can be generated automatically with,
-```
-eralchemy -i sqlite:///tutorial/t2/db_t3.sqlite -o figures/erd_from_sqlite.png
-```
-You can install `eralchemy` with
-```
-sudo apt-get install python3-dev graphviz libgraphviz-dev pkg-config
-pip install 'SQLAlchemy<1.4'
-pip install eralchemy
-```
-
 Publish a new release to PyPy with,
 ```
-python setup.py sdist bdist_wheel
 twine upload dist/korus-X.Y.Z.tar.gz
 ```
-
-
-# Miscellaneous
-
- * [SQLite data types](https://www.sqlite.org/datatype3.html)
-
 

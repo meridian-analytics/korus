@@ -18,16 +18,27 @@ tables being
  - taxonomy: taxonomies used for annotating sound sources and sound types
  - job: metadata pertaining to annotation jobs
  - annotation: acoustic annotations
- - label: standardized annotation labels employed by the taxonomies
  - tag: non-standardized tags used for annotating sound events
+ - granularity: levels of granularity used for annotating sounds
 
-The Korus Python API includes functions to facilitate common operations 
-on the database such as adding data and performing certain searches. 
+The Korus Python API includes functions to facilitate common database 
+operations such as adding data or performing searches. 
 However, it is also possible to interact directly with the database 
 using standard SQLite syntax.
 
 The Python API also includes functions for creating and managing annotation 
 taxonomies programmatically. 
+
+Support for other database formats than SQLite, including cloud-based 
+platforms such as MongoDB, may be added in the future.
+
+.. caution::
+    Korus is still in its infancy and under active development. We aim to have a first, stable 
+    release out by the end of 2025, but until then users should be prepared for substantial and 
+    non-backward compatible changes to the code base. If you have any feedback for us, we would 
+    love to hear it. Please create an issue on the 
+    `Korus GitHub repository <https://github.com/meridian-analytics/korus>`_.
+
 
 
 Usage
@@ -35,33 +46,63 @@ Usage
 
 There are two ways to use Korus:
 
- 1. Write your own Python scripts using the Korus Python API
- 2. Use the command-line tool `korus-submit` included in Korus
+ 1. Write your own Python scripts using the Korus application programming interface (API)
+ 2. Use the Korus command-line-interface (CLI) application
 
+
+Korus CLI
+=========
+
+.. code-block:: bash
+
+    >>> $ korus-cli db.sqlite
+    >>> ╔══════════════════════════════════════════════════════════════════╗
+    >>> ║ Welcome to the Korus command-line-interface v0.1.0.              ║
+    >>> ║ Connected to: test.sqlite                                        ║
+    >>> ║ Use the prompts to view, add, or edit data.                      ║
+    >>> ║ To return to the previous prompt or exit the program, hit Ctrl+C ║
+    >>> ║ https://meridian-analytics.github.io/korus/                      ║
+    >>> ╚══════════════════════════════════════════════════════════════════╝
+    >>> [?] [main] Select table: 
+    >>>  > deployment
+    >>>    storage
+    >>>    file
+    >>>    job
+    >>>    taxonomy
+    >>>    tag
+    >>>    granularity
+    >>>    annotation
+
+.. note::
+    Currently, Korus CLI only lets you *view* annotation taxonomies. 
+    To create a new taxonomy or make changes to an existing taxonomy you must use the Python API.
+
+
+Korus API
+=========
 
 Getting Started
-===============
+---------------
 
 To familiarize yourself with the Korus Python API we encourage you to 
 explore the Jupyter notebooks :ref:`tutorials_page`.
 
 
 Code Examples
-=============
+-------------
 
-Import modules and connect to the database,
+Import modules and connect to an existing database,
 
 .. code-block:: python
     
-    >>> import sqlite3
-    >>> import korus.db as kdb
-    >>> conn = sqlite3.connect("db.sqlite")
+    >>> from korus.database import SQLiteDatabase
+    >>> db = SQLiteDatabase("db.sqlite")
 
 View the taxonomy used by the acoustic analyst for labelling sound sources,
 
 .. code-block:: python
     
-    >>> tax = kdb.get_taxonomy(conn)
+    >>> tax = db.taxonomy.current
     >>> tax.show(append_name=True)
     Unknown
     ├── Anthro [Anthropogenic]
@@ -87,36 +128,29 @@ Search the database for NARW upcalls,
 
 .. code-block:: python
     
-    >>> indices = kdb.filter_annotation(conn, select=("NARW","Upcall"))
+    >>> indices = db.annotation.filter(select=("NARW","Upcall")).indices
     >>> print(indices)
     [1, 4, 12]
 
-Retrieve the annotations in `Ketos <https://docs.meridian.cs.dal.ca/ketos/introduction.html>`_-friendly format,
+Export the annotations to a plain text file in the standard (RavenPro-compatible) Korus format,
 
-    >>> annot_tbl, label_dict = kdb.get_annotations(conn, indices, ketos=True)
-    >>> print(label_dict)
-    {0: 'NARW;Upcall'}
-    >>> print(annot_tbl)
-                               filename  dir_path     start  duration  freq_min  freq_max  label comments 
-    0   audio_20130623T080000.116Z.flac  20130623  1127.340       3.0         0       500      0     None 
-    1   audio_20130623T080000.116Z.flac  20130623  1152.026       3.0         0       500      0     None
-    2   audio_20130623T080000.116Z.flac  20130623  1195.278       3.0         0       500      0     None
+    >>> db.annotation.to_raven("annotations.tsv", indices)
+
+Or - to create a training set for a machine-learning model - generate a set of uniformly-sized 
+selection windows in the format expected by `Ketos <https://docs.meridian.cs.dal.ca/ketos/introduction.html>`_,
+
+    >>> df = db.annotation.create_selections(indices, window=3.0)
+    >>> print(df)
+        sel_id                                  filename     start       end  annot_id
+    0        0  20130623/audio_20130623T080000.116Z.flac  1127.340  1130.340         0
+    1        1  20130623/audio_20130623T080000.116Z.flac  1152.026  1155.026         1
+    2        2  20130623/audio_20130623T080000.116Z.flac  1195.278  1198.278         2
 
 Finally, close the connection to the database,
 
 .. code-block:: python
     
-    >>> conn.close()
-
-
-Cautionary Note
-===============
-
-Korus is still in its infancy and under active development. We aim to have a first, stable 
-release out by the end of 2024, but until then users should be prepared for substantial and 
-non-backward compatible changes to the code base. If you have any feedback for us, we would 
-love to hear it. Please create an issue on the 
-`Korus GitHub repository <https://github.com/meridian-analytics/korus>`_.
+    >>> db.backend.close()
 
 
 Annotation Taxonomies

@@ -1,0 +1,110 @@
+from datetime import datetime, timedelta
+import pandas as pd
+from .interface import TableInterface
+from korus.database.backend import TableBackend
+from .file import FileInterface
+
+
+class JobInterface(TableInterface):
+    def __init__(self, backend: TableBackend, file: FileInterface):
+        super().__init__("job", backend)
+
+        # linked interfaces
+        self._file = file
+
+        # fields
+        self._create_field("taxonomy_id", int, "Taxonomy index", required=False)
+        self._create_field(
+            "annotator",
+            str,
+            "Name of person who annotated the data",
+            required=False,
+        )
+        self._create_field(
+            "is_exhaustive",
+            bool,
+            "Whether all primary sounds were annotated",
+            required=False,
+        )
+        self._create_field(
+            "target", list, "Systematically annotated sounds", required=False
+        )
+        self._create_field(
+            "completion_date",
+            datetime,
+            "Completion date of annotation effort",
+            required=False,
+        )
+
+    def add_file(self, job_id: int, file_id: int, channel: int = 0):
+        """Add an audio-file channel to an annotation job.
+
+        Args:
+            job_id: int
+                The job index
+            file_id: int
+                The audiofile index
+            channel: int
+                Stereo channel, 0,1,...
+        """
+        self.backend.add_file(job_id, file_id, channel)
+
+    def get_files(self, job_id: int | list[int]) -> list[tuple[int, int]]:
+        """Get the audio-file channels associated with an annotation job or a set of jobs.
+
+        Args:
+            job_id: int | list[int]
+                The job index or indices
+
+        Returns:
+            : list[tuple[int,int]]
+                The file IDs and channel numbers.
+        """
+        return self.backend.get_files(job_id)
+
+    def get_filedata(self, job_id: int | list[int]) -> pd.DataFrame:
+        """Returns a Pandas DataFrame with metadata about the audio files associated with the specified job(s).
+
+        TODO: add example table with column names to this docstring
+        https://sublime-and-sphinx-guide.readthedocs.io/en/latest/tables.html#csv-files
+
+        Args:
+            job_id: int | list[int]
+                The job index or indices
+
+        Returns:
+            df: pd.DataFrame
+                The audiofile metadata.
+        """
+        # get file IDs and channel numbers
+        rows = self.get_files(job_id)
+
+        # unique file IDs
+        indices, channels = zip(*rows)
+        unique_indices = list(set(indices))
+
+        # file ID: int -> channel numbers: list[int]
+        channels_list = {i: [] for i in unique_indices}
+        for i, c in zip(indices, channels):
+            channels_list[i].append(c)
+
+        # get file data
+        df = self._file.get(
+            indices=unique_indices, return_indices=True, as_pandas=True
+        ).reset_index()
+
+        # rename index column
+        df.rename(columns={"id": "file_id"}, inplace=True)
+
+        # add channel (dtype=object)
+        df["channel"] = df.file_id.apply(lambda x: channels_list[x])
+
+        # sort according to deployment and time, in that order
+        df.sort_values(by=["deployment_id", "start_utc", "end_utc"], inplace=True)
+
+        # ensure correct dtypes
+        df = df.astype(
+            {"start_utc": "datetime64[ns, UTC]", "end_utc": "datetime64[ns, UTC]"}
+        )
+
+        return df

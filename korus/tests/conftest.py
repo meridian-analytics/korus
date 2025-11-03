@@ -1,138 +1,281 @@
 import os
 import pytest
-import json
 import pandas as pd
-from datetime import datetime, timedelta
-import korus.tax as kx
-import korus.db as kdb
+from datetime import datetime
+from korus.database.backend.sqlite import SQLiteBackend
+from korus.database import SQLiteDatabase
+from korus.tests.helpers import InMemoryTableBackend, InMemoryJobBackend
+from korus.database.interface import (
+    AnnotationInterface,
+    FileInterface,
+    JobInterface,
+    TaxonomyInterface,
+    LabelInterface,
+    TagInterface,
+    GranularityInterface,
+    StorageInterface,
+)
+from korus.taxonomy.acoustic import AcousticTaxonomy
 
 path_to_assets = os.path.join(os.path.dirname(__file__), "assets")
 path_to_tmp = os.path.join(path_to_assets, "tmp")
 
+# ensure tmp directory exists
+if not os.path.exists(path_to_tmp):
+    os.makedirs(path_to_tmp)
+
 
 @pytest.fixture
-def basic_db():
-    sqlite_path = os.path.join(path_to_tmp, "basic_db.sqlite")
-    if os.path.exists(sqlite_path):
-        os.remove(sqlite_path)
+def toy_acoustic_taxonomy():
+    """A toy acoustic taxonomy"""
+    tax = AcousticTaxonomy()
 
-    conn = kdb.create_db(sqlite_path)
+    tax.create_sound_source("A", parent="Unknown")
+    tax.create_sound_source("AA", parent="A")
+    tax.create_sound_source("AB", parent="A")
+    tax.create_sound_source("ABA", parent="AB")
+
+    tax.create_sound_type("a", "Unknown")
+    tax.create_sound_type("b", "A")
+    tax.create_sound_type("b1", "A", parent="b")
+    tax.create_sound_type("b2", "A", parent="b")
+    tax.create_sound_type("b3", "A", parent="b", recursive=False)
+    tax.create_sound_type("b4", "A", parent="b", recursive=False)
+    tax.create_sound_type("b3", "AA", parent="b")
+    tax.create_sound_type("b4", "AB", parent="b")
+    tax.create_sound_type("c", "ABA")
+    tax.create_sound_type("a1", "ABA", parent="a")
+    tax.create_sound_type("a2", "ABA", parent="a")
+
+    yield tax
+
+
+@pytest.fixture
+def in_memory_table_backend():
+    """Instance of TableBackend that stores data in memory"""
+    yield InMemoryTableBackend()
+
+
+@pytest.fixture
+def interfaces_with_taxonomy():
+    """Yields a dict of table interfaces with a small, but realistic taxonomy"""
+    label = LabelInterface(InMemoryTableBackend())
+    storage = StorageInterface(InMemoryTableBackend())
+    file = FileInterface(InMemoryTableBackend(), storage)
+    job = JobInterface(InMemoryJobBackend(), file)
+    tax = TaxonomyInterface(InMemoryTableBackend(), label)
+    tag = TagInterface(InMemoryTableBackend())
+    gran = GranularityInterface(InMemoryTableBackend())
+    annot = AnnotationInterface(InMemoryTableBackend(), tax, job, file, tag, gran)
+
+    # create a small taxonomy
+    tax.draft.create_sound_source("Whale", parent="Unknown")
+    tax.draft.create_sound_source("KW", parent="Whale")
+    tax.draft.create_sound_source("SRKW", parent="KW")
+    tax.draft.create_sound_type("TC", "Whale", "Unknown")
+    tax.draft.create_sound_type("PC", "KW", "TC")
+    tax.draft.create_sound_type("S01", "SRKW", "PC")
+    tax.draft.create_sound_source("HW", parent="Whale")
+    tax.release()
+
+    yield {
+        "file": file,
+        "job": job,
+        "taxonomy": tax,
+        "tag": tag,
+        "granularity": gran,
+        "annotation": annot,
+    }
+
+
+@pytest.fixture
+def job_interface_with_data():
+    """Yields a JobInterface with two jobs and two files"""
+
+    storage = StorageInterface(InMemoryTableBackend())
+    file = FileInterface(InMemoryTableBackend(), storage)
+    job = JobInterface(InMemoryJobBackend(), file)
+
+    # add two jobs
+    job.add({"taxonomy_id": 0})
+    job.add({"taxonomy_id": 0})
+
+    # add two files
+    file.add(
+        {
+            "deployment_id": 0,
+            "storage_id": 0,
+            "filename": "xyz.flac",
+            "sample_rate": 2000,
+            "num_samples": 20000,
+        }
+    )
+    file.add(
+        {
+            "deployment_id": 0,
+            "storage_id": 0,
+            "filename": "abc.wav",
+            "sample_rate": 4000,
+            "num_samples": 40000,
+        }
+    )
+
+    # link 1st file (channel 0) to the 2nd job
+    job.add_file(1, 0)
+
+    # link 2nd file (channel 14) to both jobs
+    job.add_file(0, 1, 14)
+    job.add_file(1, 1, 14)
+
+    yield job
+
+
+@pytest.fixture
+def minimal_sqlite_backend():
+    """Yields an SQLite database backend with every table populated with a single entry
+    where only the required fields have non-null values.
+    """
+    path = os.path.join(path_to_tmp, "test.sqlite")
+    if os.path.exists(path):
+        os.remove(path)
+
+    backend = SQLiteBackend(path, new=True)
+
+    backend.deployment.add({"name": "MyDeployment"})
+    backend.storage.add({"name": "MyFileStorage"})
+    backend.file.add(
+        {
+            "deployment_id": 0,
+            "storage_id": 0,
+            "filename": "abc.wav",
+            "sample_rate": 96000,
+            "num_samples": 960000,
+        }
+    )
+    backend.taxonomy.add({"name": "MyTaxonomy", "tree": dict()})
+    backend.job.add({"taxonomy_id": 0})
+    backend.annotation.add({"deployment_id": 0, "job_id": 0})
+
+    yield backend
+
+    backend.close()
+    if os.path.exists(path):
+        os.remove(path)
+
+
+@pytest.fixture
+def sqlite_database_with_taxonomy():
+    """Yields a Korus database with SQLite backend and a small, but realistic taxonomy."""
+    path = os.path.join(path_to_tmp, "db_with_tax.sqlite")
+    if os.path.exists(path):
+        os.remove(path)
+
+    db = SQLiteDatabase(path, new=True)
 
     # create a fairly simple acoustic taxonomy
-    tax = kx.AcousticTaxonomy(name="SimpleTax", path=sqlite_path)
+    tax = db.taxonomy.draft
 
     # add sources
     tax.create_sound_source("Bio", name="Biological sound source")
     tax.create_sound_source("Mammal", parent="Bio", name="Any mammal")
-    kw = tax.create_sound_source("KW", parent="Mammal")
-    kw = tax.create_sound_source("Dolphin", parent="Mammal")
-    kw = tax.create_sound_source("HW", parent="Mammal")
+    tax.create_sound_source("KW", parent="Mammal")
+    tax.create_sound_source("Dolphin", parent="Mammal")
+    tax.create_sound_source("HW", parent="Mammal")
 
     # add sound types
     tax.create_sound_type("TC", "Mammal", name="Tonal Call")
     tax.create_sound_type("CK", "Dolphin", name="Click")
     tax.create_sound_type("CK", "KW", name="Click")
-    tax.create_sound_type("PC", "KW", name="Pulsed Call")
-    tax.create_sound_type("W", "KW", name="Whistle")
+    tax.create_sound_type("PC", "KW", parent="TC", name="Pulsed Call")
+    tax.create_sound_type("W", "KW", parent="TC", name="Whistle")
 
-    # save, version no. 1
-    tax.save(comment="this is the first version")
-    #print(tax)
+    # release version 1
+    db.taxonomy.release(comment="this is the first version")
 
     # add another source and some more sound types
-    srkw = tax.create_sound_source("SRKW", parent="KW")
+    tax.create_sound_source("SRKW", parent="KW")
     tax.create_sound_type("S01", "SRKW", parent="PC", name="S1 call")
     tax.create_sound_type("S02", "SRKW", parent="PC", name="S2 call")
-
-    srkw = tax.create_sound_source("NRKW", parent="KW")
+    tax.create_sound_source("NRKW", parent="KW")
     tax.create_sound_type("N01", "NRKW", parent="PC", name="N1 call")
 
-    tax.save("added SRKW and NRKW") # version no. 2
-    #print(tax)
+    # version 2
+    db.taxonomy.release("added SRKW and NRKW")
 
     # remove NRKW again
     tax.remove_node("NRKW")
-    tax.save("removed NRKW") # version no. 3
-    #print(tax)
+
+    # version 3
+    db.taxonomy.release("removed NRKW")
 
     # link past KW
     tax.link_past_node("KW")
-    tax.save("linked past KW") # version no. 4
-    #print(tax)
 
-    yield conn, sqlite_path
+    # version 4
+    db.taxonomy.release("linked past KW")
 
-    conn.close()
-    if os.path.exists(sqlite_path):
-        os.remove(sqlite_path)
+    yield db
+
+    db.backend.close()
+    if os.path.exists(path):
+        os.remove(path)
 
 
 @pytest.fixture
-def deploy_data():
-    lat = 49.780487
-    lon = -122.05154
-    depth = 18.0
+def one_storage_location():
     v = {
-        "owner": "OceanResearch",
-        "name": "WestPoint",
-        "start_utc": "2022-06-24",
-        "end_utc": "2022-10-03",
-        "location": "Salt Spring Island, BC, Canada",
-        "latitude_deg": lat,
-        "longitude_deg": lon,
-        "depth_m": depth,
-        "latitude_min_deg": lat,
-        "latitude_max_deg": lat,
-        "longitude_min_deg": lon,
-        "longitude_max_deg": lon,
-        "depth_min_m": depth,
-        "depth_max_m": depth,
-        "license": None,
-        "hydrophone": None,
-        "bits_per_sample": None,
-        "sample_rate": 128000,
-        "num_channels": 1,
-        "sensitivity": None,
-        "comments": None
+        "name": "laptop",
+        "path": "/",
     }
     return v
 
 
 @pytest.fixture
-def file_data():
+def one_deployment():
+    lat = 49.780487
+    lon = -122.05154
+    depth = 18.0
+    v = {
+        "name": "WestPoint",
+        "start_utc": datetime(2022, 6, 24),
+        "end_utc": datetime(2022, 10, 3),
+        "latitude_deg": lat,
+        "longitude_deg": lon,
+        "depth_m": depth,
+    }
+    return v
+
+
+@pytest.fixture
+def two_files():
+    """Two, consecutive 5-minute audio files sampled at 32 kHz, with the first audio file starting at 2022-06-24 16:40:00.000"""
 
     def abclisten_timestamp_parser(x):
         fmt = "_%Y%m%dT%H%M%S.%fZ"
         p = x.find("_")
-        s = x[p: p + 21]
+        s = x[p : p + 21]
         return datetime.strptime(s, fmt)
 
-    fnames =[
+    fnames = [
         "ABCLISTENHF1234_20220624T164000.000Z_20220624T164459.996Z.flac",
-        "ABCLISTENHF1234_20220624T164500.023Z_20220624T164959.994Z.flac"
+        "ABCLISTENHF1234_20220624T164500.023Z_20220624T164959.994Z.flac",
     ]
 
-    deploy_path = "OceanResearch/WestPoint"
+    dirpath = "OceanResearch/WestPoint"
 
     file_data = []
     for fname in fnames:
         dt = abclisten_timestamp_parser(fname)
-        dir_path = os.path.join(deploy_path, dt.strftime("%Y%m%d"))
-        num_samples, sample_rate = 32000*5*60, 32000
-        start_utc_str = dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-        end_utc_str = (dt+timedelta(seconds=num_samples/sample_rate)).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        dir_path = os.path.join(dirpath, dt.strftime("%Y%m%d"))
+        num_samples, sample_rate = 32000 * 5 * 60, 32000
         v = {
-            "deployment_id": 1,
-            "storage_id": 1,
+            "deployment_id": 0,
+            "storage_id": 0,
             "filename": fname,
             "relative_path": dir_path,
             "sample_rate": sample_rate,
-            "downsample": None,
             "num_samples": num_samples,
-            "format": "FLAC",
-            "codec": "FLAC",
-            "start_utc": start_utc_str,
-            "end_utc": end_utc_str,
+            "start_utc": dt,
         }
         file_data.append(v)
 
@@ -140,136 +283,67 @@ def file_data():
 
 
 @pytest.fixture
-def db_with_annotations(basic_db, deploy_data, file_data):
-    """ Creates a database with a small set of annotations.
-
-        Database contents:
-
-            * A single hydrophone deployment
-            * Two, consecutive 5-minute audio files sampled at 32 kHz, with the first audio 
-                file starting at 2022-06-24 16:40:00.000
-            * An exhaustive annotation job targeting KW,PC and KW,W
-            * Three annotations:
-                - KW,PC: starting 30.0s into the first audio file and lasting 1.3s
-                - SRKW,S01: starting 21.1s into the first audio file and lasting 5 minutes
-                - None,None: a manual negative starting 1.0s into the first audio file and lasting 0.8s
-                - auto-generated negatives
-    """
-    (conn, sqlite_path) = basic_db
-
-    c = conn.cursor()
-    c = kdb.insert_row(conn, table_name="deployment", values=deploy_data)
-
-    v = {
-        "name": "laptop",
-        "path": "/",
-        "description": "data from my latest deployments",
-    }
-    c = kdb.insert_row(conn, table_name="storage", values=v)
-
-    for v in file_data:
-        kdb.insert_row(conn, table_name="file", values=v)
-
-    # insert job
-    primary_sound = kdb.get_label_id(
-        conn, 
-        source_type=[("KW","PC"), ("KW","W")],
-        taxonomy_id=2,
-        always_list=True
-    )
-    background_sound = kdb.get_label_id(
-        conn, 
-        source_type=("%","CK"),
-        taxonomy_id=2,
-        always_list=True
-    )
-    v = {
+def one_job():
+    """An exhaustive annotation job targeting KW,PC and KW,W"""
+    target = [("KW", "PC"), ("KW", "W")]
+    job_data = {
         "taxonomy_id": 2,
-        "model_id": None,
         "annotator": "LL",
-        "primary_sound": json.dumps(primary_sound),
-        "background_sound": json.dumps(background_sound),
-        "is_exhaustive": 1,
-        "configuration": None,
-        "start_utc": "2022-10",
-        "end_utc": "2023-03",
-        "by_human": 1,
-        "by_machine": 0,
-        "comments": "Vessel noise annotated opportunistically",
-        "issues": json.dumps(["start and end times may not always be accurate", "some KW sounds may have been incorrectly labelled as HW"]),
+        "target": target,
+        "is_exhaustive": True,
+        "completion_date": datetime(2023, 3, 1),
     }
-    c = kdb.insert_row(conn, table_name="job", values=v)
 
-    # link files
-    # get deployment id
-    query = """
-        SELECT 
-            id
-        FROM 
-            deployment 
-        WHERE 
-            owner LIKE 'OceanResearch' 
-            AND name LIKE 'WestPoint'
-            AND start_utc >= '2022-01-01'
-            AND end_utc <= '2022-12-31'
+    return job_data
+
+
+@pytest.fixture
+def three_annotations():
+    """Three annotations:
+    - KW,PC: starting 30.0s into the first audio file and lasting 1.3s
+    - SRKW,S01: starting 21.1s into the first audio file and lasting 5 minutes
+    - None,None: a manual negative starting 1.0s into the first audio file and lasting 0.8s
     """
-    rows = c.execute(query).fetchall()
-    deploy_id = rows[0][0]
-
-    # get file_id
-    for v in file_data:
-        fname = v["filename"]
-
-        query = f"""
-            SELECT 
-                id
-            FROM 
-                file 
-            WHERE 
-                deployment_id = '{deploy_id}' 
-                AND filename LIKE '{fname}'
-        """
-        rows = c.execute(query).fetchall()
-        file_id = rows[0][0]
-
-        # link file to job
-        v = {
-            "job_id": 1,
-            "file_id": file_id,
-            "channel": 0
-        }
-        c = kdb.insert_row(conn, table_name="file_job_relation", values=v)
-
-    # define a tag
-    v = {
-        "name": "NEGATIVE",
-        "description": "A negative sample"
+    annot_data = {
+        "deployment_id": [0, 0, 0],
+        "job_id": [0, 0, 0],
+        "file_id": [0, 0, 0],
+        "channel": [0, 0, 0],
+        "label": [("KW", "PC"), ("SRKW", "S01"), None],
+        "tentative_label": [("SRKW", "S01"), None, None],
+        "tag": [None, None, ["NEGATIVE"]],
+        "duration_ms": [1300, 300000, 800],
+        "start_ms": [30000, 21200, 1000],
+        "freq_min_hz": [600, 700, 800],
+        "freq_max_hz": [4400, 3300, 2200],
+        "granularity": ["unit", "window", "window"],
+        "comments": ["no additional observations", "", "this is a negative sample"],
     }
-    c = kdb.insert_row(conn, table_name="tag", values=v)
+    return annot_data
 
-    #insert annotation using add_annotation function
-    annot_tbl = pd.DataFrame({
-        "file_id": [1,1,1],
-        "channel": [0,0,0],
-        "sound_source": ["KW","SRKW",None],
-        "sound_type": ["PC","S01",None],
-        "tentative_sound_source": ["SRKW",None,None],
-        "tentative_sound_type": ["S01",None,None],
-        "tag": [None,None,["NEGATIVE"]],
-        "duration_ms": [1300,300000,800],
-        "start_ms": [30000,21200,1000],
-        "freq_min_hz": [600,700,None],
-        "freq_max_hz": [4400,3300,None],
-        "granularity": ["unit","window","window"],
-        "comments": ["no additional observations","","this is a negative sample"]
-    })
-    annot_ids = kdb.add_annotations(conn, annot_tbl=annot_tbl, job_id=1)
-    neg_ids = kdb.add_negatives(conn, job_id=1)
 
-    conn.commit()
+@pytest.fixture
+def sqlite_database_with_some_data(
+    sqlite_database_with_taxonomy,
+    one_deployment,
+    one_storage_location,
+    one_job,
+    two_files,
+    three_annotations,
+):
+    db = sqlite_database_with_taxonomy
 
-    yield conn, sqlite_path
+    db.deployment.add(one_deployment)
+    db.storage.add(one_storage_location)
+    for file in two_files:
+        db.file.add(file)
 
-    conn.close()
-    if os.path.exists(sqlite_path):
-        os.remove(sqlite_path)
+    db.job.add(one_job)
+    db.job.add_file(0, 0)
+    db.job.add_file(0, 1)
+    db.tag.add({"name": "NEGATIVE", "description": "a negative sample"})
+    df = pd.DataFrame(three_annotations)
+    for _, row in df.iterrows():
+        db.annotation.add(row)
+
+    yield db

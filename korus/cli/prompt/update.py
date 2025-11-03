@@ -1,0 +1,57 @@
+from korus.database.database import Database
+import korus.cli.prompt.prompt as prompt
+import korus.cli.parse as parse
+import korus.cli.text as txt
+
+
+def update(db: Database, table_name: str):
+    if table_name == "job":
+        update_job(db)
+
+    else:
+        update_field(db, table_name)
+
+
+def update_job(db: Database):
+    # TODO: implement this; allow user to link files to job
+    return update_field(db, "job")
+
+
+def update_field(db: Database, table_name: str):
+    """Update a field in the specified table.
+
+    Args:
+        db: korus.database.Database
+            The database instance
+        table_name: str
+            Table name
+
+    Raises:
+        KeyboardInterrupt: if the user hits Ctrl+C or the attempt to update the row fails
+    """
+    msg = "Enter the " + txt.bold("id") + " of the row you wish to update"
+    idx = prompt.enter_index(db, table_name, msg)
+
+    msg = "Select the field you wish to update"
+    field = prompt.select_field(db, table_name, msg, alias=True)
+
+    msg = f"Enter a new value for " + txt.bold(field.name)
+    value = prompt.enter_value(field, msg=msg)
+
+    if value is None:
+        return
+
+    value = parse.parse_value(value, field.type, field.required)
+    row = {field.name: value}
+    tbl = getattr(db, table_name)
+
+    try:
+        tbl.update(idx, row)
+        print(
+            txt.info(f"\nSuccessfully update row with id={idx} in {table_name} table.")
+        )
+
+    except Exception as err:
+        msg = f"\nFailed to update row in {table_name} table. " + str(err)
+        print(txt.error(msg))
+        raise KeyboardInterrupt

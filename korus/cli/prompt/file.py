@@ -1,0 +1,266 @@
+import os
+import inquirer
+import pandas as pd
+from datetime import datetime, timedelta
+from korus.audio import collect_audiofile_metadata, extract_num_samples_and_samplerate
+import korus.cli.prompt.prompt as prompt
+import korus.cli.parse as parse
+import korus.cli.text as txt
+from korus.cli.cursor import cursor
+
+
+AUDIO_FORMATS = ["wav", "flac", "ogg", "mp3"]
+
+
+def from_txt(dir_path, timestamp_parser):
+    """Extract audio filenames from a plain text file, then proceed to adding the files to the database.
+
+    Args:
+        dir_path: str
+            Top directory under which audio files are stored.
+        timestamp_parser: callable
+            Function that takes a string as input and returns a datetime.datetime object.
+
+    Returns:
+        : pd.DataFrame
+            Data frame containing audiofile metadata
+    """
+    txt_path = prompt.enter_path(
+        msg="Enter path to a plain text file with one filename per line"
+    )
+    with open(txt_path, "r") as f:
+        filenames = [line.rstrip() for line in f]
+
+    return from_filename(dir_path, timestamp_parser, filenames)
+
+
+def from_csv(dir_path, timestamp_parser):
+    """Extract audio filenames from a CSV file, then proceed to adding the files to the database.
+
+    Args:
+        dir_path: str
+            Top directory under which audio files are stored.
+        timestamp_parser: callable
+            Function that takes a string as input and returns a datetime.datetime object.
+
+    Returns:
+        : pd.DataFrame
+            Data frame containing audiofile metadata
+    """
+    csv_path = prompt.enter_path(msg="Enter path to CSV file with filenames")
+
+    df = pd.read_csv(csv_path)
+
+    msg = str(cursor) + "Select column"
+    col_name = inquirer.list_input(msg, choices=df.columns.values.tolist())
+
+    filenames = df[col_name].values.tolist()
+    return from_filename(dir_path, timestamp_parser, filenames)
+
+
+def from_raven(dir_path, timestamp_parser):
+    """Extract audio filenames from a RavenPro selection table, then proceed to adding the files to the database.
+
+    Expects the filenames to be stored in a column with the header `Begin File`.
+
+    Args:
+        dir_path: str
+            Top directory under which audio files are stored.
+        timestamp_parser: callable
+            Function that takes a string as input and returns a datetime.datetime object.
+
+    Returns:
+        : pd.DataFrame
+            Data frame containing audiofile metadata
+    """
+    csv_path = prompt.enter_path(msg="Enter path to RavenPro selection table")
+    df = pd.read_csv(csv_path, sep="\t")
+    filenames = df["Begin File"].values.tolist()
+    return from_filename(dir_path, timestamp_parser, filenames)
+
+
+def from_console(dir_path, timestamp_parser):
+    """Prompt user to input audio path(s) in the console, then proceed to adding the files to the database.
+
+    Args:
+        dir_path: str
+            Top directory under which audio files are stored.
+        timestamp_parser: callable
+            Function that takes a string as input and returns a datetime.datetime object.
+
+    Returns:
+        : pd.DataFrame
+            Data frame containing audiofile metadata
+    """
+    msg = "Enter the path to the audiofile you wish to add to the database (use comma as separator in case of multiple files)"
+    path = prompt.enter_path(multiple=True, msg=msg)
+    return from_filename(dir_path, timestamp_parser, path=path)
+
+
+def from_time_range(dir_path, timestamp_parser, by_date):
+    """Prompt user to specify a datetime range in the console, then proceed to adding the files to the database.
+
+    Args:
+        dir_path: str
+            Top directory under which audio files are stored.
+        timestamp_parser: callable
+            Function that takes a string as input and returns a datetime.datetime object.
+        by_date: bool
+            If audio files are organized in date-stamped subfolders with format yyyymmdd,
+            and both the earliest and latest start time have been specified, this argument
+            can be used to restrict the search space to only the relevant subfolders.
+            Default is False.
+
+    Returns:
+        : pd.DataFrame
+            Data frame containing audiofile metadata
+    """
+    validate = parse.create_validate_datetime(required=True)
+
+    msg = "Enter earliest start date and time"
+    msg = str(cursor) + msg
+    start_str = inquirer.text(message=msg, validate=validate)
+    start = parse.parse_value(start_str, datetime, True)
+
+    msg = "Enter latest start date and time"
+    msg = str(cursor) + msg
+    end_str = inquirer.text(message=msg, validate=validate)
+    end = parse.parse_value(end_str, datetime, True)
+
+    df = collect_audiofile_metadata(
+        path=dir_path,
+        ext=AUDIO_FORMATS,
+        timestamp_parser=timestamp_parser,
+        progress_bar=True,
+        inspect_files=False,
+        by_date=by_date,
+        earliest_start_utc=start,
+        latest_start_utc=end,
+    )
+
+    return from_filename(dir_path, timestamp_parser, df=df)
+
+
+def from_filename(
+    dir_path,
+    timestamp_parser,
+    filename: str | list[str] = None,
+    path: str | list[str] = None,
+    df: pd.DataFrame = None,
+):
+    """Search for audiofiles and prompt the user to select which files should be added to the database.
+
+    Args:
+        dir_path: str
+            Top directory under which audio files are stored.
+        timestamp_parser: callable
+            Function that takes a string as input and returns a datetime.datetime object.
+        filename: str | list[str]
+            Same as `path` except only requires the filename(s) to be specified.
+        path: str | list[str]
+            Audiofile paths relative to the top directory given by the `path` argument. Use
+            this argument to restrict attention to a subset of the files.
+        df: pd.DataFrame
+            Data frame with the relative paths and timestamps of the audio files that
+            should be added to the database. If specified, `filename` and `path` are ignored.
+
+    Returns:
+        : pd.DataFrame
+            Data frame containing audiofile metadata
+    """
+
+    if isinstance(filename, str):
+        filename = [filename]
+
+    if isinstance(path, str):
+        path = [path]
+
+    if df is None:
+        # search for files and parse timestamps
+        df = collect_audiofile_metadata(
+            path=dir_path,
+            ext=AUDIO_FORMATS,
+            timestamp_parser=timestamp_parser,
+            subset=path,
+            subset_filename=filename,
+            progress_bar=True,
+            inspect_files=False,
+        )
+
+    else:
+        filename = None
+        path = None
+
+    # inform user how many files were found
+    if filename is None:
+        msg = txt.info(f"Found {len(df)} files", newline=False)
+        not_found = []
+
+    else:
+        # missing files, if any
+        not_found = [fname for fname in filename if fname not in df.filename.values]
+
+        msg = f"Found {len(df)} of {len(filename)} files"
+        fmt = txt.info if len(not_found) == 0 else txt.warn
+        msg = fmt(msg, newline=False)
+
+    print(msg)
+
+    # print files that were *not* found
+    if len(not_found) > 0:
+        print(txt.warn("The following files were not found:"))
+        for fname in not_found:
+            print(f" - {fname}")
+
+    if len(df) == 0:
+        return
+
+    # prompt user to specify which files should be added to the database
+    # as default, pre-select all files with valid timestamps
+    choices = dict()
+    default = list()
+    for idx, row in df.iterrows():
+        choice_str = f"{row.filename} | "
+        if pd.isna(row.start_utc):
+            choice_str += "timestamp missing or could not be parsed"
+        else:
+            choice_str += f"{row.start_utc}"
+            default.append(choice_str)
+
+        choices[choice_str] = idx
+
+    msg = (
+        str(cursor)
+        + "Select the files you wish to add to the database, or hit Ctrl+C to abort"
+    )
+    answers = inquirer.checkbox(
+        msg,
+        choices=choices.keys(),
+        default=default,
+    )
+
+    # apply selection
+    indices = [choices[a] for a in answers]
+    df = df.loc[indices]
+
+    # extract durations and sampling rates
+    rel_path = [
+        os.path.join(row.relative_path, row.filename) for _, row in df.iterrows()
+    ]
+    num_samples, sample_rate = extract_num_samples_and_samplerate(
+        path=rel_path,
+        base_path=dir_path,
+        progress_bar=True,
+    )
+    df["num_samples"] = num_samples
+    df["sample_rate"] = sample_rate
+
+    # add end_utc column
+    if "start_utc" in df.columns:
+        df["end_utc"] = df.apply(
+            lambda r: r.start_utc
+            + timedelta(seconds=float(r.num_samples) / r.sample_rate),
+            axis=1,
+        )
+
+    return df
