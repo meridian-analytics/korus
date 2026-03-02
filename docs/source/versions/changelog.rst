@@ -1,6 +1,10 @@
 Change log
 ==========
 
+**Version 0.1.1** (Mar 2, 2026)
+
+ * Minor bug fix in `cli.prompt.view` which was causing poor rendering of taxonomy node metadata.
+
 **Version 0.1.0** (Nov 2, 2025)
 
  * Major rewrite of the codebase. First (semi-)stable release.

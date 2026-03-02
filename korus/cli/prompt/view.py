@@ -63,7 +63,7 @@ def view_taxonomy(db: Database):
         print(f"\nlabel: {sound_source.tag}")
         for k, v in sound_source.data.items():
             if k != "sound_types":
-                print(f"k: {v}")
+                print(f"{k}: {v}")
 
         print("sound types:")
         sound_types = tax.sound_types(sound_source_label)
@@ -92,7 +92,7 @@ def view_taxonomy(db: Database):
         # print node data
         print(f"\nlabel: {sound_type.tag}")
         for k, v in sound_type.data.items():
-            print(f"k: {v}")
+            print(f"{k}: {v}")
 
 
 def view_info(db: Database, table_name: str):
